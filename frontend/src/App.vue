@@ -1,13 +1,13 @@
 <template>
   <div class="container">
     <h2>Welcome back, Peer Analyzer</h2>
-    <p class="subtitle">과거 성적 데이터를 기반으로 나와 가장 정밀하게 일치하는 선배들의 정보를 시각화합니다.</p>
+    <p class="subtitle">과거 성적 데이터를 기반으로 나와 가장 정밀하게 일치하는 선배들의 정보를 시각화 만드는중..</p>
     
     <div class="input-section">
       <div class="form-group">
         <label>모의고사 월 선택</label>
         <select v-model="form.month">
-          <option v-for="m in [3,4,5,6,7,8,9,10]" :key="m" :value="m">{{ m }}월</option>
+          <option v-for="m in [3,4,5,6,7,8,9,10,11]" :key="m" :value="m">{{ m }}월</option>
         </select>
       </div>
       
@@ -26,25 +26,25 @@
         
         <div class="subjects-horizontal-row">
           <div class="chart-card-item card-grammar">
-            <span class="card-label">문법 분석 (20점 만점)</span>
+            <span class="card-label">문법</span>
             <div class="mini-chart-space"><canvas id="grammarChart"></canvas></div>
           </div>
           <div class="chart-card-item card-vocabulary">
-            <span class="card-label">어휘 분석 (20점 만점)</span>
+            <span class="card-label">어휘</span>
             <div class="mini-chart-space"><canvas id="vocabularyChart"></canvas></div>
           </div>
           <div class="chart-card-item card-logic">
-            <span class="card-label">논리 분석 (20점 만점)</span>
+            <span class="card-label">논리</span>
             <div class="mini-chart-space"><canvas id="logicChart"></canvas></div>
           </div>
           <div class="chart-card-item card-reading">
-            <span class="card-label">독해 분석 (50점 만점)</span>
+            <span class="card-label">독해</span>
             <div class="mini-chart-space"><canvas id="readingChart"></canvas></div>
           </div>
         </div>
         
         <div class="chart-card-item card-total total-wide-card">
-          <span class="card-label">유사 성적 합격 선배들의 시즌 총점 추이 그래프 (3월 ~ 10월 흐름)</span>
+          <span class="card-label">유사 성적 합격 선배들의 시즌 총점 추이 그래프 (3월 ~ 11월 흐름)</span>
           <div class="mini-chart-space"><canvas id="timelineChart"></canvas></div>
         </div>
 
@@ -65,11 +65,11 @@
               </div>
               
               <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-scores-tags">
-                <span class="badge-score badge-grammar">문법 {{ scoreObj.grammar }}</span>
-                <span class="badge-score badge-vocabulary">어휘 {{ scoreObj.vocabulary }}</span>
-                <span class="badge-score badge-logic">논리 {{ scoreObj.logic }}</span>
-                <span class="badge-score badge-reading">독해 {{ scoreObj.reading }}</span>
-                <span class="badge-score badge-total">총점 {{ scoreObj.total }}</span>
+                <span class="badge-score badge-grammar">{{ scoreObj.grammar }}</span>
+                <span class="badge-score badge-vocabulary">{{ scoreObj.vocabulary }}</span>
+                <span class="badge-score badge-logic">{{ scoreObj.logic }}</span>
+                <span class="badge-score badge-reading">{{ scoreObj.reading }}</span>
+                <span class="badge-score badge-total">{{ scoreObj.total }}</span>
               </div>
             </div>
           </div>
@@ -96,11 +96,11 @@
               <td class="gray-text">{{ s.department }}</td>
               <td>
                 <div class="table-badge-group">
-                  <span class="badge-score badge-grammar">문법 {{ s.scores.grammar }}</span>
-                  <span class="badge-score badge-vocabulary">어휘 {{ s.scores.vocabulary }}</span>
-                  <span class="badge-score badge-logic">논리 {{ s.scores.logic }}</span>
-                  <span class="badge-score badge-reading">독해 {{ s.scores.reading }}</span>
-                  <span class="badge-score badge-total">총점 {{ s.scores.total }}</span>
+                  <span class="badge-score badge-grammar">{{ s.scores.grammar }}</span>
+                  <span class="badge-score badge-vocabulary">{{ s.scores.vocabulary }}</span>
+                  <span class="badge-score badge-logic">{{ s.scores.logic }}</span>
+                  <span class="badge-score badge-reading">{{ s.scores.reading }}</span>
+                  <span class="badge-score badge-total">{{ s.scores.total }}</span>
                 </div>
               </td>
             </tr>
@@ -122,7 +122,7 @@ Chart.register(...registerables);
 export default {
   data() {
     return {
-      form: { month: 4, grammar: '', vocabulary: '', logic: '', reading: '' },
+      form: { month: 1, grammar: '', vocabulary: '', logic: '', reading: '' },
       result: null,
       chartInstances: {}
     };
@@ -159,7 +159,7 @@ export default {
     renderAllCharts(averages, timeline) {
       // 🌟 [수정 완료] 영역별 문항 배점 정량 한계 고유 설정 부여 (20점 vs 50점 만점 분리)
       const miniConfigs = [
-        { id: 'grammar', my: this.form.grammar || 0, avg: averages.grammar, bg: 'rgba(132, 204, 22, 0.75)', max: 17.5 },
+        { id: 'grammar', my: this.form.grammar || 0, avg: averages.grammar, bg: 'rgba(132, 204, 22, 0.75)', max: 25 },
         { id: 'vocabulary', my: this.form.vocabulary || 0, avg: averages.vocabulary, bg: 'rgba(59, 130, 246, 0.75)', max: 12.5 },
         { id: 'logic', my: this.form.logic || 0, avg: averages.logic, bg: 'rgba(249, 115, 22, 0.75)', max: 20 },
         { id: 'reading', my: this.form.reading || 0, avg: averages.reading, bg: 'rgba(234, 179, 8, 0.75)', max: 50 }
