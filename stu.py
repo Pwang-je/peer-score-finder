@@ -1,7 +1,7 @@
 import pandas as pd
 
 # 1. 원본 엑셀 파일 경로 지정
-file_name = r"C:\Users\esang\PycharmProjects\convhwp\19_11월_성적표_영어.xlsm"
+file_name = r"C:\Users\esang\PycharmProjects\convhwp\26_5월_성적표_영어.xlsm"
 
 # 2. 모든 시트 불러오기
 all_sheets = pd.read_excel(file_name, sheet_name=None)
