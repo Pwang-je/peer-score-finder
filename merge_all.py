@@ -2,7 +2,8 @@ import pandas as pd
 import os
 
 # 1. 경로 설정
-data_dir = r"C:\Users\esang\PycharmProjects\convhwp\년도별합격정보"
+# data_dir = r"C:\Users\esang\PycharmProjects\convhwp\년도별합격정보"
+data_dir = r"/Users/pwang/PycharmProjects/peer-score-finder/"
 all_years_data = []
 
 for year in range(2019, 2027):

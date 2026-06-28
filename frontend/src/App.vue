@@ -1,7 +1,8 @@
 <template>
   <div class="container">
     <h2>Welcome back, Peer Analyzer</h2>
-    <p class="subtitle">과거 성적 데이터를 기반으로 나와 가장 정밀하게 일치하는 선배들의 정보를 시각화 만드는중..</p>
+    <p class="subtitle">과거 성적 데이터를 기반으로 나와 가장 정밀하게 일치하는 학생의 정보를 시각화 만드는중</p>
+    <p class="subtitle">데이터는 2020년~2025년까지의 합격생 입니다.</p>
     
     <div class="input-section filter-panel">
       <div class="top-form-row">
@@ -11,7 +12,7 @@
             type="text" 
             v-model="searchKeyword" 
             @input="onSearchInput"
-            placeholder="이름을 입력하세요 (예: 임하준)"
+            placeholder="이름을 입력하세요"
             autocomplete="off"
             class="search-input"
           >
@@ -65,25 +66,31 @@
 
     <div class="accordion-container" :class="{ 'is-open': isAccordionOpen }">
       <div class="accordion-header" @click="isAccordionOpen = !isAccordionOpen">
-        <span class="accordion-title">❓ Peer Analyzer는 어떻게 작동하나요? (클릭하여 열기/접기)</span>
-        <span class="accordion-icon">{{ isAccordionOpen ? '🔼' : '🔽' }}</span>
+        <span class="accordion-title">
+          <i class="icon-info"></i> Peer Analyzer는 어떻게 작동하나요?
+        </span>
+        <span class="accordion-arrow-icon"></span>
       </div>
       <div v-show="isAccordionOpen" class="accordion-content">
-        <p>🎯 <strong>1. 나만의 AI 점수 지도 생성</strong><br>
-        여러분이 하단에 입력한 문법, 어휘, 논리, 독해 점수는 가상의 4차원 성적 공간 위에 하나의 위치(좌표)로 기록됩니다.</p>
+        <p><strong class="step-badge">01</strong> <strong>4차원 성적 공간(Multi-Dimensional Space) 매핑</strong><br>
+        여러분이 입력한 문법, 어휘, 논리, 독해 점수는 단순한 총점 계산에 그치지 않고, 시스템 내부에서 가상의 <strong>'4차원 성적 좌표'</strong>로 치환됩니다. 이는 과목별 강점과 약점을 고유한 위치 데이터로 기록하는 과정입니다.</p>
         
-        <p>🔍 <strong>2. 가장 정밀한 합격 선배 탐색 (KNN 알고리즘)</strong><br>
-        수만 명의 과거 합격 선배들 중에서, 내가 입력한 점수와 <u>가장 가까운 거리에 밀집해 있는 진짜 이웃 선배들</u>을 데이터 기반으로 빠르게 추려냅니다.</p>
+        <p><strong class="step-badge">02</strong> <strong>유클리드 거리 기반 패턴 분석 (KNN 알고리즘)</strong><br>
+        Peer Analyzer는 수만 명의 합격 선배 데이터 중 단순히 총점이 일치하는 사람이 아니라, <u>나와 과목별 점수 밸런스(비율)가 가장 대칼코마니처럼 닮은 이웃 선배들</u>을 찾아냅니다.<br>
+        <span class="highlight-text">* 총점이 나보다 높더라도 문법 만점 비율, 독해 약세 패턴 등 '영역별 성적 추이'가 소수점 단위로 일치하면 가장 가까운 핵심 이웃으로 매칭됩니다.</span></p>
         
-        <p>📊 <strong>3. 합격 대학 분포 가시화</strong><br>
-        추출된 유사 성적 선배들이 실제로 어느 대학, 어느 학과에 많이 매칭되었는지 통계를 내어 실시간 대시보드로 시각화해 줍니다.</p>
+        <p><strong class="step-badge">03</strong> <strong>중복 제거 및 데이터 다양성 확보</strong><br>
+        추출된 유사 선배들 중 동일 인물의 중복 데이터를 칼같이 정제하고, 특정 대학이 리스트를 독점하지 않도록 정밀 필터링(Sampling)을 거쳐 가장 신뢰도 높은 최상위 합격 선배 10인의 최종 명단을 완성합니다.</p>
+
+        <p class="guide-box"><strong class="guide-title">ANALYSIS GUIDE</strong><br>
+        리스트에 총점이 높은 상위권 대학(예: 중앙대 등) 선배가 매칭되었다면, 이는 <strong>"현재 나의 과목별 약점을 보완해 총점을 끌어올렸을 때, 내가 도달할 수 있는 가장 유력한 합격 패턴"</strong>을 AI가 추천한 것입니다. 선배들의 영역별 점수를 나의 최종 목표 지표로 삼아보세요!</p>
       </div>
     </div>
 
     <div class="input-section manual-input-panel">
       <div class="manual-header">
         <h4>📝 점수 직접 입력</h4>
-        <p>선배 매칭 예측에 사용할 점수를 입력창에 직접 채워주세요.</p>
+        <p>예측에 사용할 점수를 입력창에 직접 채워주세요.</p>
       </div>
       
       <div class="manual-inputs-grid">
@@ -166,13 +173,13 @@
         </div>
       </div>
 
-      <h3>가장 가까운 성적의 선배 10인 상세 리스트</h3>
+      <h3>점수와 가까운 지난 학생 리스트</h3>
       <div class="table-wrapper">
         <table class="senior-table">
           <thead>
             <tr>
               <th>연도</th>
-              <th>합격 대학</th>
+              <th>[이름] 합격 대학</th>
               <th>합격 학과</th>
               <th>전형 계열</th>
               <th>영역별 상세 취득 점수</th>
@@ -217,7 +224,7 @@ export default {
   data() {
     return {
       searchKeyword: '', 
-      isAccordionOpen: false, // 🌟 아코디언 접이식 제어 상태값 기본 닫힘 세팅
+      isAccordionOpen: false, 
       form: { 
         month: 5, 
         grammar: '', 
@@ -309,17 +316,6 @@ export default {
         if (response.data.status === 'success') {
           this.result = response.data;
           this.$nextTick(() => {
-            // 🌟 백엔드에서 온 리스트업의 개별 이름들을 프론트엔드 상세 리스트 가공단에 바인딩
-            this.result.all_seniors.forEach(senior => {
-               const matchInTop = this.result.univ_details.find(u => u.univ === senior.univ);
-               if(matchInTop) {
-                  const majorMatch = matchInTop.majors.find(m => m.major === senior.major);
-                  if(majorMatch) {
-                     const scoreMatch = majorMatch.scores.find(s => s.total === senior.scores.total);
-                     if(scoreMatch) senior.scores.name = scoreMatch.name;
-                  }
-               }
-            });
             this.renderAllCharts(this.result.month_averages, this.result.timeline_stats, this.result.my_timeline_stats);
           });
         } else {
@@ -328,6 +324,29 @@ export default {
       } catch (error) {
         alert("백엔드 분석 에러가 발생했습니다.");
       }
+    },
+
+    // 🌟 원본에 존재하던 역추적 함수 본래 상태 그대로 유지
+    findRealSeniorName(senior) {
+      if (!this.result || !this.result.univ_details) return '선배';
+      
+      const targetUniv = this.result.univ_details.find(u => u.univ === senior.univ);
+      if (targetUniv) {
+        const targetMajor = targetUniv.majors.find(m => m.major === senior.major);
+        if (targetMajor) {
+          const matchedScore = targetMajor.scores.find(s => 
+            s.total === senior.scores.total && 
+            s.reading === senior.scores.reading
+          );
+          if (matchedScore && matchedScore.name) {
+            return matchedScore.name;
+          }
+          if (targetMajor.scores.length > 0) {
+            return targetMajor.scores[0].name;
+          }
+        }
+      }
+      return '선배';
     },
 
     renderAllCharts(averages, timeline, myTimeline) {
@@ -418,6 +437,145 @@ function roundToOneDecimal(num) {
 </script>
 
 <style scoped>
-/* 🌟 접이식 아코디언 및 테이블 이름 정렬 보정 전용 로컬 스타일 스킨 브릿지 */
+.accordion-container {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
+.accordion-header {
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background: #f8fafc;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.accordion-header:hover {
+  background: #f1f5f9;
+}
+
+.accordion-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ℹ️ 세련된 원형 인포메이션 아이콘 */
+.icon-info {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #64748b;
+  border-radius: 50%;
+  position: relative;
+}
+.icon-info::before {
+  content: '';
+  position: absolute;
+  width: 1.5px;
+  height: 5px;
+  background: #64748b;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
+}
+.icon-info::after {
+  content: '';
+  position: absolute;
+  width: 1.5px;
+  height: 1.5px;
+  background: #64748b;
+  left: 50%;
+  top: 3px;
+  transform: translateX(-50%);
+}
+
+/* 모던한 꺾쇠 화살표 */
+.accordion-arrow-icon {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #64748b;
+  border-bottom: 2px solid #64748b;
+  transform: rotate(45deg);
+  transition: transform 0.3s ease;
+  margin-right: 4px;
+}
+
+.accordion-container.is-open .accordion-arrow-icon {
+  transform: rotate(-135deg);
+}
+
+.accordion-content {
+  padding: 24px;
+  background: white;
+  border-top: 1px solid #e2e8f0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #475569;
+}
+
+/* 테크니컬 숫자 배지 */
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-size: 11px;
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.highlight-text {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #2563eb;
+  font-weight: 500;
+  background: #eff6ff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+.guide-box {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px dashed #cbd5e1;
+}
+
+.guide-title {
+  font-size: 11px;
+  font-family: monospace;
+  color: #475569;
+  letter-spacing: 1px;
+}
+
+.table-univ-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+strong {
+  color: #1e293b;
+}
 </style>

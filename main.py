@@ -223,13 +223,21 @@ def predict_university(month: int, grammar: float, vocabulary: float, logic: flo
             })
 
         # 🌟 [수정] 상세 목록용 리스트 생성 시 딱 상위 10명만 자르기 (.head(10) 추가)
+        # === main.py 파일의 최하단 이 부분을 찾아서 수정해 주세요 ===
         senior_list = []
         for _, row in matched_seniors.head(10).iterrows():
             senior_list.append({
-                "year": int(row['year']), "univ": row['univ'], "major": row['major'], "department": row['department'],
+                "year": int(row['year']),
+                "univ": row['univ'],
+                "major": row['major'],
+                "department": row['department'],
                 "scores": {
-                    "grammar": float(row['grammar']), "vocabulary": float(row['vocabulary']),
-                    "logic": float(row['logic']), "reading": float(row['reading']), "total": float(row['total_score'])
+                    "name": row['student_name'],  # 🌟 여기에 이름을 직접 꽂아서 프론트로 넘겨버립니다!
+                    "grammar": float(row['grammar']),
+                    "vocabulary": float(row['vocabulary']),
+                    "logic": float(row['logic']),
+                    "reading": float(row['reading']),
+                    "total": float(row['total_score'])
                 }
             })
 
