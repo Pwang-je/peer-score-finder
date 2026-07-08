@@ -166,92 +166,85 @@ def predict_university(month: int, grammar: float, vocabulary: float, logic: flo
         timeline_stats[f"{m}월"] = final_score
         last_valid_senior_score = final_score
 
-    # 나의 1월 ~ 11월 추이선 딕셔너리 빌드 (2월 공백 완벽 방어)
-    df_my = get_my_all_months_data(student_name)
-    my_timeline_stats = {}
-    last_valid_my_score = None
+        # 나의 1월 ~ 11월 추이선 딕셔너리 빌드 (심플하고 정확한 매칭으로 수정)
+        df_my = get_my_all_months_data(student_name)
+        my_timeline_stats = {}
 
-    for m in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
-        my_m_df = df_my[df_my['month'] == m]
+        for m in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
+            my_m_df = df_my[df_my['month'] == m]
 
-        if not my_m_df.empty:
-            avg_my_score = round(float(my_m_df['total_score'].iloc[0]), 1)
-            my_timeline_stats[f"{m}월"] = avg_my_score
-            last_valid_my_score = avg_my_score
-        else:
-            if last_valid_my_score is not None:
-                my_timeline_stats[f"{m}월"] = last_valid_my_score
+            if not my_m_df.empty:
+                avg_my_score = round(float(my_m_df['total_score'].iloc[0]), 1)
+                my_timeline_stats[f"{m}월"] = avg_my_score
             else:
                 my_timeline_stats[f"{m}월"] = None
 
-    # === [들여쓰기 고정 완료] 매칭 확률 높은 TOP 10 대학 및 학과별 분포 추출 로직 ===
-        # === [수정] 매칭 확률 높은 TOP 10 대학 및 학과별 분포 추출 로직 ===
-        top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
-        univ_details = []
+    # === [들여쓰기 수정 완료] 매칭 확률 높은 TOP 10 대학 및 학과별 분포 추출 로직 ===
+    top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
+    univ_details = []
 
-        for univ in top_univ_names:
-            univ_df = matched_seniors[matched_seniors['univ'] == univ]
-            major_groups = univ_df.groupby('major')
-            major_list = []
+    for univ in top_univ_names:
+        univ_df = matched_seniors[matched_seniors['univ'] == univ]
+        major_groups = univ_df.groupby('major')
+        major_list = []
 
-            for major_name, group in major_groups:
-                score_details = []
-                for _, row in group.iterrows():
-                    short_year = f"{str(row['year'])[2:]}'"
+        for major_name, group in major_groups:
+            score_details = []
+            for _, row in group.iterrows():
+                short_year = f"{str(row['year'])[2:]}'"
 
-                    score_details.append({
-                        "year": short_year,
-                        "name": row['student_name'],
-                        "grammar": float(row['grammar']),
-                        "vocabulary": float(row['vocabulary']),
-                        "logic": float(row['logic']),
-                        "reading": float(row['reading']),
-                        "total": float(row['total_score'])
-                    })
-
-                major_list.append({
-                    "major": major_name,
-                    "count": int(len(group)),
-                    "scores": score_details
-                })
-
-            major_list = sorted(major_list, key=lambda x: x['count'], reverse=True)
-            univ_details.append({
-                "univ": univ,
-                "total_count": int(len(univ_df)),
-                "majors": major_list
-            })
-
-        # 🌟 [수정] 상세 목록용 리스트 생성 시 딱 상위 10명만 자르기 (.head(10) 추가)
-        # === main.py 파일의 최하단 이 부분을 찾아서 수정해 주세요 ===
-        senior_list = []
-        for _, row in matched_seniors.head(10).iterrows():
-            senior_list.append({
-                "year": int(row['year']),
-                "univ": row['univ'],
-                "major": row['major'],
-                "department": row['department'],
-                "scores": {
-                    "name": row['student_name'],  # 🌟 여기에 이름을 직접 꽂아서 프론트로 넘겨버립니다!
+                score_details.append({
+                    "year": short_year,
+                    "name": row['student_name'],
                     "grammar": float(row['grammar']),
                     "vocabulary": float(row['vocabulary']),
                     "logic": float(row['logic']),
                     "reading": float(row['reading']),
                     "total": float(row['total_score'])
-                }
+                })
+
+            major_list.append({
+                "major": major_name,
+                "count": int(len(group)),
+                "scores": score_details
             })
 
-        return {
-            "status": "success",
-            "month_averages": month_averages,
-            "timeline_stats": timeline_stats,
-            "my_timeline_stats": my_timeline_stats,
-            "univ_details": univ_details,
-            "all_seniors": senior_list
-        }
+        major_list = sorted(major_list, key=lambda x: x['count'], reverse=True)
+        univ_details.append({
+            "univ": univ,
+            "total_count": int(len(univ_df)),
+            "majors": major_list
+        })
+
+    # 🌟 [수정] 상세 목록용 리스트 생성 시 딱 상위 10명만 자르기
+    senior_list = []
+    for _, row in matched_seniors.head(10).iterrows():
+        senior_list.append({
+            "year": int(row['year']),
+            "univ": row['univ'],
+            "major": row['major'],
+            "department": row['department'],
+            "scores": {
+                "name": row['student_name'],
+                "grammar": float(row['grammar']),
+                "vocabulary": float(row['vocabulary']),
+                "logic": float(row['logic']),
+                "reading": float(row['reading']),
+                "total": float(row['total_score'])
+            }
+        })
+
+    # ✅ 들여쓰기가 수정된 최종 return문
+    return {
+        "status": "success",
+        "month_averages": month_averages,
+        "timeline_stats": timeline_stats,
+        "my_timeline_stats": my_timeline_stats,
+        "univ_details": univ_details,
+        "all_seniors": senior_list
+    }
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

@@ -1,8 +1,8 @@
 <template>
   <div class="container">
-    <h2>Welcome back, Peer Analyzer</h2>
-    <p class="subtitle">과거 성적 데이터를 기반으로 나와 가장 정밀하게 일치하는 학생의 정보를 시각화 만드는중</p>
-    <p class="subtitle">데이터는 2020년~2025년까지의 합격생 입니다.</p>
+    <h2>Peer Analyzer</h2>
+    <p class="subtitle">과거 성적 데이터를 기반으로 나와 가장 정밀하게 일치하는 학생의 정보</p>
+    <p class="subtitle">데이터는 2020년~2025년까지의 합격생</p>
     
     <div class="input-section filter-panel">
       <div class="top-form-row">
@@ -67,23 +67,23 @@
     <div class="accordion-container" :class="{ 'is-open': isAccordionOpen }">
       <div class="accordion-header" @click="isAccordionOpen = !isAccordionOpen">
         <span class="accordion-title">
-          <i class="icon-info"></i> Peer Analyzer는 어떻게 작동하나요?
+          <i class="icon-info"></i> 작동 방식?
         </span>
         <span class="accordion-arrow-icon"></span>
       </div>
       <div v-show="isAccordionOpen" class="accordion-content">
         <p><strong class="step-badge">01</strong> <strong>4차원 성적 공간(Multi-Dimensional Space) 매핑</strong><br>
-        여러분이 입력한 문법, 어휘, 논리, 독해 점수는 단순한 총점 계산에 그치지 않고, 시스템 내부에서 가상의 <strong>'4차원 성적 좌표'</strong>로 치환됩니다. 이는 과목별 강점과 약점을 고유한 위치 데이터로 기록하는 과정입니다.</p>
+        직접 입력한 문법, 어휘, 논리, 독해 점수는 단순한 총점 계산에 그치지 않고, 시스템 내부에서 가상의 <strong>'4차원 성적 좌표'</strong>로 치환됩니다. 이는 과목별 강점과 약점을 고유한 위치 데이터로 기록하는 과정입니다.</p>
         
         <p><strong class="step-badge">02</strong> <strong>유클리드 거리 기반 패턴 분석 (KNN 알고리즘)</strong><br>
-        Peer Analyzer는 수만 명의 합격 선배 데이터 중 단순히 총점이 일치하는 사람이 아니라, <u>나와 과목별 점수 밸런스(비율)가 가장 대칼코마니처럼 닮은 이웃 선배들</u>을 찾아냅니다.<br>
+        합격했던 학생들의 데이터 중 단순히 총점이 일치하는 사람이 아니라, <u>나와 과목별 점수 밸런스(비율)가 가장 닮은 지난 학생들</u>을 찾아냅니다.<br>
         <span class="highlight-text">* 총점이 나보다 높더라도 문법 만점 비율, 독해 약세 패턴 등 '영역별 성적 추이'가 소수점 단위로 일치하면 가장 가까운 핵심 이웃으로 매칭됩니다.</span></p>
         
         <p><strong class="step-badge">03</strong> <strong>중복 제거 및 데이터 다양성 확보</strong><br>
-        추출된 유사 선배들 중 동일 인물의 중복 데이터를 칼같이 정제하고, 특정 대학이 리스트를 독점하지 않도록 정밀 필터링(Sampling)을 거쳐 가장 신뢰도 높은 최상위 합격 선배 10인의 최종 명단을 완성합니다.</p>
+        추출된 유사 학생들 중 동일 인물의 중복 데이터를 정제하고, 특정 대학이 리스트를 독점하지 않도록 정밀 필터링(Sampling)을 거쳐 가장 신뢰도 높은 최상위 합격 학생 10인의 최종 명단을 완성합니다.</p>
 
         <p class="guide-box"><strong class="guide-title">ANALYSIS GUIDE</strong><br>
-        리스트에 총점이 높은 상위권 대학(예: 중앙대 등) 선배가 매칭되었다면, 이는 <strong>"현재 나의 과목별 약점을 보완해 총점을 끌어올렸을 때, 내가 도달할 수 있는 가장 유력한 합격 패턴"</strong>을 AI가 추천한 것입니다. 선배들의 영역별 점수를 나의 최종 목표 지표로 삼아보세요!</p>
+        리스트에 총점이 높은 상위권 대학(예: 중앙대 등) 학생이 매칭되었다면, 이는 <strong>"현재 나의 과목별 약점을 보완해 총점을 끌어올렸을 때, 내가 도달할 수 있는 가장 유력한 합격 패턴"</strong>을 AI가 추천한 것입니다.</p>
       </div>
     </div>
 
@@ -116,7 +116,7 @@
         </div>
       </div>
       
-      <button @click="fetchPrediction" class="btn-submit">유사 성적 선배 분석하기</button>
+      <button @click="fetchPrediction" class="btn-submit">비슷한 성적 분석하기</button>
     </div>
 
     <div v-if="result" class="result-section">
@@ -141,12 +141,12 @@
         </div>
         
         <div class="chart-card-item card-total total-wide-card">
-          <span class="card-label">유사 성적 합격 선배들과 나의 시즌 총점 추이 비교 그래프 (1월 ~ 11월 흐름)</span>
+          <span class="card-label">비슷한 성적을 가진 지난 학생들과 나의 총점 추이 비교 그래프 (1월 ~ 11월 흐름)</span>
           <div class="mini-chart-space"><canvas id="timelineChart"></canvas></div>
         </div>
       </div>
       
-      <h3>매칭 확률 높은 TOP 10 대학 및 학과별 분포</h3>
+      <h3>매칭 확률 높은 10개 대학 및 학과별 분포</h3>
       <div class="univ-card-container">
         <div v-for="(u, idx) in result.univ_details" :key="idx" class="univ-card">
           <div class="univ-card-header">
@@ -226,7 +226,7 @@ export default {
       searchKeyword: '', 
       isAccordionOpen: false, 
       form: { 
-        month: 5, 
+        month: '', 
         grammar: '', 
         vocabulary: '', 
         logic: '', 
@@ -326,7 +326,6 @@ export default {
       }
     },
 
-    // 🌟 원본에 존재하던 역추적 함수 본래 상태 그대로 유지
     findRealSeniorName(senior) {
       if (!this.result || !this.result.univ_details) return '선배';
       
@@ -386,13 +385,39 @@ export default {
       const ctxTotal = document.getElementById('timelineChart').getContext('2d');
       if (this.chartInstances['timeline']) this.chartInstances['timeline'].destroy();
 
+      const chartLabels = Object.keys(timeline);
+
+      // 🔍 디버깅용 로그: F12(개발자 도구) > Console 에서 확인하세요!
+      console.log("=== 차트 데이터 매칭 확인 ===");
+      console.log("1. X축 라벨 목록:", chartLabels);
+      console.log("2. 백엔드에서 넘어온 '나의 성적 추이(myTimeline)':", myTimeline);
+
+      // ✅ 핵심 로직: '1월' 이든 '1' 이든 숫자만 추출해서 안전하게 매칭시킵니다.
+      const extractNumber = (str) => String(str).replace(/[^0-9]/g, '');
+      
+      const normalizedMyTimeline = {};
+      if (myTimeline) {
+        Object.keys(myTimeline).forEach(key => {
+          normalizedMyTimeline[extractNumber(key)] = myTimeline[key];
+        });
+      }
+
+      // X축 순서대로 데이터 삽입 (없으면 null 처리하여 선이 끊어지지 않게 함)
+      const alignedMyTimelineData = chartLabels.map(label => {
+        const monthKey = extractNumber(label);
+        return normalizedMyTimeline[monthKey] !== undefined ? normalizedMyTimeline[monthKey] : null;
+      });
+
+      console.log("3. 매칭 완료된 최종 나의 배열:", alignedMyTimelineData);
+      console.log("===============================");
+
       this.chartInstances['timeline'] = new Chart(ctxTotal, {
         type: 'line',
         data: {
-          labels: Object.keys(timeline),
+          labels: chartLabels,
           datasets: [
             {
-              label: '합격 선배 평균 총점',
+              label: '지난 합격생 평균 총점',
               data: Object.values(timeline),
               borderColor: '#ec4899', 
               borderWidth: 3.5,
@@ -405,7 +430,8 @@ export default {
             },
             {
               label: '나의 총점 추이',
-              data: Object.values(myTimeline),
+              data: alignedMyTimelineData, // 매칭 보정된 배열 사용
+              spanGaps: true, // 데이터가 비어있는 달(null)을 건너뛰고 선을 이어줌
               borderColor: '#2563eb', 
               borderWidth: 3.5,
               pointBackgroundColor: '#ffffff',
