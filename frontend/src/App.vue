@@ -173,7 +173,7 @@
         </div>
       </div>
 
-      <h3>점수와 가까운 지난 학생 리스트</h3>
+      <h3>점수와 가까운 지난 학생 리스트d</h3>
       <div class="table-wrapper">
         <table class="senior-table">
           <thead>
