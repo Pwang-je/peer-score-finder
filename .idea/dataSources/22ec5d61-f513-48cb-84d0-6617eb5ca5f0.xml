@@ -100,7 +100,7 @@
 |root||root|localhost|grant option|G
 performance_schema|schema||mysql.session|localhost|SELECT|G
 sys|schema||mysql.sys|localhost|TRIGGER|G</Grants>
-      <ServerVersion>9.7.1</ServerVersion>
+      <ServerVersion>26.7.0</ServerVersion>
     </root>
     <collation id="2" parent="1" name="armscii8_bin">
       <Charset>armscii8</Charset>
@@ -1040,7 +1040,7 @@ sys|schema||mysql.sys|localhost|TRIGGER|G</Grants>
       <CollationName>utf8mb4_0900_ai_ci</CollationName>
     </table>
     <column id="298" parent="297" name="id">
-      <AutoIncrement>1</AutoIncrement>
+      <AutoIncrement>26351</AutoIncrement>
       <NotNull>1</NotNull>
       <Position>1</Position>
       <StoredType>int|0s</StoredType>
