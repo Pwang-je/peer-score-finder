@@ -105,6 +105,7 @@ def get_student_score(student_name: str, month: int):
 
 
 # 3. 유사 성적 합격자 예측 및 종합 분석 API
+# predict 로 불러오기
 @app.get("/predict")
 # 3. 유사 성적 합격자 예측 및 종합 분석 API (가중치 파라미터 추가)
 @app.get("/predict")

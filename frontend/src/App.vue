@@ -12,7 +12,7 @@
     </header>
 
     <main class="dashboard-body">
-      <!-- 1. [상시 노출] 알고리즘 작동 프로세스 카드 -->
+      <!-- 1. 알고리즘 작동 프로세스 카드 -->
       <section class="methodology-card">
         <div class="methodology-header">
           <span class="icon-chip">
