@@ -1,240 +1,372 @@
 <template>
-  <div class="container">
-    <h2>Peer Analyzer</h2>
-    <p class="subtitle">과거 성적 데이터를 기반으로 나와 가장 정밀하게 일치하는 학생의 정보</p>
-    <p class="subtitle">데이터는 2020년~2025년까지의 합격생</p>
-    
-    <div class="input-section filter-panel">
-      <div class="top-form-row">
-        <div class="form-group autocomplete-container">
-          <label>학생 이름 선택 (2026년)</label>
-          <input 
-            type="text" 
-            v-model="searchKeyword" 
-            @input="onSearchInput"
-            placeholder="이름을 입력하세요"
-            autocomplete="off"
-            class="search-input"
-          >
-          <ul v-if="suggestedStudents.length > 0" class="suggestion-list">
-            <li 
-              v-for="(name, idx) in suggestedStudents" 
-              :key="idx" 
-              @click="selectStudent(name)"
-            >
-              {{ name }}
-            </li>
-          </ul>
-        </div>
+  <div class="dashboard-root">
+    <!-- 헤더 섹션 -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="brand-badge">PREDICTIVE AI ENGINE</div>
+        <h1 class="main-title">Peer Analyzer</h1>
+        <p class="main-desc">
+          2020~2025 합격자 성적 패턴 데이터를 기반으로 나와 가장 비슷한 점수 그룹을 탐색합니다.
+        </p>
+      </div>
+    </header>
 
-        <div class="form-group">
-          <label>모의고사 월 선택</label>
-          <select v-model="form.month" @change="loadStudentScore">
-            <option v-for="m in [1,2,3,4,5,6,7,8,9,10,11]" :key="m" :value="m">{{ m }}월</option>
-          </select>
+    <main class="dashboard-body">
+      <!-- 1. [상시 노출] 알고리즘 작동 프로세스 카드 -->
+      <section class="methodology-card">
+        <div class="methodology-header">
+          <span class="icon-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </span>
+          <h3>Peer Analyzer의 작동 방식에 대하여?</h3>
         </div>
-      </div>
-    </div>
-
-    <div class="stats-monitor-section">
-      <div class="section-title-badge">
-        <span>{{ form.student_name ? form.student_name + ' 학생의 기록' : '선택된 학생 없음' }}</span>
-      </div>
-      <div class="monitor-grid">
-        <div class="monitor-card m-grammar">
-          <span class="m-label">선택한 학생의 문법</span>
-          <span class="m-value">{{ studentDBData.grammar }}</span>
-        </div>
-        <div class="monitor-card m-vocabulary">
-          <span class="m-label">선택한 학생의 어휘</span>
-          <span class="m-value">{{ studentDBData.vocabulary }}</span>
-        </div>
-        <div class="monitor-card m-logic">
-          <span class="m-label">선택한 학생의 논리</span>
-          <span class="m-value">{{ studentDBData.logic }}</span>
-        </div>
-        <div class="monitor-card m-reading">
-          <span class="m-label">선택한 학생의 독해</span>
-          <span class="m-value">{{ studentDBData.reading }}</span>
-        </div>
-        <div class="monitor-card m-total">
-          <span class="m-label">선택한 학생의 총점</span>
-          <span class="m-value-total">{{ studentDBData.total_score }}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="accordion-container" :class="{ 'is-open': isAccordionOpen }">
-      <div class="accordion-header" @click="isAccordionOpen = !isAccordionOpen">
-        <span class="accordion-title">
-          <i class="icon-info"></i> 작동 방식?
-        </span>
-        <span class="accordion-arrow-icon"></span>
-      </div>
-      <div v-show="isAccordionOpen" class="accordion-content">
-        <p><strong class="step-badge">01</strong> <strong>4차원 성적 공간(Multi-Dimensional Space) 매핑</strong><br>
-        직접 입력한 문법, 어휘, 논리, 독해 점수는 단순한 총점 계산에 그치지 않고, 시스템 내부에서 가상의 <strong>'4차원 성적 좌표'</strong>로 치환됩니다. 이는 과목별 강점과 약점을 고유한 위치 데이터로 기록하는 과정입니다.</p>
-        
-        <p><strong class="step-badge">02</strong> <strong>유클리드 거리 기반 패턴 분석 (KNN 알고리즘)</strong><br>
-        합격했던 학생들의 데이터 중 단순히 총점이 일치하는 사람이 아니라, <u>나와 과목별 점수 밸런스(비율)가 가장 닮은 지난 학생들</u>을 찾아냅니다.<br>
-        <span class="highlight-text">* 총점이 나보다 높더라도 문법 만점 비율, 독해 약세 패턴 등 '영역별 성적 추이'가 소수점 단위로 일치하면 가장 가까운 핵심 이웃으로 매칭됩니다.</span></p>
-        
-        <p><strong class="step-badge">03</strong> <strong>중복 제거 및 데이터 다양성 확보</strong><br>
-        추출된 유사 학생들 중 동일 인물의 중복 데이터를 정제하고, 특정 대학이 리스트를 독점하지 않도록 정밀 필터링(Sampling)을 거쳐 가장 신뢰도 높은 최상위 합격 학생 10인의 최종 명단을 완성합니다.</p>
-
-        <p class="guide-box"><strong class="guide-title">ANALYSIS GUIDE</strong><br>
-        리스트에 총점이 높은 상위권 대학(예: 중앙대 등) 학생이 매칭되었다면, 이는 <strong>"현재 나의 과목별 약점을 보완해 총점을 끌어올렸을 때, 내가 도달할 수 있는 가장 유력한 합격 패턴"</strong>을 AI가 추천한 것입니다.</p>
-      </div>
-    </div>
-
-    <div class="input-section manual-input-panel">
-      <div class="manual-header">
-        <h4>📝 점수 직접 입력</h4>
-        <p>예측에 사용할 점수를 입력창에 직접 채워주세요.</p>
-      </div>
-      
-      <div class="manual-inputs-grid">
-        <div class="form-group input-box">
-          <label>문법 점수 입력 칸</label>
-          <input type="number" v-model.number="form.grammar" step="0.1" placeholder="0.0">
-        </div>
-        <div class="form-group input-box">
-          <label>어휘 점수 입력 칸</label>
-          <input type="number" v-model.number="form.vocabulary" step="0.1" placeholder="0.0">
-        </div>
-        <div class="form-group input-box">
-          <label>논리 점수 입력 칸</label>
-          <input type="number" v-model.number="form.logic" step="0.1" placeholder="0.0">
-        </div>
-        <div class="form-group input-box">
-          <label>독해 점수 입력 칸</label>
-          <input type="number" v-model.number="form.reading" step="0.1" placeholder="0.0">
-        </div>
-        <div class="form-group input-box total-preview-box">
-          <label>입력된 점수 총점</label>
-          <div class="live-total">{{ inputTotalScore }} <small>점</small></div>
-        </div>
-      </div>
-      
-      <button @click="fetchPrediction" class="btn-submit">비슷한 성적 분석하기</button>
-    </div>
-
-    <div v-if="result" class="result-section">
-      <div class="dashboard-layout-container">
-        <div class="subjects-horizontal-row">
-          <div class="chart-card-item card-grammar">
-            <span class="card-label">문법</span>
-            <div class="mini-chart-space"><canvas id="grammarChart"></canvas></div>
+        <div class="methodology-grid">
+          <div class="method-step">
+            <div class="step-num">01</div>
+            <div class="step-body">
+              <strong>총점만 보지 않고 '과목별 균형'을 봅니다</strong>
+              <p>총점이 70점으로 같아도 문법 강자형인지, 독해 올인형인지는 전혀 다릅니다. 문법·어휘·논리·독해 4과목의 점수 비율을 분석해 내 고유한 성적 특징을 만듭니다.</p>
+            </div>
           </div>
-          <div class="chart-card-item card-vocabulary">
-            <span class="card-label">어휘</span>
-            <div class="mini-chart-space"><canvas id="vocabularyChart"></canvas></div>
+          <div class="method-step">
+            <div class="step-num">02</div>
+            <div class="step-body">
+              <strong>나와 강점·약점이 똑같았던 학생을 찾습니다</strong>
+              <p>수만 명의 합격자 데이터 중에서 "내가 잘하는 과목을 똑같이 잘했고, 내가 어려워하는 과목을 똑같이 겪었던" 똑같은 합격 학생들을 골라냅니다.</p>
+            </div>
           </div>
-          <div class="chart-card-item card-logic">
-            <span class="card-label">논리</span>
-            <div class="mini-chart-space"><canvas id="logicChart"></canvas></div>
-          </div>
-          <div class="chart-card-item card-reading">
-            <span class="card-label">독해</span>
-            <div class="mini-chart-space"><canvas id="readingChart"></canvas></div>
+          <div class="method-step">
+            <div class="step-num">03</div>
+            <div class="step-body">
+              <strong>그 학생들이 실제로 어디에 붙었는지 보여줍니다</strong>
+              <p>나와 비슷한 성적 패턴을 가졌던 학생들이 최종적으로 어느 대학·학과에 합격했는지 모아서 보여주고, 11월까지 성적이 어떻게 올랐는지 알려줍니다.</p>
+            </div>
           </div>
         </div>
-        
-        <div class="chart-card-item card-total total-wide-card">
-          <span class="card-label">비슷한 성적을 가진 지난 학생들과 나의 총점 추이 비교 그래프 (1월 ~ 11월 흐름)</span>
-          <div class="mini-chart-space"><canvas id="timelineChart"></canvas></div>
-        </div>
-      </div>
-      
-      <h3>매칭 확률 높은 10개 대학 및 학과별 분포</h3>
-      <div class="univ-card-container">
-        <div v-for="(u, idx) in result.univ_details" :key="idx" class="univ-card">
-          <div class="univ-card-header">
-            <span class="univ-title">{{ u.univ }}</span>
-            <span class="univ-badge">총 {{ u.total_count }}명</span>
+      </section>
+
+      <!-- 2. 컨트롤 패널 (2열 레이아웃) -->
+      <section class="control-grid">
+        <!-- 왼쪽: 2026 재원생 검색 패널 -->
+        <div class="glass-panel">
+          <div class="panel-tag">MODE 01</div>
+          <h2 class="panel-heading">26년도 성적 불러오기</h2>
+          <div class="form-row">
+            <div class="input-wrap autocomplete-wrap">
+              <label>학생 이름 검색</label>
+              <input 
+                type="text" 
+                v-model="searchKeyword" 
+                @input="onSearchInput"
+                placeholder="이름 입력"
+                class="modern-input"
+              >
+              <ul v-if="suggestedStudents.length > 0" class="suggest-dropdown">
+                <li v-for="(name, idx) in suggestedStudents" :key="idx" @click="selectStudent(name)">
+                  {{ name }}
+                </li>
+              </ul>
+            </div>
+            <div class="input-wrap">
+              <label>모의고사 월</label>
+              <select v-model="form.month" @change="loadStudentScore" class="modern-select">
+                <option v-for="m in [1,2,3,4,5,6,7,8,9,10,11]" :key="m" :value="m">{{ m }}월 모의고사</option>
+              </select>
+            </div>
           </div>
-          <div class="univ-card-body">
-            <div v-for="(m, mIdx) in u.majors" :key="mIdx" class="major-box">
-              <div class="major-title-line">
-                <span class="m-name">{{ m.major }}</span>
-                <span class="m-count">{{ m.count }}명</span>
+
+          <!-- 로드된 학생 스탯 모니터 -->
+          <div class="stat-summary-box">
+            <div class="stat-summary-title">
+              {{ form.student_name ? `${form.student_name} 학생 (${form.month}월 데이터)` : '선택된 학생이 없습니다' }}
+            </div>
+            <div class="stat-mini-grid">
+              <div class="stat-pill"><span class="k">문법</span><span class="v">{{ studentDBData.grammar }}</span></div>
+              <div class="stat-pill"><span class="k">어휘</span><span class="v">{{ studentDBData.vocabulary }}</span></div>
+              <div class="stat-pill"><span class="k">논리</span><span class="v">{{ studentDBData.logic }}</span></div>
+              <div class="stat-pill"><span class="k">독해</span><span class="v">{{ studentDBData.reading }}</span></div>
+              <div class="stat-pill total"><span class="k">총점</span><span class="v">{{ studentDBData.total_score }}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 오른쪽: 점수 직접 입력 패널 -->
+        <div class="glass-panel">
+          <div class="panel-tag">MODE 02</div>
+          <h2 class="panel-heading">점수 임의 직접 입력</h2>
+          <div class="form-row">
+            <div class="input-wrap full">
+              <label>비교 기준 월 선택</label>
+              <select v-model="manualMonth" class="modern-select">
+                <option v-for="m in [1,2,3,4,5,6,7,8,9,10,11]" :key="m" :value="m">{{ m }}월 기준 합격생과 비교</option>
+              </select>
+            </div>
+          </div>
+          <div class="manual-score-grid">
+            <div class="input-wrap">
+              <label>문법</label>
+              <input type="number" v-model.number="form.grammar" step="0.1" placeholder="0.0" class="modern-input">
+            </div>
+            <div class="input-wrap">
+              <label>어휘</label>
+              <input type="number" v-model.number="form.vocabulary" step="0.1" placeholder="0.0" class="modern-input">
+            </div>
+            <div class="input-wrap">
+              <label>논리</label>
+              <input type="number" v-model.number="form.logic" step="0.1" placeholder="0.0" class="modern-input">
+            </div>
+            <div class="input-wrap">
+              <label>독해</label>
+              <input type="number" v-model.number="form.reading" step="0.1" placeholder="0.0" class="modern-input">
+            </div>
+          </div>
+          <div class="manual-total-line">
+            <span>직접 입력 총점</span>
+            <span class="total-number">{{ inputTotalScore }} 점</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 🌟 실시간 디바운스 지원 과목별 가중치 슬라이더 패널 -->
+      <section class="weight-control-panel">
+        <div class="weight-header">
+          <div class="weight-title-group">
+            <span class="weight-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+                <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+                <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+              </svg>
+            </span>
+            <div>
+              <div class="weight-title-row">
+                <h3 class="weight-title">과목별 매칭 가중치 실시간 튜닝</h3>
+                <span v-if="isUpdating" class="live-update-badge">실시간 분석 중...</span>
               </div>
-              
-              <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-scores-tags senior-profile-line">
-                <span class="badge-senior-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
-                <span class="badge-score badge-grammar">{{ scoreObj.grammar }}</span>
-                <span class="badge-score badge-vocabulary">{{ scoreObj.vocabulary }}</span>
-                <span class="badge-score badge-logic">{{ scoreObj.logic }}</span>
-                <span class="badge-score badge-reading">{{ scoreObj.reading }}</span>
-                <span class="badge-score badge-total">{{ scoreObj.total }}</span>
+              <p class="weight-desc">슬라이더를 조작하면 0.4초 후 실시간으로 매칭 결과가 갱신됩니다.</p>
+            </div>
+          </div>
+          <button @click="resetWeights" class="reset-weight-btn">가중치 1.0x 리셋</button>
+        </div>
+
+        <div class="weight-sliders-grid">
+          <!-- 문법 가중치 -->
+          <div class="slider-card b-grammar-border">
+            <div class="slider-meta">
+              <span class="slider-name">문법 가중치</span>
+              <span class="slider-badge b-grammar-badge">{{ weights.grammar.toFixed(1) }}x</span>
+            </div>
+            <input 
+              type="range" 
+              v-model.number="weights.grammar" 
+              min="0.2" 
+              max="2.5" 
+              step="0.1" 
+              class="weight-range range-grammar"
+            >
+            <div class="slider-scale"><span>0.2x</span><span>1.0x</span><span>2.5x</span></div>
+          </div>
+
+          <!-- 어휘 가중치 -->
+          <div class="slider-card b-vocab-border">
+            <div class="slider-meta">
+              <span class="slider-name">어휘 가중치</span>
+              <span class="slider-badge b-vocab-badge">{{ weights.vocabulary.toFixed(1) }}x</span>
+            </div>
+            <input 
+              type="range" 
+              v-model.number="weights.vocabulary" 
+              min="0.2" 
+              max="2.5" 
+              step="0.1" 
+              class="weight-range range-vocab"
+            >
+            <div class="slider-scale"><span>0.2x</span><span>1.0x</span><span>2.5x</span></div>
+          </div>
+
+          <!-- 논리 가중치 -->
+          <div class="slider-card b-logic-border">
+            <div class="slider-meta">
+              <span class="slider-name">논리 가중치</span>
+              <span class="slider-badge b-logic-badge">{{ weights.logic.toFixed(1) }}x</span>
+            </div>
+            <input 
+              type="range" 
+              v-model.number="weights.logic" 
+              min="0.2" 
+              max="2.5" 
+              step="0.1" 
+              class="weight-range range-logic"
+            >
+            <div class="slider-scale"><span>0.2x</span><span>1.0x</span><span>2.5x</span></div>
+          </div>
+
+          <!-- 독해 가중치 -->
+          <div class="slider-card b-reading-border">
+            <div class="slider-meta">
+              <span class="slider-name">독해 가중치</span>
+              <span class="slider-badge b-reading-badge">{{ weights.reading.toFixed(1) }}x</span>
+            </div>
+            <input 
+              type="range" 
+              v-model.number="weights.reading" 
+              min="0.2" 
+              max="2.5" 
+              step="0.1" 
+              class="weight-range range-reading"
+            >
+            <div class="slider-scale"><span>0.2x</span><span>1.0x</span><span>2.5x</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 수동 실행 버튼 -->
+      <div class="action-bar">
+        <button @click="fetchPrediction" class="primary-btn">
+          <span>비슷한 점수 분석 실행</span>
+          <span class="btn-arrow">→</span>
+        </button>
+      </div>
+
+      <!-- 3. 결과 시각화 섹션 -->
+      <section v-if="result" class="results-container">
+        <div class="section-divider">
+          <span>ANALYSIS RESULTS</span>
+        </div>
+
+        <!-- 차트 대시보드 레이아웃 -->
+        <div class="charts-section">
+          <div class="mini-charts-row">
+            <div class="chart-tile">
+              <div class="tile-header">문법 비교 ({{ weights.grammar.toFixed(1) }}x)</div>
+              <div class="chart-canvas-box"><canvas id="grammarChart"></canvas></div>
+            </div>
+            <div class="chart-tile">
+              <div class="tile-header">어휘 비교 ({{ weights.vocabulary.toFixed(1) }}x)</div>
+              <div class="chart-canvas-box"><canvas id="vocabularyChart"></canvas></div>
+            </div>
+            <div class="chart-tile">
+              <div class="tile-header">논리 비교 ({{ weights.logic.toFixed(1) }}x)</div>
+              <div class="chart-canvas-box"><canvas id="logicChart"></canvas></div>
+            </div>
+            <div class="chart-tile">
+              <div class="tile-header">독해 비교 ({{ weights.reading.toFixed(1) }}x)</div>
+              <div class="chart-canvas-box"><canvas id="readingChart"></canvas></div>
+            </div>
+          </div>
+
+          <div class="main-timeline-tile">
+            <div class="tile-header">총점 비교 (1월 ~ 11월)</div>
+            <div class="timeline-canvas-box"><canvas id="timelineChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- 매칭 확률 높은 TOP 10 대학 및 학과별 분포 -->
+        <div class="univ-summary-wrap">
+          <h2 class="sub-heading">매칭 확률 높은 TOP 10 대학 및 학과별 분포</h2>
+          <div class="univ-card-flow">
+            <div v-for="(u, idx) in result.univ_details" :key="idx" class="univ-modern-card">
+              <div class="u-card-head">
+                <span class="u-name">{{ u.univ }}</span>
+                <span class="u-badge">총 {{ u.total_count }}명</span>
+              </div>
+              <div class="u-card-body">
+                <div v-for="(m, mIdx) in u.majors" :key="mIdx" class="major-pill-group">
+                  <div class="m-title-bar">
+                    <span class="m-title">{{ m.major }}</span>
+                    <span class="m-count">{{ m.count }}명</span>
+                  </div>
+                  
+                  <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-profile-line">
+                    <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
+                    <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
+                    <span class="badge-score b-vocab">{{ scoreObj.vocabulary }}</span>
+                    <span class="badge-score b-logic">{{ scoreObj.logic }}</span>
+                    <span class="badge-score b-reading">{{ scoreObj.reading }}</span>
+                    <span class="badge-score b-total">{{ scoreObj.total }}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <h3>점수와 가까운 지난 학생 리스트d</h3>
-      <div class="table-wrapper">
-        <table class="senior-table">
-          <thead>
-            <tr>
-              <th>연도</th>
-              <th>[이름] 합격 대학</th>
-              <th>합격 학과</th>
-              <th>전형 계열</th>
-              <th>영역별 상세 취득 점수</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(s, sIdx) in result.all_seniors" :key="sIdx">
-              <td>{{ s.year }}년</td>
-              <td class="bold-text">
-                <div class="table-univ-cell">
-                  <span class="badge-senior-meta">[{{ String(s.year).slice(2) }}' {{ s.scores.name || '선배' }}]</span>
-                  <span>{{ s.univ }}</span>
-                </div>
-              </td>
-              <td>{{ s.major }}</td>
-              <td class="gray-text">{{ s.department }}</td>
-              <td>
-                <div class="table-badge-group">
-                  <span class="badge-score badge-grammar">{{ s.scores.grammar }}</span>
-                  <span class="badge-score badge-vocabulary">{{ s.scores.vocabulary }}</span>
-                  <span class="badge-score badge-logic">{{ s.scores.logic }}</span>
-                  <span class="badge-score badge-reading">{{ s.scores.reading }}</span>
-                  <span class="badge-score badge-total">{{ s.scores.total }}</span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <!-- 상세 매칭 선배 테이블 -->
+        <div class="table-container">
+          <h2 class="sub-heading">점수와 가까운 지난 학생 리스트</h2>
+          <div class="table-frame">
+            <table class="clean-table">
+              <thead>
+                <tr>
+                  <th>연도</th>
+                  <th>합격 대학</th>
+                  <th>합격 학과</th>
+                  <th>전형 계열</th>
+                  <th>영역별 상세 취득 점수</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(s, sIdx) in result.all_seniors" :key="sIdx">
+                  <td class="cell-mono">{{ s.year }}년</td>
+                  <td class="cell-bold">
+                    <span class="badge-meta">[{{ String(s.year).slice(2) }}' {{ s.scores.name || '선배' }}]</span>
+                    <span>{{ s.univ }}</span>
+                  </td>
+                  <td>{{ s.major }}</td>
+                  <td class="cell-mute">{{ s.department }}</td>
+                  <td>
+                    <div class="table-badge-group">
+                      <span class="badge-score b-grammar">{{ s.scores.grammar }}</span>
+                      <span class="badge-score b-vocab">{{ s.scores.vocabulary }}</span>
+                      <span class="badge-score b-logic">{{ s.scores.logic }}</span>
+                      <span class="badge-score b-reading">{{ s.scores.reading }}</span>
+                      <span class="badge-score b-total">{{ s.scores.total }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
 import { Chart, registerables } from 'chart.js';
-import './style.css';
 
 Chart.register(...registerables);
 
 export default {
   data() {
     return {
-      searchKeyword: '', 
-      isAccordionOpen: false, 
-      form: { 
-        month: '', 
-        grammar: '', 
-        vocabulary: '', 
-        logic: '', 
-        reading: '', 
-        student_name: '' 
+      searchKeyword: '',
+      form: {
+        month: 5,
+        grammar: '',
+        vocabulary: '',
+        logic: '',
+        reading: '',
+        student_name: ''
       },
+      manualMonth: 5,
+      weights: {
+        grammar: 1.0,
+        vocabulary: 1.0,
+        logic: 1.0,
+        reading: 1.0
+      },
+      debounceTimer: null,   // 디바운스 타이머 인스턴스
+      isUpdating: false,      // 실시간 업데이트 중 표시 상태
       studentDBData: { grammar: '-', vocabulary: '-', logic: '-', reading: '-', total_score: '-' },
-      suggestedStudents: [], 
+      currentAnalysisScores: { grammar: 0, vocabulary: 0, logic: 0, reading: 0 },
+      suggestedStudents: [],
       result: null,
       chartInstances: {}
     };
@@ -245,363 +377,857 @@ export default {
       const v = Number(this.form.vocabulary) || 0;
       const l = Number(this.form.logic) || 0;
       const r = Number(this.form.reading) || 0;
-      return g + v + l + r > 0 ? roundToOneDecimal(g + v + l + r) : '-';
+      const total = g + v + l + r;
+      return total > 0 ? (Math.round(total * 10) / 10).toFixed(1) : '-';
+    }
+  },
+  watch: {
+    // 🌟 가중치가 변경될 때 0.4초 디바운스로 실시간 재예측 실행
+    weights: {
+      deep: true,
+      handler() {
+        // 분석 결과가 이미 표시 중이거나 점수가 준비된 상태일 때만 반응
+        const hasScores = (this.form.student_name && this.studentDBData.grammar !== '-') ||
+                          (this.form.grammar !== '' || this.form.vocabulary !== '' || this.form.logic !== '' || this.form.reading !== '');
+        
+        if (!hasScores && !this.result) return;
+
+        this.isUpdating = true;
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => {
+          this.fetchPrediction(true);
+        }, 400); // 400ms 디바운스 대기
+      }
     }
   },
   methods: {
+    resetWeights() {
+      this.weights = {
+        grammar: 1.0,
+        vocabulary: 1.0,
+        logic: 1.0,
+        reading: 1.0
+      };
+    },
     async onSearchInput() {
-      const keyword = this.searchKeyword;
-      if (!keyword || keyword.trim() === '') {
+      const kw = this.searchKeyword.trim();
+      if (!kw) {
         this.suggestedStudents = [];
         return;
       }
       try {
-        const response = await axios.get(`http://127.0.0.1:8000/search-students`, {
-          params: { keyword: keyword }
-        });
-        this.suggestedStudents = response.data;
-      } catch (error) {
-        console.error("이름 검색 실패:", error);
+        const res = await axios.get('http://127.0.0.1:8000/search-students', { params: { keyword: kw } });
+        this.suggestedStudents = res.data;
+      } catch (e) {
+        console.error("이름 검색 실패:", e);
       }
     },
-
     selectStudent(name) {
       this.searchKeyword = name;
       this.form.student_name = name;
       this.suggestedStudents = [];
       this.loadStudentScore();
     },
-
     async loadStudentScore() {
-      if (!this.form.student_name || this.form.student_name.trim() === '') return;
-      
+      if (!this.form.student_name) return;
       try {
-        const response = await axios.get('http://127.0.0.1:8000/get-student-score', {
-          params: {
-            student_name: this.form.student_name,
-            month: this.form.month
-          }
+        const res = await axios.get('http://127.0.0.1:8000/get-student-score', {
+          params: { student_name: this.form.student_name, month: this.form.month }
         });
-        
-        if (response.data.status === 'success') {
-          const score = response.data.data;
-          this.studentDBData.grammar = score.grammar;
-          this.studentDBData.vocabulary = score.vocabulary;
-          this.studentDBData.logic = score.logic;
-          this.studentDBData.reading = score.reading;
-          this.studentDBData.total_score = score.total_score;
-
-          this.form.grammar = score.grammar;
-          this.form.vocabulary = score.vocabulary;
-          this.form.logic = score.logic;
-          this.form.reading = score.reading;
+        if (res.data.status === 'success') {
+          const s = res.data.data;
+          this.studentDBData = s;
+          this.form.grammar = '';
+          this.form.vocabulary = '';
+          this.form.logic = '';
+          this.form.reading = '';
         } else {
           this.studentDBData = { grammar: '-', vocabulary: '-', logic: '-', reading: '-', total_score: '-' };
-          alert(`${this.form.student_name} 학생은 ${this.form.month}월 모의고사 성적 데이터가 없습니다.`);
+          alert(`${this.form.student_name} 학생은 ${this.form.month}월 데이터가 없습니다.`);
         }
-      } catch (error) {
-        console.error("학생 성적 로드 실패:", error);
+      } catch (e) {
+        console.error("성적 로드 실패:", e);
       }
     },
+    async fetchPrediction(isDebounce = false) {
+      const hasManual = [this.form.grammar, this.form.vocabulary, this.form.logic, this.form.reading].some(v => v !== '');
+      let m, name, g, v, l, r;
 
-    async fetchPrediction() {
-      if (!this.form.grammar && !this.form.vocabulary && !this.form.logic && !this.form.reading) {
-        alert("분석할 점수를 하단 입력창에 작성해 주세요!");
-        return;
+      if (hasManual) {
+        m = this.manualMonth;
+        name = "직접입력수험생";
+        g = Number(this.form.grammar) || 0;
+        v = Number(this.form.vocabulary) || 0;
+        l = Number(this.form.logic) || 0;
+        r = Number(this.form.reading) || 0;
+      } else {
+        if (!this.form.student_name || this.studentDBData.grammar === '-') {
+          if (!isDebounce) alert("학생을 검색하여 선택하거나, 하단에 점수를 직접 입력해 주세요!");
+          this.isUpdating = false;
+          return;
+        }
+        m = this.form.month;
+        name = this.form.student_name;
+        g = Number(this.studentDBData.grammar);
+        v = Number(this.studentDBData.vocabulary);
+        l = Number(this.studentDBData.logic);
+        r = Number(this.studentDBData.reading);
       }
+
+      this.currentAnalysisScores = { grammar: g, vocabulary: v, logic: l, reading: r };
+
       try {
-        const sendForm = { ...this.form, student_name: this.form.student_name || "직접입력수험생" };
-        const response = await axios.get('http://127.0.0.1:8000/predict', { params: sendForm });
-        
-        if (response.data.status === 'success') {
-          this.result = response.data;
+        const res = await axios.get('http://127.0.0.1:8000/predict', {
+          params: {
+            month: m,
+            student_name: name,
+            grammar: g,
+            vocabulary: v,
+            logic: l,
+            reading: r,
+            w_grammar: this.weights.grammar,
+            w_vocabulary: this.weights.vocabulary,
+            w_logic: this.weights.logic,
+            w_reading: this.weights.reading
+          }
+        });
+        if (res.data.status === 'success') {
+          this.result = res.data;
           this.$nextTick(() => {
-            this.renderAllCharts(this.result.month_averages, this.result.timeline_stats, this.result.my_timeline_stats);
+            this.renderCharts(this.result.month_averages, this.result.timeline_stats, this.result.my_timeline_stats);
           });
-        } else {
-          alert(response.data.message);
+        } else if (!isDebounce) {
+          alert(res.data.message);
         }
-      } catch (error) {
-        alert("백엔드 분석 에러가 발생했습니다.");
+      } catch (e) {
+        if (!isDebounce) alert("백엔드 분석 에러가 발생했습니다.");
+      } finally {
+        this.isUpdating = false;
       }
     },
-
-    findRealSeniorName(senior) {
-      if (!this.result || !this.result.univ_details) return '선배';
-      
-      const targetUniv = this.result.univ_details.find(u => u.univ === senior.univ);
-      if (targetUniv) {
-        const targetMajor = targetUniv.majors.find(m => m.major === senior.major);
-        if (targetMajor) {
-          const matchedScore = targetMajor.scores.find(s => 
-            s.total === senior.scores.total && 
-            s.reading === senior.scores.reading
-          );
-          if (matchedScore && matchedScore.name) {
-            return matchedScore.name;
-          }
-          if (targetMajor.scores.length > 0) {
-            return targetMajor.scores[0].name;
-          }
-        }
-      }
-      return '선배';
-    },
-
-    renderAllCharts(averages, timeline, myTimeline) {
-      const miniConfigs = [
-        { id: 'grammar', my: this.form.grammar || 0, avg: averages.grammar, bg: 'rgba(132, 204, 22, 0.75)', max: 25 },
-        { id: 'vocabulary', my: this.form.vocabulary || 0, avg: averages.vocabulary, bg: 'rgba(59, 130, 246, 0.75)', max: 12.5 },
-        { id: 'logic', my: this.form.logic || 0, avg: averages.logic, bg: 'rgba(249, 115, 22, 0.75)', max: 20 },
-        { id: 'reading', my: this.form.reading || 0, avg: averages.reading, bg: 'rgba(234, 179, 8, 0.75)', max: 50 }
+    renderCharts(averages, timeline, myTimeline) {
+      const subConfigs = [
+        { id: 'grammar', my: this.currentAnalysisScores.grammar, avg: averages.grammar, color: 'rgba(132, 204, 22, 0.85)', max: 25 },
+        { id: 'vocabulary', my: this.currentAnalysisScores.vocabulary, avg: averages.vocabulary, color: 'rgba(59, 130, 246, 0.85)', max: 12.5 },
+        { id: 'logic', my: this.currentAnalysisScores.logic, avg: averages.logic, color: 'rgba(249, 115, 22, 0.85)', max: 20 },
+        { id: 'reading', my: this.currentAnalysisScores.reading, avg: averages.reading, color: 'rgba(234, 179, 8, 0.85)', max: 50 }
       ];
 
-      miniConfigs.forEach(cfg => {
-        const ctx = document.getElementById(`${cfg.id}Chart`).getContext('2d');
+      subConfigs.forEach(cfg => {
+        const el = document.getElementById(`${cfg.id}Chart`);
+        if (!el) return;
+        const ctx = el.getContext('2d');
         if (this.chartInstances[cfg.id]) this.chartInstances[cfg.id].destroy();
+
         this.chartInstances[cfg.id] = new Chart(ctx, {
           type: 'bar',
           data: {
-            labels: ['내 점수', '평균'],
+            labels: ['내 성적', '선배 평균'],
             datasets: [{
               data: [cfg.my, cfg.avg],
-              backgroundColor: [cfg.bg, 'rgba(148, 163, 184, 0.15)'],
+              backgroundColor: [cfg.color, '#e2e8f0'],
               borderRadius: 6,
-              barThickness: 16
+              barThickness: 18
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: { duration: 350 }, // 실시간 반영 시 부드러운 애니메이션
             plugins: { legend: { display: false } },
             scales: {
-              x: { grid: { display: false }, ticks: { font: { family: 'Noto Sans KR', size: 11 } } },
-              y: { beginAtZero: true, max: cfg.max, grid: { display: false }, border: { display: false }, ticks: { display: false } }
+              x: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#64748b' } },
+              y: { max: cfg.max, grid: { display: false }, ticks: { display: false } }
             }
           }
         });
       });
 
-      const ctxTotal = document.getElementById('timelineChart').getContext('2d');
+      const tlEl = document.getElementById('timelineChart');
+      if (!tlEl) return;
+      const tlCtx = tlEl.getContext('2d');
       if (this.chartInstances['timeline']) this.chartInstances['timeline'].destroy();
 
-      const chartLabels = Object.keys(timeline);
-
-      // 🔍 디버깅용 로그: F12(개발자 도구) > Console 에서 확인하세요!
-      console.log("=== 차트 데이터 매칭 확인 ===");
-      console.log("1. X축 라벨 목록:", chartLabels);
-      console.log("2. 백엔드에서 넘어온 '나의 성적 추이(myTimeline)':", myTimeline);
-
-      // ✅ 핵심 로직: '1월' 이든 '1' 이든 숫자만 추출해서 안전하게 매칭시킵니다.
-      const extractNumber = (str) => String(str).replace(/[^0-9]/g, '');
-      
-      const normalizedMyTimeline = {};
+      const labels = Object.keys(timeline);
+      const cleanNum = s => String(s).replace(/[^0-9]/g, '');
+      const normMy = {};
       if (myTimeline) {
-        Object.keys(myTimeline).forEach(key => {
-          normalizedMyTimeline[extractNumber(key)] = myTimeline[key];
-        });
+        Object.keys(myTimeline).forEach(k => { normMy[cleanNum(k)] = myTimeline[k]; });
       }
+      const myLineData = labels.map(l => normMy[cleanNum(l)] ?? null);
 
-      // X축 순서대로 데이터 삽입 (없으면 null 처리하여 선이 끊어지지 않게 함)
-      const alignedMyTimelineData = chartLabels.map(label => {
-        const monthKey = extractNumber(label);
-        return normalizedMyTimeline[monthKey] !== undefined ? normalizedMyTimeline[monthKey] : null;
-      });
-
-      console.log("3. 매칭 완료된 최종 나의 배열:", alignedMyTimelineData);
-      console.log("===============================");
-
-      this.chartInstances['timeline'] = new Chart(ctxTotal, {
+      this.chartInstances['timeline'] = new Chart(tlCtx, {
         type: 'line',
         data: {
-          labels: chartLabels,
+          labels: labels,
           datasets: [
             {
-              label: '지난 합격생 평균 총점',
+              label: '매칭 선배 평균 총점',
               data: Object.values(timeline),
-              borderColor: '#ec4899', 
-              borderWidth: 3.5,
+              borderColor: '#ec4899',
+              borderWidth: 3,
               pointBackgroundColor: '#ffffff',
               pointBorderColor: '#ec4899',
-              pointBorderWidth: 2.5,
+              pointBorderWidth: 2,
               pointRadius: 4,
               fill: false,
-              tension: 0.4 
+              tension: 0.35
             },
             {
               label: '나의 총점 추이',
-              data: alignedMyTimelineData, // 매칭 보정된 배열 사용
-              spanGaps: true, // 데이터가 비어있는 달(null)을 건너뛰고 선을 이어줌
-              borderColor: '#2563eb', 
+              data: myLineData,
+              spanGaps: true,
+              borderColor: '#2563eb',
+              backgroundColor: 'rgba(37,99,235,0.05)',
+              fill: true,
               borderWidth: 3.5,
               pointBackgroundColor: '#ffffff',
               pointBorderColor: '#2563eb',
               pointBorderWidth: 2.5,
               pointRadius: 5,
-              fill: false, 
-              tension: 0.4 
+              tension: 0.35
             }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: true, position: 'top' } },
+          animation: { duration: 350 },
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12, weight: '600' } } }
+          },
           scales: {
-            x: { grid: { display: false }, ticks: { font: { family: 'Noto Sans KR', size: 11, weight: '600' } } },
-            y: { grid: { color: 'rgba(226, 232, 240, 0.5)' }, border: { display: false } }
+            x: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#64748b' } },
+            y: { grid: { color: 'rgba(226, 232, 240, 0.6)' }, ticks: { color: '#64748b' } }
           }
         }
       });
     }
   }
 };
-
-function roundToOneDecimal(num) {
-  return Math.round(num * 10) / 10;
-}
 </script>
 
 <style scoped>
-.accordion-container {
+.dashboard-root {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Inter", sans-serif;
+  padding: 40px 24px;
+}
+
+.dashboard-body {
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.brand-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: #e0e7ff;
+  color: #4338ca;
+  border-radius: 9999px;
+  margin-bottom: 10px;
+}
+
+.main-title {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  margin: 0 0 8px;
+}
+
+.main-desc {
+  font-size: 14.5px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* 1. 상시 노출 알고리즘 카드 */
+.methodology-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.accordion-header {
-  padding: 16px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  background: #f8fafc;
-  user-select: none;
-  transition: background 0.2s;
-}
-
-.accordion-header:hover {
-  background: #f1f5f9;
-}
-
-.accordion-title {
-  font-size: 14.5px;
-  font-weight: 600;
-  color: #1e293b;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* ℹ️ 세련된 원형 인포메이션 아이콘 */
-.icon-info {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid #64748b;
-  border-radius: 50%;
-  position: relative;
-}
-.icon-info::before {
-  content: '';
-  position: absolute;
-  width: 1.5px;
-  height: 5px;
-  background: #64748b;
-  left: 50%;
-  top: 6px;
-  transform: translateX(-50%);
-}
-.icon-info::after {
-  content: '';
-  position: absolute;
-  width: 1.5px;
-  height: 1.5px;
-  background: #64748b;
-  left: 50%;
-  top: 3px;
-  transform: translateX(-50%);
-}
-
-/* 모던한 꺾쇠 화살표 */
-.accordion-arrow-icon {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid #64748b;
-  border-bottom: 2px solid #64748b;
-  transform: rotate(45deg);
-  transition: transform 0.3s ease;
-  margin-right: 4px;
-}
-
-.accordion-container.is-open .accordion-arrow-icon {
-  transform: rotate(-135deg);
-}
-
-.accordion-content {
+  border-radius: 16px;
   padding: 24px;
-  background: white;
-  border-top: 1px solid #e2e8f0;
-  font-size: 14px;
-  line-height: 1.7;
-  color: #475569;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
-/* 테크니컬 숫자 배지 */
-.step-badge {
+.methodology-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+/* 🌟 회로/알고리즘 SVG 아이콘 칩 스타일 */
+.icon-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: monospace;
-  font-size: 11px;
-  background: #f1f5f9;
-  color: #64748b;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-right: 6px;
-  font-weight: 700;
-  vertical-align: middle;
-}
-
-.highlight-text {
-  display: block;
-  margin-top: 8px;
-  font-size: 13px;
-  color: #2563eb;
-  font-weight: 500;
+  width: 28px;
+  height: 28px;
   background: #eff6ff;
-  padding: 8px 14px;
   border-radius: 8px;
-  border-left: 4px solid #3b82f6;
+  border: 1px solid #dbeafe;
 }
 
-.guide-box {
-  margin-top: 20px;
-  padding: 16px;
+.icon-chip svg {
+  width: 16px;
+  height: 16px;
+  stroke: #2563eb;
+}
+
+.methodology-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  color: #1e293b;
+}
+
+.methodology-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.method-step {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  background: #f8fafc;
+  border-radius: 12px;
+}
+
+.step-num {
+  font-size: 13px;
+  font-weight: 800;
+  font-family: monospace;
+  color: #2563eb;
+}
+
+.step-body strong {
+  display: block;
+  font-size: 13px;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.step-body p {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* 2. 컨트롤 패널 */
+.control-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.glass-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  position: relative;
+}
+
+.panel-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.panel-heading {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 18px;
+  color: #0f172a;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.input-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.input-wrap label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.modern-input, .modern-select {
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.modern-input:focus, .modern-select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.suggest-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  z-index: 50;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+}
+
+.suggest-dropdown li {
+  padding: 8px 12px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.suggest-dropdown li:hover {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.stat-summary-box {
   background: #f8fafc;
   border-radius: 10px;
-  border: 1px dashed #cbd5e1;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
 }
 
-.guide-title {
-  font-size: 11px;
-  font-family: monospace;
-  color: #475569;
-  letter-spacing: 1px;
+.stat-summary-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 8px;
 }
 
-.table-univ-cell {
+.stat-mini-grid {
   display: flex;
-  align-items: center;
   gap: 8px;
 }
 
-strong {
-  color: #1e293b;
+.stat-pill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 2px;
 }
+
+.stat-pill.total {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.stat-pill .k { font-size: 10px; color: #64748b; }
+.stat-pill .v { font-size: 13px; font-weight: 700; color: #0f172a; }
+.stat-pill.total .v { color: #2563eb; }
+
+.manual-score-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.manual-total-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.total-number {
+  font-size: 16px;
+  font-weight: 800;
+  color: #2563eb;
+}
+
+/* 가중치 패널 */
+.weight-control-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.weight-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.weight-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.weight-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #eff6ff;
+  border-radius: 8px;
+}
+
+.weight-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weight-title { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
+
+.live-update-badge {
+  font-size: 10.5px;
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-weight: 700;
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
+}
+
+.weight-desc { font-size: 12px; color: #64748b; margin: 2px 0 0; }
+
+.reset-weight-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.reset-weight-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.weight-sliders-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.slider-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.b-grammar-border:hover { border-color: #84cc16; }
+.b-vocab-border:hover { border-color: #3b82f6; }
+.b-logic-border:hover { border-color: #f97316; }
+.b-reading-border:hover { border-color: #eab308; }
+
+.slider-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.slider-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.slider-badge {
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.b-grammar-badge { background: #ecfccb; color: #4d7c0f; }
+.b-vocab-badge { background: #eff6ff; color: #1d4ed8; }
+.b-logic-badge { background: #fff7ed; color: #c2410c; }
+.b-reading-badge { background: #fefce8; color: #a16207; }
+
+.weight-range {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e2e8f0;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+}
+
+.weight-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2563eb;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.weight-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.slider-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.action-bar {
+  text-align: center;
+  margin: 24px 0 36px;
+}
+
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 28px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.25);
+  transition: transform 0.15s, background-color 0.15s;
+}
+
+.primary-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+/* 3. 결과 리포트 섹션 */
+.section-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
+  letter-spacing: 0.12em;
+  margin-bottom: 24px;
+}
+
+.charts-section {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.mini-charts-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.chart-tile, .main-timeline-tile {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.tile-header {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 12px;
+}
+
+.chart-canvas-box { height: 110px; }
+.timeline-canvas-box { height: 260px; }
+
+.sub-heading {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 14px;
+  color: #0f172a;
+}
+
+.univ-card-flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 36px;
+}
+
+.univ-modern-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.u-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.u-name { font-size: 15px; font-weight: 700; color: #0f172a; }
+.u-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  border-radius: 6px;
+}
+
+.major-pill-group {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.m-title-bar {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+.m-title { font-weight: 700; }
+.m-count { color: #64748b; font-size: 11.5px; }
+
+.senior-profile-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.badge-meta {
+  font-size: 11px;
+  color: #64748b;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.badge-score {
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.b-grammar { background: #ecfccb; color: #4d7c0f; }
+.b-vocab   { background: #eff6ff; color: #1d4ed8; }
+.b-logic   { background: #fff7ed; color: #c2410c; }
+.b-reading { background: #fefce8; color: #a16207; }
+.b-total   { background: #f1f5f9; color: #0f172a; font-weight: 800; }
+
+.table-badge-group {
+  display: flex;
+  gap: 6px;
+}
+
+.table-frame {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.clean-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.clean-table th {
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.clean-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.cell-mono { font-family: monospace; color: #475569; }
+.cell-bold { font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+.cell-mute { color: #94a3b8; font-size: 12.5px; }
 </style>

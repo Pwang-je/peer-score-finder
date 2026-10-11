@@ -7,7 +7,6 @@ from sklearn.neighbors import NearestNeighbors
 
 app = FastAPI()
 
-# 프론트엔드(Vue.js)와의 연동을 위한 CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,7 +18,7 @@ app.add_middleware(
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'wogns1224',  # 본인의 MySQL 비밀번호
+    'password': 'wogns1224',
     'db': 'peer_data',
     'charset': 'utf8mb4'
 }
@@ -27,7 +26,6 @@ DB_CONFIG = {
 
 def get_db_data(month: int):
     conn = pymysql.connect(**DB_CONFIG)
-    # year < 2026 조건을 주어 올해 데이터가 선배 매칭풀에 섞이지 않도록 격리합니다.
     query = f"""
         SELECT year, student_name, total_score, grammar, vocabulary, logic, reading, univ, major, department 
         FROM student_scores 
@@ -75,8 +73,7 @@ def search_students(keyword: str = ""):
         cursor = conn.cursor()
         cursor.execute(query, (f"%{keyword}%",))
         rows = cursor.fetchall()
-        student_list = [row[0] for row in rows]
-        return student_list
+        return [row[0] for row in rows]
     except Exception as e:
         print("이름 검색 에러:", e)
         return []
@@ -109,37 +106,50 @@ def get_student_score(student_name: str, month: int):
 
 # 3. 유사 성적 합격자 예측 및 종합 분석 API
 @app.get("/predict")
-def predict_university(month: int, grammar: float, vocabulary: float, logic: float, reading: float, student_name: str):
+# 3. 유사 성적 합격자 예측 및 종합 분석 API (가중치 파라미터 추가)
+@app.get("/predict")
+def predict_university(
+        month: int,
+        grammar: float,
+        vocabulary: float,
+        logic: float,
+        reading: float,
+        student_name: str,
+        w_grammar: float = 1.0,
+        w_vocabulary: float = 1.0,
+        w_logic: float = 1.0,
+        w_reading: float = 1.0
+):
     df_raw = get_db_data(month)
     if df_raw.empty:
         return {"status": "error", "message": "해당 월의 데이터가 없습니다."}
 
-    # 영역별 선배 평균 데이터 가공
     month_averages = {
-        "grammar": round(df_raw['grammar'].mean(), 1),
-        "vocabulary": round(df_raw['vocabulary'].mean(), 1),
-        "logic": round(df_raw['logic'].mean(), 1),
-        "reading": round(df_raw['reading'].mean(), 1),
-        "total": round(df_raw['total_score'].mean(), 1)
+        "grammar": round(float(df_raw['grammar'].mean()), 1),
+        "vocabulary": round(float(df_raw['vocabulary'].mean()), 1),
+        "logic": round(float(df_raw['logic'].mean()), 1),
+        "reading": round(float(df_raw['reading'].mean()), 1),
+        "total": round(float(df_raw['total_score'].mean()), 1)
     }
 
     df_past = df_raw.copy()
     features = ['grammar', 'vocabulary', 'logic', 'reading']
-    X_past = df_past[features]
-    current_student = [[grammar, vocabulary, logic, reading]]
 
-    # KNN 모델 빌드 및 이웃 선배 추출
+    # 🌟 가중치 벡터 적용 (과목별 중요도에 비례하여 공간 확장)
+    weights = np.array([w_grammar, w_vocabulary, w_logic, w_reading])
+    X_past_weighted = df_past[features].values * weights
+    current_student_weighted = np.array([[grammar, vocabulary, logic, reading]]) * weights
+
+    # KNN 모델 빌드 (가중치가 적용된 피처 공간에서 이웃 탐색)
     n_neighbors = min(100, len(df_past))
     knn = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean')
-    knn.fit(X_past)
+    knn.fit(X_past_weighted)
 
-    distances, indices = knn.kneighbors(current_student)
+    distances, indices = knn.kneighbors(current_student_weighted)
     matched_seniors = df_past.iloc[indices[0]].copy()
 
-    # 이름(student_name)과 총점(total_score)이 완전히 똑같은 복제 데이터 중복 제거
+    # 중복 제거
     matched_seniors = matched_seniors.drop_duplicates(subset=['student_name', 'total_score'])
-
-    # 무작위 셔플
     matched_seniors = matched_seniors.sample(frac=1, random_state=None).reset_index(drop=True)
 
     matched_names = matched_seniors['student_name'].tolist()
@@ -147,11 +157,11 @@ def predict_university(month: int, grammar: float, vocabulary: float, logic: flo
     df_all_months = get_all_months_data()
     df_matched_timeline = df_all_months[df_all_months['student_name'].isin(matched_names)]
 
-    # 선배들의 1월 ~ 11월 추이선 딕셔너리 빌드 (2월 공백 완벽 방어)
+    # 1) 선배들의 1월 ~ 11월 추이선
     timeline_stats = {}
     last_valid_senior_score = None
 
-    for m in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
+    for m in range(1, 12):
         m_df = df_matched_timeline[df_matched_timeline['month'] == m]
         avg_score = m_df['total_score'].mean() if not m_df.empty else None
 
@@ -166,20 +176,19 @@ def predict_university(month: int, grammar: float, vocabulary: float, logic: flo
         timeline_stats[f"{m}월"] = final_score
         last_valid_senior_score = final_score
 
-        # 나의 1월 ~ 11월 추이선 딕셔너리 빌드 (심플하고 정확한 매칭으로 수정)
-        df_my = get_my_all_months_data(student_name)
-        my_timeline_stats = {}
+    # 2) 나의 1월 ~ 11월 추이선
+    df_my = get_my_all_months_data(student_name)
+    my_timeline_stats = {}
 
-        for m in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]:
-            my_m_df = df_my[df_my['month'] == m]
+    for m in range(1, 12):
+        my_m_df = df_my[df_my['month'] == m]
+        if not my_m_df.empty:
+            avg_my_score = round(float(my_m_df['total_score'].iloc[0]), 1)
+            my_timeline_stats[f"{m}월"] = avg_my_score
+        else:
+            my_timeline_stats[f"{m}월"] = None
 
-            if not my_m_df.empty:
-                avg_my_score = round(float(my_m_df['total_score'].iloc[0]), 1)
-                my_timeline_stats[f"{m}월"] = avg_my_score
-            else:
-                my_timeline_stats[f"{m}월"] = None
-
-    # === [들여쓰기 수정 완료] 매칭 확률 높은 TOP 10 대학 및 학과별 분포 추출 로직 ===
+    # 3) TOP 10 대학 및 학과별 분포 추출
     top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
     univ_details = []
 
@@ -216,7 +225,7 @@ def predict_university(month: int, grammar: float, vocabulary: float, logic: flo
             "majors": major_list
         })
 
-    # 🌟 [수정] 상세 목록용 리스트 생성 시 딱 상위 10명만 자르기
+    # 4) 상세 목록 상위 10명
     senior_list = []
     for _, row in matched_seniors.head(10).iterrows():
         senior_list.append({
@@ -234,7 +243,6 @@ def predict_university(month: int, grammar: float, vocabulary: float, logic: flo
             }
         })
 
-    # ✅ 들여쓰기가 수정된 최종 return문
     return {
         "status": "success",
         "month_averages": month_averages,
