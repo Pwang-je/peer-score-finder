@@ -15,12 +15,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Local DB_Config
+# DB_CONFIG = {
+#     'host': 'localhost',
+#     'user': 'root',
+#     'password': 'wogns1224',
+#     'db': 'peer_data',
+#     'charset': 'utf8mb4'
+# }
+
+# TiDB Config
 DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'wogns1224',
+    'host': 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com',
+    'port': 4000,
+    'user': '3BAijZ6wxqbmp3n.root',
+    'password': 'BDs2xnssZHYNtQS2',
     'db': 'peer_data',
-    'charset': 'utf8mb4'
+    'ssl_verify_cert': False,
 }
 
 

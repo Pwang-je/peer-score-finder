@@ -23,4 +23,17 @@
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </DataSourceFromHistory>
+  <DataSourceFromHistory isRemovedFromProject="false">
+    <data-source source="LOCAL" name="peer_data@gateway01.ap-northeast-1.prod.aws.tidbcloud.com" uuid="91a26c82-60cd-43e6-af74-4737ad2aa2f8">
+      <database-info product="" version="" jdbc-version="" driver-name="" driver-version="" dbms="TIDB" />
+      <driver-ref>tidb</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>com.mysql.cj.jdbc.Driver</jdbc-driver>
+      <jdbc-url>jdbc:mysql://gateway01.ap-northeast-1.prod.aws.tidbcloud.com:4000/peer_data</jdbc-url>
+      <secret-storage>master_key</secret-storage>
+      <user-name>3BAijZ6wxqbmp3n.root</user-name>
+      <schema-mapping />
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
+  </DataSourceFromHistory>
 </DataSourcesHistory>
