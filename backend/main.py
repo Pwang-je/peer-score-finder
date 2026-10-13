@@ -25,21 +25,24 @@ app.add_middleware(
 # }
 
 # TiDB Config
+# TiDB Config
 DB_CONFIG = {
     'host': 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com',
     'port': 4000,
     'user': '3BAijZ6wxqbmp3n.root',
     'password': 'BDs2xnssZHYNtQS2',
     'db': 'peer_data',
-    'ssl_verify_cert': False,
+    'charset': 'utf8mb4',
+    'ssl': {'ca': None}  # TiDB 연결 시 필수
 }
 
 
 def get_db_data(month: int):
     conn = pymysql.connect(**DB_CONFIG)
+    # ⚠️ student_scores -> peer_data 로 변경
     query = f"""
         SELECT year, student_name, total_score, grammar, vocabulary, logic, reading, univ, major, department 
-        FROM student_scores 
+        FROM peer_data 
         WHERE month = {month} AND year < 2026 AND univ != '' AND univ IS NOT NULL
     """
     df = pd.read_sql(query, conn)
@@ -49,7 +52,8 @@ def get_db_data(month: int):
 
 def get_all_months_data():
     conn = pymysql.connect(**DB_CONFIG)
-    query = "SELECT student_name, month, total_score FROM student_scores WHERE year < 2026 AND univ != '' AND univ IS NOT NULL"
+    # ⚠️ student_scores -> peer_data 로 변경
+    query = "SELECT student_name, month, total_score FROM peer_data WHERE year < 2026 AND univ != '' AND univ IS NOT NULL"
     df = pd.read_sql(query, conn)
     conn.close()
     return df.fillna("")
@@ -57,9 +61,10 @@ def get_all_months_data():
 
 def get_my_all_months_data(student_name: str):
     conn = pymysql.connect(**DB_CONFIG)
+    # ⚠️ student_scores -> peer_data 로 변경
     query = f"""
         SELECT month, total_score 
-        FROM student_scores 
+        FROM peer_data 
         WHERE year = 2026 AND student_name = %s
     """
     df = pd.read_sql(query, conn, params=[student_name])
@@ -74,9 +79,10 @@ def search_students(keyword: str = ""):
         return []
 
     conn = pymysql.connect(**DB_CONFIG)
+    # ⚠️ student_scores -> peer_data 로 변경
     query = """
         SELECT DISTINCT student_name 
-        FROM student_scores 
+        FROM peer_data 
         WHERE year = 2026 AND student_name LIKE %s
         LIMIT 10
     """
@@ -96,9 +102,10 @@ def search_students(keyword: str = ""):
 @app.get("/get-student-score")
 def get_student_score(student_name: str, month: int):
     conn = pymysql.connect(**DB_CONFIG)
+    # ⚠️ student_scores -> peer_data 로 변경
     query = """
         SELECT grammar, vocabulary, logic, reading, total_score 
-        FROM student_scores 
+        FROM peer_data 
         WHERE year = 2026 AND student_name = %s AND month = %s
     """
     try:
@@ -113,7 +120,6 @@ def get_student_score(student_name: str, month: int):
         return {"status": "error", "message": str(e)}
     finally:
         conn.close()
-
 
 # 3. 유사 성적 합격자 예측 및 종합 분석 API
 # predict 로 불러오기
