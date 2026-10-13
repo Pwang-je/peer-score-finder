@@ -3,7 +3,7 @@
     <!-- 헤더 섹션 -->
     <header class="app-header">
       <div class="header-content">
-        <div class="brand-badge">PREDICTIVE AI ENGINE</div>
+        <div class="brand-badge">예측 및 분석 연습용</div>
         <h1 class="main-title">Peer Analyzer</h1>
         <p class="main-desc">
           2020~2025 합격자 성적 패턴 데이터를 기반으로 나와 가장 비슷한 점수 그룹을 탐색합니다.
@@ -73,6 +73,7 @@
             <div class="input-wrap">
               <label>모의고사 월</label>
               <select v-model="form.month" @change="loadStudentScore" class="modern-select">
+                <option value="" disabled selected>월 선택</option>
                 <option v-for="m in [1,2,3,4,5,6,7,8,9,10,11]" :key="m" :value="m">{{ m }}월 모의고사</option>
               </select>
             </div>
@@ -81,7 +82,7 @@
           <!-- 로드된 학생 스탯 모니터 -->
           <div class="stat-summary-box">
             <div class="stat-summary-title">
-              {{ form.student_name ? `${form.student_name} 학생 (${form.month}월 데이터)` : '선택된 학생이 없습니다' }}
+              {{ form.student_name ? `${form.student_name} 학생 (${form.month ? form.month + '월' : '월 미선택'} 데이터)` : '선택된 학생이 없습니다' }}
             </div>
             <div class="stat-mini-grid">
               <div class="stat-pill"><span class="k">문법</span><span class="v">{{ studentDBData.grammar }}</span></div>
@@ -101,6 +102,7 @@
             <div class="input-wrap full">
               <label>비교 기준 월 선택</label>
               <select v-model="manualMonth" class="modern-select">
+                <option value="" disabled selected>비교할 기준 월을 선택해 주세요</option>
                 <option v-for="m in [1,2,3,4,5,6,7,8,9,10,11]" :key="m" :value="m">{{ m }}월 기준 합격생과 비교</option>
               </select>
             </div>
@@ -351,14 +353,14 @@ export default {
     return {
       searchKeyword: '',
       form: {
-        month: 5,
+        month: '',
         grammar: '',
         vocabulary: '',
         logic: '',
         reading: '',
         student_name: ''
       },
-      manualMonth: 5,
+      manualMonth: '',
       weights: {
         grammar: 1.0,
         vocabulary: 1.0,
@@ -452,11 +454,16 @@ export default {
         console.error("성적 로드 실패:", e);
       }
     },
+
     async fetchPrediction(isDebounce = false) {
       const hasManual = [this.form.grammar, this.form.vocabulary, this.form.logic, this.form.reading].some(v => v !== '');
       let m, name, g, v, l, r;
 
       if (hasManual) {
+        if (!this.manualMonth) {
+          if (!isDebounce) alert("비교 기준 월을 선택해 주세요!");
+          return;
+        }
         m = this.manualMonth;
         name = "직접입력수험생";
         g = Number(this.form.grammar) || 0;
@@ -465,8 +472,12 @@ export default {
         r = Number(this.form.reading) || 0;
       } else {
         if (!this.form.student_name || this.studentDBData.grammar === '-') {
-          if (!isDebounce) alert("학생을 검색하여 선택하거나, 하단에 점수를 직접 입력해 주세요!");
+          if (!isDebounce) alert("학생을 검색하여 선택하거나, 점수를 직접 입력해 주세요!");
           this.isUpdating = false;
+          return;
+        }
+        if (!this.form.month) {
+          if (!isDebounce) alert("모의고사 월을 선택해 주세요!");
           return;
         }
         m = this.form.month;
@@ -754,9 +765,12 @@ export default {
 /* 2. 컨트롤 패널 */
 .control-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* 너비가 삐져나가지 않도록 고정 */
   gap: 20px;
   margin-bottom: 20px;
+  max-width: 1140px; /* 상/하단 카드와 동일한 최대 너비 부여 */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .glass-panel {
@@ -766,6 +780,8 @@ export default {
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.03);
   position: relative;
+  min-width: 0; /* flex/grid 자식 요소의 오버플로우 방지 */
+  box-sizing: border-box;
 }
 
 .panel-tag {
