@@ -50,7 +50,7 @@
 
       <!-- 2. 컨트롤 패널 (2열 레이아웃) -->
       <section class="control-grid">
-        <!-- 왼쪽: 2026 재원생 선택 패널 (🌟 드롭다운 방식으로 즉각 선택) -->
+        <!-- 왼쪽: 2026 재원생 선택 패널 -->
         <div class="glass-panel">
           <div class="panel-tag">MODE 01</div>
           <h2 class="panel-heading">26년도 성적 불러오기</h2>
@@ -231,13 +231,7 @@
 
         <!-- 매칭 확률 높은 TOP 10 대학 및 학과별 분포 -->
         <div class="univ-summary-wrap">
-          <div class="section-title-wrap">
-            <h2 class="sub-heading">매칭 확률 높은 TOP 10 대학 및 학과별 분포</h2>
-            <p class="section-sub-desc">
-              단순 총점 일치가 아닌 <strong>4과목 득점 밸런스(비율)</strong> 및 <strong>주력 과목 구성</strong>이 가장 유사했던 과거 합격자 표본입니다.
-            </p>
-          </div>
-
+          <h2 class="sub-heading">매칭 확률 높은 TOP 10 대학 및 학과별 분포</h2>
           <div class="univ-card-flow">
             <div v-for="(u, idx) in result.univ_details" :key="idx" class="univ-modern-card">
               <div class="u-card-head">
@@ -251,19 +245,13 @@
                     <span class="m-count">{{ m.count }}명</span>
                   </div>
 
-                  <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-profile-block">
-                    <div class="senior-score-line">
-                      <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
-                      <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
-                      <span class="badge-score b-vocab">{{ scoreObj.vocabulary }}</span>
-                      <span class="badge-score b-logic">{{ scoreObj.logic }}</span>
-                      <span class="badge-score b-reading">{{ scoreObj.reading }}</span>
-                      <span class="badge-score b-total">{{ scoreObj.total }}</span>
-                    </div>
-                    <!-- 🌟 [요구사항 2] 왜 매칭되었는지 명확한 근거 뱃지 출력 -->
-                    <div v-if="scoreObj.match_reason" class="senior-reason-tag">
-                      🎯 {{ scoreObj.match_reason }}
-                    </div>
+                  <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-profile-line">
+                    <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
+                    <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
+                    <span class="badge-score b-vocab">{{ scoreObj.vocabulary }}</span>
+                    <span class="badge-score b-logic">{{ scoreObj.logic }}</span>
+                    <span class="badge-score b-reading">{{ scoreObj.reading }}</span>
+                    <span class="badge-score b-total">{{ scoreObj.total }}</span>
                   </div>
                 </div>
               </div>
@@ -273,16 +261,16 @@
 
         <!-- 상세 매칭 선배 테이블 -->
         <div class="table-container">
-          <h2 class="sub-heading">점수와 가장 가까운 합격생 상세 매칭 내역</h2>
+          <h2 class="sub-heading">점수와 가까운 지난 학생 리스트</h2>
           <div class="table-frame">
             <table class="clean-table">
               <thead>
                 <tr>
                   <th>연도</th>
-                  <th>합격 대학 / 학과</th>
+                  <th>합격 대학</th>
+                  <th>합격 학과</th>
                   <th>전형 계열</th>
-                  <th>영역별 상세 득점</th>
-                  <th>매칭 산출 근거</th>
+                  <th>영역별 상세 취득 점수</th>
                 </tr>
               </thead>
               <tbody>
@@ -290,8 +278,9 @@
                   <td class="cell-mono">{{ s.year }}년</td>
                   <td class="cell-bold">
                     <span class="badge-meta">[{{ String(s.year).slice(2) }}' {{ s.scores.name || '선배' }}]</span>
-                    <span>{{ s.univ }} {{ s.major }}</span>
+                    <span>{{ s.univ }}</span>
                   </td>
+                  <td>{{ s.major }}</td>
                   <td class="cell-mute">{{ s.department }}</td>
                   <td>
                     <div class="table-badge-group">
@@ -301,10 +290,6 @@
                       <span class="badge-score b-reading">{{ s.scores.reading }}</span>
                       <span class="badge-score b-total">{{ s.scores.total }}</span>
                     </div>
-                  </td>
-                  <!-- 🌟 [요구사항 2] 표에서도 매칭 근거 확인 가능 -->
-                  <td>
-                    <span class="reason-pill">{{ s.match_reason }}</span>
                   </td>
                 </tr>
               </tbody>
@@ -325,16 +310,16 @@ Chart.register(...registerables);
 export default {
   data() {
     return {
-      allStudents: [], // 🌟 [요구사항 1] 26년도 전체 학생 명단
+      allStudents: [],
       form: {
-        month: '',     // 초기값 빈칸
+        month: '',
         grammar: '',
         vocabulary: '',
         logic: '',
         reading: '',
-        student_name: '' // 초기값 빈칸
+        student_name: ''
       },
-      manualMonth: '', // 초기값 빈칸
+      manualMonth: '',
       weights: {
         grammar: 1.0,
         vocabulary: 1.0,
@@ -377,7 +362,6 @@ export default {
     }
   },
   mounted() {
-    // 🌟 페이지 진입 시 26년도 학생 전체 명단 즉시 로드
     this.fetchAllStudents();
   },
   methods: {
@@ -389,7 +373,6 @@ export default {
         reading: 1.0
       };
     },
-    // 🌟 [요구사항 1] 전체 학생 리스트 불러오기
     async fetchAllStudents() {
       try {
         const res = await axios.get('https://peer-score-finder.onrender.com/all-students-2026');
@@ -1088,21 +1071,11 @@ export default {
 .chart-canvas-box { height: 110px; }
 .timeline-canvas-box { height: 260px; }
 
-.section-title-wrap {
-  margin-bottom: 16px;
-}
-
 .sub-heading {
   font-size: 17px;
   font-weight: 700;
-  margin: 0 0 4px;
+  margin: 0 0 14px;
   color: #0f172a;
-}
-
-.section-sub-desc {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0;
 }
 
 .univ-card-flow {
@@ -1154,31 +1127,12 @@ export default {
 .m-title { font-weight: 700; }
 .m-count { color: #64748b; font-size: 11.5px; }
 
-/* 🌟 선배 프로필 및 매칭 근거 박스 */
-.senior-profile-block {
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
-}
-
-.senior-score-line {
+.senior-profile-line {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
-  margin-bottom: 4px;
-}
-
-.senior-reason-tag {
-  font-size: 11px;
-  color: #2563eb;
-  background: #eff6ff;
-  border-radius: 4px;
-  padding: 3px 6px;
-  font-weight: 600;
-  line-height: 1.4;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .badge-meta {
@@ -1192,7 +1146,7 @@ export default {
   font-size: 11px;
   font-family: monospace;
   font-weight: 700;
-  padding: 2px 5px;
+  padding: 2px 6px;
   border-radius: 4px;
 }
 
@@ -1200,7 +1154,7 @@ export default {
 .b-vocab   { background: #eff6ff; color: #1d4ed8; }
 .b-logic   { background: #fff7ed; color: #c2410c; }
 .b-reading { background: #fefce8; color: #a16207; }
-.b-total   { background: #e2e8f0; color: #0f172a; font-weight: 800; }
+.b-total   { background: #f1f5f9; color: #0f172a; font-weight: 800; }
 
 .table-badge-group {
   display: flex;
@@ -1235,16 +1189,6 @@ export default {
 }
 
 .cell-mono { font-family: monospace; color: #475569; }
-.cell-bold { font-weight: 600; color: #0f172a; }
+.cell-bold { font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 6px; }
 .cell-mute { color: #94a3b8; font-size: 12.5px; }
-
-.reason-pill {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #1e40af;
-  background: #dbeafe;
-  padding: 3px 8px;
-  border-radius: 6px;
-}
 </style>

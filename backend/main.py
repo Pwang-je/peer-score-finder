@@ -26,6 +26,20 @@ DB_CONFIG = {
     'ssl': {'ca': None}
 }
 
+# 예: ALLOWED_STUDENTS = ["하민정", "김철수", "이영희"]
+# 빈 리스트 [] 로 두면 26년도 전체 학생이 출력됩니다.
+ALLOWED_STUDENTS = [
+    "강승현", "고시후", "고준형", "권도윤", "김가연_1", "김도현", "김민결", "김민재",
+    "김병준", "김보승", "김서현", "김수겸", "김승은", "김승재", "김시윤", "김아진",
+    "김예은", "김정섭", "김준호", "김지훈", "김진", "김진욱", "김태규", "김현빈",
+    "류화윤", "문건호", "문빈", "박도현", "박선민", "박성호", "박우영", "박유경",
+    "박진헌", "서하늘", "석유나", "성현서", "신재원", "심재인", "양은채", "유지원",
+    "윤정한", "윤태경", "이규민", "이금담", "이민규", "이상호", "이솔", "이승찬",
+    "이유림", "이은수", "이준기", "이하람", "이혁재", "임우진", "임재민", "임채영",
+    "임태경", "임하준", "장율", "전승현", "전준형", "정시웅", "정연우", "정예림",
+    "정의준", "조은서", "조인엽", "조하율", "조혜란", "채민석", "최상균", "최연준",
+    "최윤지", "하민정", "하승민", "한지윤", "홍승훈", "홍시은", "홍채이", "황혜영"
+]
 
 def get_db_data(month: int):
     conn = pymysql.connect(**DB_CONFIG)
@@ -59,67 +73,40 @@ def get_my_all_months_data(student_name: str):
     return df.fillna("")
 
 
-# 🌟 [요구사항 2] 내 점수와 선배 점수를 비교해 구체적인 매칭 근거를 도출하는 헬퍼 함수
-def generate_match_reason(my_scores: dict, senior_scores: dict) -> str:
-    diffs = {
-        '문법': abs(my_scores['grammar'] - senior_scores['grammar']),
-        '어휘': abs(my_scores['vocabulary'] - senior_scores['vocabulary']),
-        '논리': abs(my_scores['logic'] - senior_scores['logic']),
-        '독해': abs(my_scores['reading'] - senior_scores['reading'])
-    }
-
-    # 점수 오차가 1.5점 이하인 완벽 매칭 과목
-    identical_subs = [k for k, v in diffs.items() if v <= 1.5]
-    total_diff = round(senior_scores['total'] - my_scores['total'], 1)
-
-    reasons = []
-    if len(identical_subs) >= 2:
-        reasons.append(f"{', '.join(identical_subs[:2])} 득점 비중 일치")
-    elif len(identical_subs) == 1:
-        reasons.append(f"{identical_subs[0]} 점수 유사(오차 {diffs[identical_subs[0]]}점)")
-
-    # 영역별 비중 최고점(주력 과목) 패턴 일치 여부
-    my_max_sub = max(['grammar', 'vocabulary', 'logic', 'reading'], key=lambda k: my_scores[k])
-    senior_max_sub = max(['grammar', 'vocabulary', 'logic', 'reading'], key=lambda k: senior_scores[k])
-
-    sub_map = {'grammar': '문법', 'vocabulary': '어휘', 'logic': '논리', 'reading': '독해'}
-    if my_max_sub == senior_max_sub:
-        reasons.append(f"주력 득점 영역({sub_map.get(my_max_sub)}) 동일")
-
-    # 총점 비교
-    if abs(total_diff) == 0:
-        reasons.append("총점 동일")
-    elif total_diff > 0:
-        reasons.append(f"총점 +{total_diff}점 차이")
-    else:
-        reasons.append(f"총점 {total_diff}점 차이")
-
-    return " / ".join(reasons) if reasons else "4개 영역 밸런스 균등 유사"
-
-
-# 🌟 [요구사항 1] 26년도 전체 학생 명단 가나다순 반환 API
+# 🌟 특정 학생 명단만 반환하는 API
 @app.get("/all-students-2026")
 def get_all_students_2026():
     conn = pymysql.connect(**DB_CONFIG)
-    query = """
-            SELECT DISTINCT student_name
-            FROM peer_data
-            WHERE year = 2026 AND student_name != '' AND student_name IS NOT NULL
-            ORDER BY student_name ASC \
-            """
     try:
         cursor = conn.cursor()
-        cursor.execute(query)
+        if ALLOWED_STUDENTS:
+            # 지정된 특정 학생만 DB에 존재하는지 확인 후 가나다순 반환
+            format_strings = ','.join(['%s'] * len(ALLOWED_STUDENTS))
+            query = f"""
+                SELECT DISTINCT student_name 
+                FROM peer_data 
+                WHERE year = 2026 AND student_name IN ({format_strings})
+                ORDER BY student_name ASC
+            """
+            cursor.execute(query, tuple(ALLOWED_STUDENTS))
+        else:
+            query = """
+                    SELECT DISTINCT student_name
+                    FROM peer_data
+                    WHERE year = 2026 AND student_name != '' AND student_name IS NOT NULL
+                    ORDER BY student_name ASC \
+                    """
+            cursor.execute(query)
+
         rows = cursor.fetchall()
         return [row[0] for row in rows]
     except Exception as e:
-        print("전체 학생 조회 에러:", e)
+        print("학생 목록 조회 에러:", e)
         return []
     finally:
         conn.close()
 
 
-# 선택된 학생의 특정 달 성적 단건 조회 API
 @app.get("/get-student-score")
 def get_student_score(student_name: str, month: int):
     conn = pymysql.connect(**DB_CONFIG)
@@ -144,7 +131,6 @@ def get_student_score(student_name: str, month: int):
         conn.close()
 
 
-# 유사 성적 합격자 예측 및 종합 분석 API
 @app.get("/predict")
 def predict_university(
         month: int,
@@ -192,7 +178,7 @@ def predict_university(
     df_all_months = get_all_months_data()
     df_matched_timeline = df_all_months[df_all_months['student_name'].isin(matched_names)]
 
-    # 1) 선배들의 1월 ~ 11월 추이선
+    # 선배들의 1월 ~ 11월 추이선
     timeline_stats = {}
     last_valid_senior_score = None
 
@@ -211,7 +197,7 @@ def predict_university(
         timeline_stats[f"{m}월"] = final_score
         last_valid_senior_score = final_score
 
-    # 2) 나의 1월 ~ 11월 추이선
+    # 나의 1월 ~ 11월 추이선
     df_my = get_my_all_months_data(student_name)
     my_timeline_stats = {}
 
@@ -223,16 +209,7 @@ def predict_university(
         else:
             my_timeline_stats[f"{m}월"] = None
 
-    # 내 점수 딕셔너리
-    my_scores_dict = {
-        'grammar': grammar,
-        'vocabulary': vocabulary,
-        'logic': logic,
-        'reading': reading,
-        'total': grammar + vocabulary + logic + reading
-    }
-
-    # 3) TOP 10 대학 및 학과별 분포 추출 (매칭 사유 주입)
+    # TOP 10 대학 및 학과별 분포 추출 (산출 근거 텍스트 제거)
     top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
     univ_details = []
 
@@ -245,26 +222,14 @@ def predict_university(
             score_details = []
             for _, row in group.iterrows():
                 short_year = f"{str(row['year'])[2:]}'"
-                s_dict = {
+                score_details.append({
+                    "year": short_year,
+                    "name": row['student_name'],
                     "grammar": float(row['grammar']),
                     "vocabulary": float(row['vocabulary']),
                     "logic": float(row['logic']),
                     "reading": float(row['reading']),
                     "total": float(row['total_score'])
-                }
-
-                # 🌟 [요구사항 2] 각 매칭 선배별 구체적 매칭 근거 문구 생성
-                reason = generate_match_reason(my_scores_dict, s_dict)
-
-                score_details.append({
-                    "year": short_year,
-                    "name": row['student_name'],
-                    "grammar": s_dict['grammar'],
-                    "vocabulary": s_dict['vocabulary'],
-                    "logic": s_dict['logic'],
-                    "reading": s_dict['reading'],
-                    "total": s_dict['total'],
-                    "match_reason": reason
                 })
 
             major_list.append({
@@ -280,16 +245,9 @@ def predict_university(
             "majors": major_list
         })
 
-    # 4) 상세 목록 상위 10명 (매칭 사유 포함)
+    # 상세 목록 상위 10명
     senior_list = []
     for _, row in matched_seniors.head(10).iterrows():
-        s_dict = {
-            "grammar": float(row['grammar']),
-            "vocabulary": float(row['vocabulary']),
-            "logic": float(row['logic']),
-            "reading": float(row['reading']),
-            "total": float(row['total_score'])
-        }
         senior_list.append({
             "year": int(row['year']),
             "univ": row['univ'],
@@ -297,13 +255,12 @@ def predict_university(
             "department": row['department'],
             "scores": {
                 "name": row['student_name'],
-                "grammar": s_dict['grammar'],
-                "vocabulary": s_dict['vocabulary'],
-                "logic": s_dict['logic'],
-                "reading": s_dict['reading'],
-                "total": s_dict['total']
-            },
-            "match_reason": generate_match_reason(my_scores_dict, s_dict)
+                "grammar": float(row['grammar']),
+                "vocabulary": float(row['vocabulary']),
+                "logic": float(row['logic']),
+                "reading": float(row['reading']),
+                "total": float(row['total_score'])
+            }
         })
 
     return {

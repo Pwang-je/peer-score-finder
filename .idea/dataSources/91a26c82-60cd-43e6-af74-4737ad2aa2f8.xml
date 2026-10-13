@@ -6,98 +6,6 @@
       <DefaultCasing>mixed/mixed</DefaultCasing>
       <DefaultEngine>InnoDB</DefaultEngine>
       <DefaultTmpEngine>InnoDB</DefaultTmpEngine>
-      <Grants>|root||3BAijZ6wxqbmp3n.cloud_admin||ALTER|G
-|root||3BAijZ6wxqbmp3n.root||ALTER|G
-|root||role_admin||ALTER|G
-|root||3BAijZ6wxqbmp3n.root||ALTER ROUTINE|G
-|root||role_admin||ALTER ROUTINE|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||BACKUP_ADMIN|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||CONFIG|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||CONNECTION_ADMIN|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||CREATE|G
-|root||3BAijZ6wxqbmp3n.root||CREATE|G
-|root||role_admin||CREATE|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||CREATE ROLE|G
-|root||3BAijZ6wxqbmp3n.root||CREATE ROLE|G
-|root||role_admin||CREATE ROLE|G
-|root||3BAijZ6wxqbmp3n.root||CREATE ROUTINE|G
-|root||role_admin||CREATE ROUTINE|G
-|root||3BAijZ6wxqbmp3n.root||CREATE TABLESPACE|G
-|root||role_admin||CREATE TABLESPACE|G
-|root||3BAijZ6wxqbmp3n.root||CREATE TEMPORARY TABLES|G
-|root||role_admin||CREATE TEMPORARY TABLES|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||CREATE USER|G
-|root||3BAijZ6wxqbmp3n.root||CREATE USER|G
-|root||role_admin||CREATE USER|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||CREATE VIEW|G
-|root||3BAijZ6wxqbmp3n.root||CREATE VIEW|G
-|root||role_admin||CREATE VIEW|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||DASHBOARD_CLIENT|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||DELETE|G
-|root||3BAijZ6wxqbmp3n.root||DELETE|G
-|root||role_admin||DELETE|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||DROP|G
-|root||3BAijZ6wxqbmp3n.root||DROP|G
-|root||role_admin||DROP|G
-|root||3BAijZ6wxqbmp3n.root||DROP ROLE|G
-|root||role_admin||DROP ROLE|G
-|root||3BAijZ6wxqbmp3n.root||EVENT|G
-|root||role_admin||EVENT|G
-|root||3BAijZ6wxqbmp3n.root||EXECUTE|G
-|root||role_admin||EXECUTE|G
-|root||3BAijZ6wxqbmp3n.root||FILE|G
-|root||role_admin||FILE|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||INDEX|G
-|root||3BAijZ6wxqbmp3n.root||INDEX|G
-|root||role_admin||INDEX|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||INSERT|G
-|root||3BAijZ6wxqbmp3n.root||INSERT|G
-|root||role_admin||INSERT|G
-|root||3BAijZ6wxqbmp3n.root||LOCK TABLES|G
-|root||role_admin||LOCK TABLES|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||PROCESS|G
-|root||3BAijZ6wxqbmp3n.root||PROCESS|G
-|root||role_admin||PROCESS|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||REFERENCES|G
-|root||3BAijZ6wxqbmp3n.root||REFERENCES|G
-|root||role_admin||REFERENCES|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||RELOAD|G
-|root||3BAijZ6wxqbmp3n.root||RELOAD|G
-|root||role_admin||RELOAD|G
-|root||3BAijZ6wxqbmp3n.root||REPLICATION CLIENT|G
-|root||role_admin||REPLICATION CLIENT|G
-|root||3BAijZ6wxqbmp3n.root||REPLICATION SLAVE|G
-|root||role_admin||REPLICATION SLAVE|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||RESTORE_ADMIN|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||RESTRICTED_AUDIT_ADMIN|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||RESTRICTED_CONNECTION_ADMIN|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||RESTRICTED_REPLICA_WRITER_ADMIN|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||RESTRICTED_STATUS_ADMIN|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||RESTRICTED_TABLES_ADMIN|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||RESTRICTED_USER_ADMIN|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||RESTRICTED_VARIABLES_ADMIN|G
-|root||role_admin||ROLE_ADMIN|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||SELECT|G
-|root||3BAijZ6wxqbmp3n.root||SELECT|G
-|root||role_admin||SELECT|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||SHOW DATABASES|G
-|root||3BAijZ6wxqbmp3n.root||SHOW DATABASES|G
-|root||role_admin||SHOW DATABASES|G
-|root||3BAijZ6wxqbmp3n.root||SHOW VIEW|G
-|root||role_admin||SHOW VIEW|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||SHUTDOWN|G
-|root||3BAijZ6wxqbmp3n.root||SUPER|G
-|root||role_admin||SUPER|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||SYSTEM_USER|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||SYSTEM_VARIABLES_ADMIN|G
-|root||3BAijZ6wxqbmp3n.root||TRIGGER|G
-|root||role_admin||TRIGGER|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||UPDATE|G
-|root||3BAijZ6wxqbmp3n.root||UPDATE|G
-|root||role_admin||UPDATE|G
-|root||3BAijZ6wxqbmp3n.cloud_admin||grant option|G
-|root||3BAijZ6wxqbmp3n.root||grant option|G
-|root||role_admin||grant option|G</Grants>
       <ServerVersion>8.5.3</ServerVersion>
     </root>
     <collation id="2" parent="1" name="ascii_bin">
@@ -148,18 +56,18 @@
     <schema id="15" parent="1" name="INFORMATION_SCHEMA">
       <CollationName>utf8mb4_bin</CollationName>
     </schema>
-    <schema id="16" parent="1" name="PERFORMANCE_SCHEMA">
+    <schema id="16" parent="1" name="mysql">
       <CollationName>utf8mb4_bin</CollationName>
     </schema>
-    <schema id="17" parent="1" name="mysql">
-      <CollationName>utf8mb4_bin</CollationName>
-    </schema>
-    <schema id="18" parent="1" name="peer_data">
+    <schema id="17" parent="1" name="peer_data">
       <AutoIntrospectionLevel>3</AutoIntrospectionLevel>
       <Current>1</Current>
       <LastIntrospectionLevel>3</LastIntrospectionLevel>
       <LastIntrospectionLocalTimestamp>2026-10-12.08:13:32</LastIntrospectionLocalTimestamp>
       <CollationName>utf8mb4_unicode_ci</CollationName>
+    </schema>
+    <schema id="18" parent="1" name="PERFORMANCE_SCHEMA">
+      <CollationName>utf8mb4_bin</CollationName>
     </schema>
     <schema id="19" parent="1" name="sys">
       <CollationName>utf8mb4_bin</CollationName>
@@ -167,20 +75,20 @@
     <schema id="20" parent="1" name="test">
       <CollationName>utf8mb4_bin</CollationName>
     </schema>
-    <user id="21" parent="1" name="3BAijZ6wxqbmp3n.cloud_admin">
+    <user id="21" parent="1" name="3BAijZ6wxqbmp3n.root">
       <Plugin>mysql_native_password</Plugin>
     </user>
-    <user id="22" parent="1" name="3BAijZ6wxqbmp3n.cloud_ai"/>
-    <user id="23" parent="1" name="3BAijZ6wxqbmp3n.rewind_3YzScS3w">
+    <user id="22" parent="1" name="role_admin">
+      <Plugin>mysql_native_password</Plugin>
+    </user>
+    <user id="23" parent="1" name="3BAijZ6wxqbmp3n.cloud_admin">
+      <Plugin>mysql_native_password</Plugin>
+    </user>
+    <user id="24" parent="1" name="3BAijZ6wxqbmp3n.rewind_3YzScS3w">
       <Plugin>tidb_auth_token</Plugin>
     </user>
-    <user id="24" parent="1" name="3BAijZ6wxqbmp3n.root">
-      <Plugin>mysql_native_password</Plugin>
-    </user>
-    <user id="25" parent="1" name="role_admin">
-      <Plugin>mysql_native_password</Plugin>
-    </user>
-    <table id="26" parent="18" name="peer_data">
+    <user id="25" parent="1" name="3BAijZ6wxqbmp3n.cloud_ai"/>
+    <table id="26" parent="17" name="peer_data">
       <DetailsLevel>3</DetailsLevel>
       <Engine>InnoDB</Engine>
       <CollationName>utf8mb4_unicode_ci</CollationName>
