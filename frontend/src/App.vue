@@ -903,11 +903,36 @@ export default {
 .stat-pill .v { font-size: 13px; font-weight: 700; color: #0f172a; }
 .stat-pill.total .v { color: #2563eb; }
 
+/* 4칸 그리드를 너비 초과 없이 정확히 1:1:1:1로 고정 */
 .manual-score-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr)); /* 핵심: minmax(0, 1fr)로 부모 너비 안에서 균등 분할 */
   gap: 8px;
   margin-bottom: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 입력 칸 감싸는 wrap도 삐져나가지 않도록 최소 너비 해제 */
+.manual-score-grid .input-wrap {
+  min-width: 0;
+  width: 100%;
+}
+
+/* input 요소가 패딩/테두리 때문에 커지지 않도록 설정 */
+.modern-input, .modern-select {
+  width: 100%;
+  min-width: 0;           /* 핵심: 브라우저 기본 최소 너비 무시 */
+  box-sizing: border-box; /* 핵심: padding과 border가 width 안에 포함되도록 설정 */
+  height: 42px;
+  padding: 0 8px;         /* 4칸으로 좁아졌을 때 여백 확보를 위해 8px로 조절 */
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease;
 }
 
 .manual-total-line {
