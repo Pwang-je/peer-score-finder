@@ -50,25 +50,19 @@
 
       <!-- 2. 컨트롤 패널 (2열 레이아웃) -->
       <section class="control-grid">
-        <!-- 왼쪽: 2026 재원생 검색 패널 -->
+        <!-- 왼쪽: 2026 재원생 선택 패널 (🌟 드롭다운 방식으로 즉각 선택) -->
         <div class="glass-panel">
           <div class="panel-tag">MODE 01</div>
           <h2 class="panel-heading">26년도 성적 불러오기</h2>
           <div class="form-row">
-            <div class="input-wrap autocomplete-wrap">
-              <label>학생 이름 검색</label>
-              <input 
-                type="text" 
-                v-model="searchKeyword" 
-                @input="onSearchInput"
-                placeholder="이름 입력"
-                class="modern-input"
-              >
-              <ul v-if="suggestedStudents.length > 0" class="suggest-dropdown">
-                <li v-for="(name, idx) in suggestedStudents" :key="idx" @click="selectStudent(name)">
+            <div class="input-wrap">
+              <label>학생 선택</label>
+              <select v-model="form.student_name" @change="loadStudentScore" class="modern-select">
+                <option value="" disabled selected>학생을 선택해 주세요</option>
+                <option v-for="(name, idx) in allStudents" :key="idx" :value="name">
                   {{ name }}
-                </li>
-              </ul>
+                </option>
+              </select>
             </div>
             <div class="input-wrap">
               <label>모의고사 월</label>
@@ -132,7 +126,7 @@
         </div>
       </section>
 
-      <!-- 🌟 실시간 디바운스 지원 과목별 가중치 슬라이더 패널 -->
+      <!-- 과목별 가중치 패널 -->
       <section class="weight-control-panel">
         <div class="weight-header">
           <div class="weight-title-group">
@@ -156,71 +150,39 @@
         </div>
 
         <div class="weight-sliders-grid">
-          <!-- 문법 가중치 -->
           <div class="slider-card b-grammar-border">
             <div class="slider-meta">
               <span class="slider-name">문법 가중치</span>
               <span class="slider-badge b-grammar-badge">{{ weights.grammar.toFixed(1) }}x</span>
             </div>
-            <input 
-              type="range" 
-              v-model.number="weights.grammar" 
-              min="0.2" 
-              max="2.5" 
-              step="0.1" 
-              class="weight-range range-grammar"
-            >
+            <input type="range" v-model.number="weights.grammar" min="0.2" max="2.5" step="0.1" class="weight-range">
             <div class="slider-scale"><span>0.2x</span><span>1.0x</span><span>2.5x</span></div>
           </div>
 
-          <!-- 어휘 가중치 -->
           <div class="slider-card b-vocab-border">
             <div class="slider-meta">
               <span class="slider-name">어휘 가중치</span>
               <span class="slider-badge b-vocab-badge">{{ weights.vocabulary.toFixed(1) }}x</span>
             </div>
-            <input 
-              type="range" 
-              v-model.number="weights.vocabulary" 
-              min="0.2" 
-              max="2.5" 
-              step="0.1" 
-              class="weight-range range-vocab"
-            >
+            <input type="range" v-model.number="weights.vocabulary" min="0.2" max="2.5" step="0.1" class="weight-range">
             <div class="slider-scale"><span>0.2x</span><span>1.0x</span><span>2.5x</span></div>
           </div>
 
-          <!-- 논리 가중치 -->
           <div class="slider-card b-logic-border">
             <div class="slider-meta">
               <span class="slider-name">논리 가중치</span>
               <span class="slider-badge b-logic-badge">{{ weights.logic.toFixed(1) }}x</span>
             </div>
-            <input 
-              type="range" 
-              v-model.number="weights.logic" 
-              min="0.2" 
-              max="2.5" 
-              step="0.1" 
-              class="weight-range range-logic"
-            >
+            <input type="range" v-model.number="weights.logic" min="0.2" max="2.5" step="0.1" class="weight-range">
             <div class="slider-scale"><span>0.2x</span><span>1.0x</span><span>2.5x</span></div>
           </div>
 
-          <!-- 독해 가중치 -->
           <div class="slider-card b-reading-border">
             <div class="slider-meta">
               <span class="slider-name">독해 가중치</span>
               <span class="slider-badge b-reading-badge">{{ weights.reading.toFixed(1) }}x</span>
             </div>
-            <input 
-              type="range" 
-              v-model.number="weights.reading" 
-              min="0.2" 
-              max="2.5" 
-              step="0.1" 
-              class="weight-range range-reading"
-            >
+            <input type="range" v-model.number="weights.reading" min="0.2" max="2.5" step="0.1" class="weight-range">
             <div class="slider-scale"><span>0.2x</span><span>1.0x</span><span>2.5x</span></div>
           </div>
         </div>
@@ -269,7 +231,13 @@
 
         <!-- 매칭 확률 높은 TOP 10 대학 및 학과별 분포 -->
         <div class="univ-summary-wrap">
-          <h2 class="sub-heading">매칭 확률 높은 TOP 10 대학 및 학과별 분포</h2>
+          <div class="section-title-wrap">
+            <h2 class="sub-heading">매칭 확률 높은 TOP 10 대학 및 학과별 분포</h2>
+            <p class="section-sub-desc">
+              단순 총점 일치가 아닌 <strong>4과목 득점 밸런스(비율)</strong> 및 <strong>주력 과목 구성</strong>이 가장 유사했던 과거 합격자 표본입니다.
+            </p>
+          </div>
+
           <div class="univ-card-flow">
             <div v-for="(u, idx) in result.univ_details" :key="idx" class="univ-modern-card">
               <div class="u-card-head">
@@ -282,14 +250,20 @@
                     <span class="m-title">{{ m.major }}</span>
                     <span class="m-count">{{ m.count }}명</span>
                   </div>
-                  
-                  <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-profile-line">
-                    <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
-                    <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
-                    <span class="badge-score b-vocab">{{ scoreObj.vocabulary }}</span>
-                    <span class="badge-score b-logic">{{ scoreObj.logic }}</span>
-                    <span class="badge-score b-reading">{{ scoreObj.reading }}</span>
-                    <span class="badge-score b-total">{{ scoreObj.total }}</span>
+
+                  <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-profile-block">
+                    <div class="senior-score-line">
+                      <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
+                      <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
+                      <span class="badge-score b-vocab">{{ scoreObj.vocabulary }}</span>
+                      <span class="badge-score b-logic">{{ scoreObj.logic }}</span>
+                      <span class="badge-score b-reading">{{ scoreObj.reading }}</span>
+                      <span class="badge-score b-total">{{ scoreObj.total }}</span>
+                    </div>
+                    <!-- 🌟 [요구사항 2] 왜 매칭되었는지 명확한 근거 뱃지 출력 -->
+                    <div v-if="scoreObj.match_reason" class="senior-reason-tag">
+                      🎯 {{ scoreObj.match_reason }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -299,16 +273,16 @@
 
         <!-- 상세 매칭 선배 테이블 -->
         <div class="table-container">
-          <h2 class="sub-heading">점수와 가까운 지난 학생 리스트</h2>
+          <h2 class="sub-heading">점수와 가장 가까운 합격생 상세 매칭 내역</h2>
           <div class="table-frame">
             <table class="clean-table">
               <thead>
                 <tr>
                   <th>연도</th>
-                  <th>합격 대학</th>
-                  <th>합격 학과</th>
+                  <th>합격 대학 / 학과</th>
                   <th>전형 계열</th>
-                  <th>영역별 상세 취득 점수</th>
+                  <th>영역별 상세 득점</th>
+                  <th>매칭 산출 근거</th>
                 </tr>
               </thead>
               <tbody>
@@ -316,9 +290,8 @@
                   <td class="cell-mono">{{ s.year }}년</td>
                   <td class="cell-bold">
                     <span class="badge-meta">[{{ String(s.year).slice(2) }}' {{ s.scores.name || '선배' }}]</span>
-                    <span>{{ s.univ }}</span>
+                    <span>{{ s.univ }} {{ s.major }}</span>
                   </td>
-                  <td>{{ s.major }}</td>
                   <td class="cell-mute">{{ s.department }}</td>
                   <td>
                     <div class="table-badge-group">
@@ -328,6 +301,10 @@
                       <span class="badge-score b-reading">{{ s.scores.reading }}</span>
                       <span class="badge-score b-total">{{ s.scores.total }}</span>
                     </div>
+                  </td>
+                  <!-- 🌟 [요구사항 2] 표에서도 매칭 근거 확인 가능 -->
+                  <td>
+                    <span class="reason-pill">{{ s.match_reason }}</span>
                   </td>
                 </tr>
               </tbody>
@@ -343,35 +320,31 @@
 import axios from 'axios';
 import { Chart, registerables } from 'chart.js';
 
-// 기본 API 주소를 Render 주소로 설정
-// axios.defaults.baseURL = 'https://peer-score-finder.onrender.com';
-
 Chart.register(...registerables);
 
 export default {
   data() {
     return {
-      searchKeyword: '',
+      allStudents: [], // 🌟 [요구사항 1] 26년도 전체 학생 명단
       form: {
-        month: '',
+        month: '',     // 초기값 빈칸
         grammar: '',
         vocabulary: '',
         logic: '',
         reading: '',
-        student_name: ''
+        student_name: '' // 초기값 빈칸
       },
-      manualMonth: '',
+      manualMonth: '', // 초기값 빈칸
       weights: {
         grammar: 1.0,
         vocabulary: 1.0,
         logic: 1.0,
         reading: 1.0
       },
-      debounceTimer: null,   // 디바운스 타이머 인스턴스
-      isUpdating: false,      // 실시간 업데이트 중 표시 상태
+      debounceTimer: null,
+      isUpdating: false,
       studentDBData: { grammar: '-', vocabulary: '-', logic: '-', reading: '-', total_score: '-' },
       currentAnalysisScores: { grammar: 0, vocabulary: 0, logic: 0, reading: 0 },
-      suggestedStudents: [],
       result: null,
       chartInstances: {}
     };
@@ -387,23 +360,25 @@ export default {
     }
   },
   watch: {
-    // 🌟 가중치가 변경될 때 0.4초 디바운스로 실시간 재예측 실행
     weights: {
       deep: true,
       handler() {
-        // 분석 결과가 이미 표시 중이거나 점수가 준비된 상태일 때만 반응
         const hasScores = (this.form.student_name && this.studentDBData.grammar !== '-') ||
                           (this.form.grammar !== '' || this.form.vocabulary !== '' || this.form.logic !== '' || this.form.reading !== '');
-        
+
         if (!hasScores && !this.result) return;
 
         this.isUpdating = true;
         clearTimeout(this.debounceTimer);
         this.debounceTimer = setTimeout(() => {
           this.fetchPrediction(true);
-        }, 400); // 400ms 디바운스 대기
+        }, 400);
       }
     }
+  },
+  mounted() {
+    // 🌟 페이지 진입 시 26년도 학생 전체 명단 즉시 로드
+    this.fetchAllStudents();
   },
   methods: {
     resetWeights() {
@@ -414,27 +389,17 @@ export default {
         reading: 1.0
       };
     },
-    async onSearchInput() {
-      const kw = this.searchKeyword.trim();
-      if (!kw) {
-        this.suggestedStudents = [];
-        return;
-      }
+    // 🌟 [요구사항 1] 전체 학생 리스트 불러오기
+    async fetchAllStudents() {
       try {
-        const res = await axios.get('https://peer-score-finder.onrender.com/search-students', { params: { keyword: kw } });
-        this.suggestedStudents = res.data;
+        const res = await axios.get('https://peer-score-finder.onrender.com/all-students-2026');
+        this.allStudents = res.data;
       } catch (e) {
-        console.error("이름 검색 실패:", e);
+        console.error("전체 학생 명단 로드 실패:", e);
       }
-    },
-    selectStudent(name) {
-      this.searchKeyword = name;
-      this.form.student_name = name;
-      this.suggestedStudents = [];
-      this.loadStudentScore();
     },
     async loadStudentScore() {
-      if (!this.form.student_name) return;
+      if (!this.form.student_name || !this.form.month) return;
       try {
         const res = await axios.get('https://peer-score-finder.onrender.com/get-student-score', {
           params: { student_name: this.form.student_name, month: this.form.month }
@@ -454,7 +419,6 @@ export default {
         console.error("성적 로드 실패:", e);
       }
     },
-
     async fetchPrediction(isDebounce = false) {
       const hasManual = [this.form.grammar, this.form.vocabulary, this.form.logic, this.form.reading].some(v => v !== '');
       let m, name, g, v, l, r;
@@ -472,7 +436,7 @@ export default {
         r = Number(this.form.reading) || 0;
       } else {
         if (!this.form.student_name || this.studentDBData.grammar === '-') {
-          if (!isDebounce) alert("학생을 검색하여 선택하거나, 점수를 직접 입력해 주세요!");
+          if (!isDebounce) alert("학생을 선택하거나 점수를 직접 입력해 주세요!");
           this.isUpdating = false;
           return;
         }
@@ -506,7 +470,6 @@ export default {
           }
         });
 
-        // status 키 유무와 관계없이 유효 데이터 수신 확인
         if (res.data.status === 'success' || res.data.univ_details || res.data.month_averages) {
           this.result = res.data;
           this.$nextTick(() => {
@@ -519,12 +482,11 @@ export default {
         }
       } catch (e) {
         console.error("예측 요청 실패:", e);
-        if (!isDebounce) alert("백엔드 분석 에러가 발생했습니다. 개발자도구 콘솔과 Render 로그를 확인해주세요.");
+        if (!isDebounce) alert("백엔드 분석 에러가 발생했습니다.");
       } finally {
         this.isUpdating = false;
       }
     },
-
     renderCharts(averages, timeline, myTimeline) {
       if (!averages) return;
 
@@ -549,7 +511,7 @@ export default {
         this.chartInstances[cfg.id] = new Chart(ctx, {
           type: 'bar',
           data: {
-            labels: ['내 성적', '선배 평균'],
+            labels: ['내 성적', '지난 학생 평균'],
             datasets: [{
               data: [cfg.my, cfg.avg],
               backgroundColor: [cfg.color, '#e2e8f0'],
@@ -702,7 +664,6 @@ export default {
   margin-bottom: 18px;
 }
 
-/* 🌟 회로/알고리즘 SVG 아이콘 칩 스타일 */
 .icon-chip {
   display: inline-flex;
   align-items: center;
@@ -765,10 +726,10 @@ export default {
 /* 2. 컨트롤 패널 */
 .control-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr)); /* 너비가 삐져나가지 않도록 고정 */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
   margin-bottom: 20px;
-  max-width: 1140px; /* 상/하단 카드와 동일한 최대 너비 부여 */
+  max-width: 1140px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -780,7 +741,7 @@ export default {
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.03);
   position: relative;
-  min-width: 0; /* flex/grid 자식 요소의 오버플로우 방지 */
+  min-width: 0;
   box-sizing: border-box;
 }
 
@@ -811,6 +772,7 @@ export default {
   flex-direction: column;
   gap: 6px;
   position: relative;
+  min-width: 0;
 }
 
 .input-wrap label {
@@ -820,11 +782,14 @@ export default {
 }
 
 .modern-input, .modern-select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   height: 42px;
-  padding: 0 12px;
+  padding: 0 10px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13.5px;
   background: #ffffff;
   color: #0f172a;
   outline: none;
@@ -834,34 +799,6 @@ export default {
 .modern-input:focus, .modern-select:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-}
-
-.suggest-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  max-height: 180px;
-  overflow-y: auto;
-  margin: 0;
-  padding: 4px 0;
-  list-style: none;
-  z-index: 50;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.08);
-}
-
-.suggest-dropdown li {
-  padding: 8px 12px;
-  font-size: 13.5px;
-  cursor: pointer;
-}
-
-.suggest-dropdown li:hover {
-  background: #eff6ff;
-  color: #2563eb;
 }
 
 .stat-summary-box {
@@ -903,36 +840,14 @@ export default {
 .stat-pill .v { font-size: 13px; font-weight: 700; color: #0f172a; }
 .stat-pill.total .v { color: #2563eb; }
 
-/* 4칸 그리드를 너비 초과 없이 정확히 1:1:1:1로 고정 */
+/* 4칸 점수 입력 */
 .manual-score-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)); /* 핵심: minmax(0, 1fr)로 부모 너비 안에서 균등 분할 */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 14px;
   width: 100%;
   box-sizing: border-box;
-}
-
-/* 입력 칸 감싸는 wrap도 삐져나가지 않도록 최소 너비 해제 */
-.manual-score-grid .input-wrap {
-  min-width: 0;
-  width: 100%;
-}
-
-/* input 요소가 패딩/테두리 때문에 커지지 않도록 설정 */
-.modern-input, .modern-select {
-  width: 100%;
-  min-width: 0;           /* 핵심: 브라우저 기본 최소 너비 무시 */
-  box-sizing: border-box; /* 핵심: padding과 border가 width 안에 포함되도록 설정 */
-  height: 42px;
-  padding: 0 8px;         /* 4칸으로 좁아졌을 때 여백 확보를 위해 8px로 조절 */
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 13.5px;
-  background: #ffffff;
-  color: #0f172a;
-  outline: none;
-  transition: border-color 0.15s ease;
 }
 
 .manual-total-line {
@@ -1173,11 +1088,21 @@ export default {
 .chart-canvas-box { height: 110px; }
 .timeline-canvas-box { height: 260px; }
 
+.section-title-wrap {
+  margin-bottom: 16px;
+}
+
 .sub-heading {
   font-size: 17px;
   font-weight: 700;
-  margin: 0 0 14px;
+  margin: 0 0 4px;
   color: #0f172a;
+}
+
+.section-sub-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
 }
 
 .univ-card-flow {
@@ -1229,12 +1154,31 @@ export default {
 .m-title { font-weight: 700; }
 .m-count { color: #64748b; font-size: 11.5px; }
 
-.senior-profile-line {
+/* 🌟 선배 프로필 및 매칭 근거 박스 */
+.senior-profile-block {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.senior-score-line {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.senior-reason-tag {
+  font-size: 11px;
+  color: #2563eb;
+  background: #eff6ff;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .badge-meta {
@@ -1248,7 +1192,7 @@ export default {
   font-size: 11px;
   font-family: monospace;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 2px 5px;
   border-radius: 4px;
 }
 
@@ -1256,7 +1200,7 @@ export default {
 .b-vocab   { background: #eff6ff; color: #1d4ed8; }
 .b-logic   { background: #fff7ed; color: #c2410c; }
 .b-reading { background: #fefce8; color: #a16207; }
-.b-total   { background: #f1f5f9; color: #0f172a; font-weight: 800; }
+.b-total   { background: #e2e8f0; color: #0f172a; font-weight: 800; }
 
 .table-badge-group {
   display: flex;
@@ -1291,6 +1235,16 @@ export default {
 }
 
 .cell-mono { font-family: monospace; color: #475569; }
-.cell-bold { font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+.cell-bold { font-weight: 600; color: #0f172a; }
 .cell-mute { color: #94a3b8; font-size: 12.5px; }
+
+.reason-pill {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e40af;
+  background: #dbeafe;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
 </style>
