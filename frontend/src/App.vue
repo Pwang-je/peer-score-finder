@@ -419,7 +419,7 @@ export default {
         return;
       }
       try {
-        const res = await axios.get('https://peer-score-finder.onrender.com', { params: { keyword: kw } });
+        const res = await axios.get('https://peer-score-finder.onrender.com/search-students', { params: { keyword: kw } });
         this.suggestedStudents = res.data;
       } catch (e) {
         console.error("이름 검색 실패:", e);
