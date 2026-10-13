@@ -341,6 +341,9 @@
 import axios from 'axios';
 import { Chart, registerables } from 'chart.js';
 
+// 기본 API 주소를 Render 주소로 설정
+// axios.defaults.baseURL = 'https://peer-score-finder.onrender.com';
+
 Chart.register(...registerables);
 
 export default {
@@ -416,7 +419,7 @@ export default {
         return;
       }
       try {
-        const res = await axios.get('http://127.0.0.1:8000/search-students', { params: { keyword: kw } });
+        const res = await axios.get('https://peer-score-finder.onrender.com', { params: { keyword: kw } });
         this.suggestedStudents = res.data;
       } catch (e) {
         console.error("이름 검색 실패:", e);
@@ -431,7 +434,7 @@ export default {
     async loadStudentScore() {
       if (!this.form.student_name) return;
       try {
-        const res = await axios.get('http://127.0.0.1:8000/get-student-score', {
+        const res = await axios.get('https://peer-score-finder.onrender.com/get-student-score', {
           params: { student_name: this.form.student_name, month: this.form.month }
         });
         if (res.data.status === 'success') {
@@ -477,7 +480,7 @@ export default {
       this.currentAnalysisScores = { grammar: g, vocabulary: v, logic: l, reading: r };
 
       try {
-        const res = await axios.get('http://127.0.0.1:8000/predict', {
+        const res = await axios.get('https://peer-score-finder.onrender.com/predict', {
           params: {
             month: m,
             student_name: name,
