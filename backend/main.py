@@ -163,22 +163,39 @@ def predict_university(
     X_past_weighted = df_past[features].values * weights
     current_student_weighted = np.array([[grammar, vocabulary, logic, reading]]) * weights
 
-    n_neighbors = min(100, len(df_past))
+    # 🌟 [개선 1] 과거 연도(20~22년) 데이터까지 폭넓게 확보하기 위해 이웃 수를 250명으로 확장
+    n_neighbors = min(250, len(df_past))
     knn = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean')
     knn.fit(X_past_weighted)
 
     distances, indices = knn.kneighbors(current_student_weighted)
     matched_seniors = df_past.iloc[indices[0]].copy()
+    # 거리(유사도) 컬럼을 붙여 순서 관리
+    matched_seniors['distance'] = distances[0]
 
+    # 중복 제거
     matched_seniors = matched_seniors.drop_duplicates(subset=['student_name', 'total_score'])
-    matched_seniors = matched_seniors.sample(frac=1, random_state=None).reset_index(drop=True)
+
+    # 🌟 [개선 1-2] 연도별 편중 해소: 연도(year)별로 최소 3~5명 이상 골고루 포함되도록 보정
+    # 거리순으로 정렬된 상태에서 연도별 균형 있게 샘플링
+    years = matched_seniors['year'].unique()
+    balanced_list = []
+    # 각 연도별로 가장 가까운 상위 표본들을 우선 확보
+    for y in sorted(years):
+        y_df = matched_seniors[matched_seniors['year'] == y]
+        balanced_list.append(y_df.head(15))  # 각 연도별 상위 15명씩 확보
+
+    # 균형 표본 + 전체 근접 표본 병합 후 거리순 정렬
+    matched_seniors = pd.concat([pd.concat(balanced_list), matched_seniors]).drop_duplicates(
+        subset=['student_name', 'total_score'])
+    matched_seniors = matched_seniors.sort_values(by='distance').reset_index(drop=True)
 
     matched_names = matched_seniors['student_name'].tolist()
 
     df_all_months = get_all_months_data()
     df_matched_timeline = df_all_months[df_all_months['student_name'].isin(matched_names)]
 
-    # 선배들의 1월 ~ 11월 추이선
+    # 1) 선배들의 1월 ~ 11월 추이선
     timeline_stats = {}
     last_valid_senior_score = None
 
@@ -197,7 +214,7 @@ def predict_university(
         timeline_stats[f"{m}월"] = final_score
         last_valid_senior_score = final_score
 
-    # 나의 1월 ~ 11월 추이선
+    # 2) 나의 1월 ~ 11월 추이선
     df_my = get_my_all_months_data(student_name)
     my_timeline_stats = {}
 
@@ -209,9 +226,12 @@ def predict_university(
         else:
             my_timeline_stats[f"{m}월"] = None
 
-    # TOP 10 대학 및 학과별 분포 추출 (산출 근거 텍스트 제거)
+    # 3) TOP 10 대학 및 학과별 분포 추출
     top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
     univ_details = []
+
+    # 🌟 [개선 2] TOP 10에 등장한 학생 식별자(이름 + 연도)를 추적하여 수집
+    top10_student_keys = set()
 
     for univ in top_univ_names:
         univ_df = matched_seniors[matched_seniors['univ'] == univ]
@@ -222,6 +242,10 @@ def predict_university(
             score_details = []
             for _, row in group.iterrows():
                 short_year = f"{str(row['year'])[2:]}'"
+
+                # TOP 10에 포함된 학생 키 등록
+                top10_student_keys.add(f"{row['year']}_{row['student_name']}")
+
                 score_details.append({
                     "year": short_year,
                     "name": row['student_name'],
@@ -245,9 +269,14 @@ def predict_university(
             "majors": major_list
         })
 
-    # 상세 목록 상위 10명
+    # 🌟 [개선 2] 4) 상세 목록: TOP 10에 나오지 않은 학생들로만 필터링하여 상위 10명 추출!
     senior_list = []
-    for _, row in matched_seniors.head(10).iterrows():
+    for _, row in matched_seniors.iterrows():
+        s_key = f"{row['year']}_{row['student_name']}"
+        # 이미 TOP 10에 나온 학생이면 건너뜁니다
+        if s_key in top10_student_keys:
+            continue
+
         senior_list.append({
             "year": int(row['year']),
             "univ": row['univ'],
@@ -262,6 +291,29 @@ def predict_university(
                 "total": float(row['total_score'])
             }
         })
+        # 10명만 채우면 중단
+        if len(senior_list) >= 10:
+            break
+
+    # 만약 TOP 10 외 학생이 10명 미만일 경우(데이터가 적을 때 대비 fallback)
+    if len(senior_list) < 5:
+        for _, row in matched_seniors.head(10).iterrows():
+            senior_list.append({
+                "year": int(row['year']),
+                "univ": row['univ'],
+                "major": row['major'],
+                "department": row['department'],
+                "scores": {
+                    "name": row['student_name'],
+                    "grammar": float(row['grammar']),
+                    "vocabulary": float(row['vocabulary']),
+                    "logic": float(row['logic']),
+                    "reading": float(row['reading']),
+                    "total": float(row['total_score'])
+                }
+            })
+            if len(senior_list) >= 10:
+                break
 
     return {
         "status": "success",
