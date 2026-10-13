@@ -494,19 +494,21 @@ export default {
             w_reading: this.weights.reading
           }
         });
-        if (res.data.status === 'success') {
+
+        // status 키 유무와 관계없이 유효 데이터 수신 확인
+        if (res.data.status === 'success' || res.data.univ_details || res.data.month_averages) {
           this.result = res.data;
-          // DOM이 완전히 반영되도록 nextTick + requestAnimationFrame 적용
           this.$nextTick(() => {
             requestAnimationFrame(() => {
               this.renderCharts(this.result.month_averages, this.result.timeline_stats, this.result.my_timeline_stats);
             });
           });
         } else if (!isDebounce) {
-          alert(res.data.message);
+          alert(res.data.message || "결과를 불러올 수 없습니다.");
         }
       } catch (e) {
-        if (!isDebounce) alert("백엔드 분석 에러가 발생했습니다.");
+        console.error("예측 요청 실패:", e);
+        if (!isDebounce) alert("백엔드 분석 에러가 발생했습니다. 개발자도구 콘솔과 Render 로그를 확인해주세요.");
       } finally {
         this.isUpdating = false;
       }
