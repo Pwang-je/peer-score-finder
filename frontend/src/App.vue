@@ -496,8 +496,11 @@ export default {
         });
         if (res.data.status === 'success') {
           this.result = res.data;
+          // DOM이 완전히 반영되도록 nextTick + requestAnimationFrame 적용
           this.$nextTick(() => {
-            this.renderCharts(this.result.month_averages, this.result.timeline_stats, this.result.my_timeline_stats);
+            requestAnimationFrame(() => {
+              this.renderCharts(this.result.month_averages, this.result.timeline_stats, this.result.my_timeline_stats);
+            });
           });
         } else if (!isDebounce) {
           alert(res.data.message);
@@ -508,7 +511,10 @@ export default {
         this.isUpdating = false;
       }
     },
+
     renderCharts(averages, timeline, myTimeline) {
+      if (!averages) return;
+
       const subConfigs = [
         { id: 'grammar', my: this.currentAnalysisScores.grammar, avg: averages.grammar, color: 'rgba(132, 204, 22, 0.85)', max: 25 },
         { id: 'vocabulary', my: this.currentAnalysisScores.vocabulary, avg: averages.vocabulary, color: 'rgba(59, 130, 246, 0.85)', max: 12.5 },
@@ -520,7 +526,12 @@ export default {
         const el = document.getElementById(`${cfg.id}Chart`);
         if (!el) return;
         const ctx = el.getContext('2d');
-        if (this.chartInstances[cfg.id]) this.chartInstances[cfg.id].destroy();
+        if (!ctx) return;
+
+        if (this.chartInstances[cfg.id]) {
+          this.chartInstances[cfg.id].destroy();
+          this.chartInstances[cfg.id] = null;
+        }
 
         this.chartInstances[cfg.id] = new Chart(ctx, {
           type: 'bar',
@@ -536,7 +547,7 @@ export default {
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { duration: 350 }, // 실시간 반영 시 부드러운 애니메이션
+            animation: { duration: 350 },
             plugins: { legend: { display: false } },
             scales: {
               x: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#64748b' } },
@@ -546,10 +557,16 @@ export default {
         });
       });
 
+      if (!timeline) return;
       const tlEl = document.getElementById('timelineChart');
       if (!tlEl) return;
       const tlCtx = tlEl.getContext('2d');
-      if (this.chartInstances['timeline']) this.chartInstances['timeline'].destroy();
+      if (!tlCtx) return;
+
+      if (this.chartInstances['timeline']) {
+        this.chartInstances['timeline'].destroy();
+        this.chartInstances['timeline'] = null;
+      }
 
       const labels = Object.keys(timeline);
       const cleanNum = s => String(s).replace(/[^0-9]/g, '');
