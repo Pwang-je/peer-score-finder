@@ -1191,4 +1191,124 @@ export default {
 .cell-mono { font-family: monospace; color: #475569; }
 .cell-bold { font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 6px; }
 .cell-mute { color: #94a3b8; font-size: 12.5px; }
+
+
+/* ========================================================
+   📱 모바일 & 태블릿 반응형 스타일 (화면 폭 768px 이하)
+   ======================================================== */
+@media (max-width: 768px) {
+  .dashboard-root {
+    padding: 24px 14px; /* 바깥 여백 축소 */
+  }
+
+  .main-title {
+    font-size: 24px;
+  }
+
+  .main-desc {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* 1. 상단 프로세스 카드: 3열 -> 1열 세로 배치 */
+  .methodology-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .method-step {
+    padding: 12px;
+  }
+
+  /* 2. 컨트롤 패널 (MODE 01 / MODE 02): 2열 -> 1열 세로 스택 */
+  .control-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .glass-panel {
+    padding: 18px 16px;
+  }
+
+  /* MODE 02 직접 입력 4칸: 모바일에서는 2열 2행으로 넉넉하게 */
+  .manual-score-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  /* 가중치 패널 헤더: 세로 정렬 */
+  .weight-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .reset-weight-btn {
+    width: 100%;
+    padding: 8px 0;
+    text-align: center;
+  }
+
+  /* 가중치 슬라이더: 4열 -> 2열 2행 */
+  .weight-sliders-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .slider-card {
+    padding: 10px 12px;
+  }
+
+  /* 실행 버튼: 모바일에서 손가락 터치하기 편하도록 가로 꽉 차게 */
+  .action-bar {
+    margin: 20px 0 28px;
+  }
+
+  .primary-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 15px 0;
+    font-size: 16px;
+  }
+
+  /* 3. 결과 리포트 섹션 차트: 1열로 전환 */
+  .charts-section {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .mini-charts-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .timeline-canvas-box {
+    height: 220px;
+  }
+
+  /* 대학 카드 그리드: 1열 */
+  .univ-card-flow {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* 상세 합격자 테이블: 화면 벗어남 방지용 가로 스크롤 적용 */
+  .table-frame {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .clean-table {
+    min-width: 620px; /* 테이블이 너무 찌그러지지 않도록 가로 스크롤 허용 */
+  }
+
+  .clean-table th, .clean-table td {
+    padding: 10px 12px;
+    font-size: 12.5px;
+  }
+}
+
+
+
+
 </style>
