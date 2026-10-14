@@ -1029,28 +1029,35 @@ export default {
 }
 
 /* 3. 결과 리포트 섹션 */
-.section-divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 800;
-  color: #94a3b8;
-  letter-spacing: 0.12em;
-  margin-bottom: 24px;
-}
-
+/* 차트 컨테이너 영역 */
 .charts-section {
   display: grid;
   grid-template-columns: 1fr 1.2fr;
   gap: 20px;
   margin-bottom: 32px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;           /* 핵심: 그리드 자식이 부모를 뚫고 나가는 것 방지 */
+  box-sizing: border-box;
 }
 
 .mini-charts-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* 핵심: minmax(0, 1fr) 적용 */
   gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.chart-tile, .main-timeline-tile {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  min-width: 0;           /* 핵심 */
+  box-sizing: border-box;
+  overflow: hidden;       /* 핵심: 캔버스가 카드를 밀어내지 못하도록 차단 */
 }
 
 .chart-tile, .main-timeline-tile {
@@ -1068,8 +1075,27 @@ export default {
   margin-bottom: 12px;
 }
 
-.chart-canvas-box { height: 110px; }
-.timeline-canvas-box { height: 260px; }
+/* 캔버스 래퍼: Chart.js가 100% 안에서만 줄어들도록 상대 위치와 hidden 지정 */
+.chart-canvas-box {
+  position: relative;
+  width: 100%;
+  height: 110px;
+  min-width: 0;
+}
+
+.timeline-canvas-box {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  min-width: 0;
+}
+
+/* 캔버스 자체 폭 강제 */
+.chart-canvas-box canvas,
+.timeline-canvas-box canvas {
+  width: 100% !important;
+  max-width: 100% !important;
+}
 
 .sub-heading {
   font-size: 17px;
@@ -1194,11 +1220,22 @@ export default {
 
 
 /* ========================================================
-   📱 모바일 & 태블릿 반응형 스타일 (화면 폭 768px 이하)
+   📱 모바일 & 태블릿 완벽 대응 통합 미디어 쿼리 (768px 이하)
    ======================================================== */
 @media (max-width: 768px) {
+  /* 1. 최상위 레이아웃 가로 넘침 차단 */
   .dashboard-root {
-    padding: 24px 14px; /* 바깥 여백 축소 */
+    padding: 20px 12px;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .dashboard-body {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .main-title {
@@ -1210,7 +1247,7 @@ export default {
     line-height: 1.5;
   }
 
-  /* 1. 상단 프로세스 카드: 3열 -> 1열 세로 배치 */
+  /* 2. 상단 01·02·03 프로세스 카드: 1열 세로 배치 */
   .methodology-grid {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -1220,23 +1257,26 @@ export default {
     padding: 12px;
   }
 
-  /* 2. 컨트롤 패널 (MODE 01 / MODE 02): 2열 -> 1열 세로 스택 */
+  /* 3. 컨트롤 패널 (MODE 01 / MODE 02): 세로 1열 */
   .control-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+    width: 100%;
   }
 
   .glass-panel {
-    padding: 18px 16px;
+    padding: 18px 14px;
+    min-width: 0;
   }
 
-  /* MODE 02 직접 입력 4칸: 모바일에서는 2열 2행으로 넉넉하게 */
+  /* MODE 02 직접 입력 칸: 2열 2행 */
   .manual-score-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+    width: 100%;
   }
 
-  /* 가중치 패널 헤더: 세로 정렬 */
+  /* 4. 가중치 패널: 2열 2행 */
   .weight-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1249,17 +1289,18 @@ export default {
     text-align: center;
   }
 
-  /* 가중치 슬라이더: 4열 -> 2열 2행 */
   .weight-sliders-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+    width: 100%;
   }
 
   .slider-card {
     padding: 10px 12px;
+    min-width: 0;
   }
 
-  /* 실행 버튼: 모바일에서 손가락 터치하기 편하도록 가로 꽉 차게 */
+  /* 5. 실행 버튼 터치 최적화 */
   .action-bar {
     margin: 20px 0 28px;
   }
@@ -1271,38 +1312,89 @@ export default {
     font-size: 16px;
   }
 
-  /* 3. 결과 리포트 섹션 차트: 1열로 전환 */
-  .charts-section {
-    grid-template-columns: 1fr;
-    gap: 16px;
+  /* 6. 결과 리포트 섹션 & 차트 넘침 방지 (핵심) */
+  .results-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
+  .charts-section {
+    grid-template-columns: 1fr; /* 세로 1열 */
+    gap: 16px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* 4과목 미니 바 차트 (2x2) */
   .mini-charts-row {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .chart-tile {
+    padding: 12px 10px;
+    min-width: 0;
+    overflow: hidden; /* 캔버스가 카드를 밀어내지 못하게 차단 */
+  }
+
+  .tile-header {
+    font-size: 12px;
+    margin-bottom: 8px;
+    word-break: keep-all;
+  }
+
+  .chart-canvas-box {
+    position: relative;
+    width: 100% !important;
+    height: 95px !important;
+    min-width: 0;
+  }
+
+  /* 하단 추이선 꺾은선 차트 타일 */
+  .main-timeline-tile {
+    padding: 14px 10px;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .timeline-canvas-box {
-    height: 220px;
+    position: relative;
+    width: 100% !important;
+    height: 210px !important;
+    min-width: 0;
   }
 
-  /* 대학 카드 그리드: 1열 */
+  /* 캔버스 자체 폭 강제 */
+  .chart-canvas-box canvas,
+  .timeline-canvas-box canvas {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 7. 대학/학과 카드 및 합격자 표 */
   .univ-card-flow {
     grid-template-columns: 1fr;
     gap: 12px;
+    width: 100%;
   }
 
-  /* 상세 합격자 테이블: 화면 벗어남 방지용 가로 스크롤 적용 */
   .table-frame {
-    overflow-x: auto;
+    width: 100%;
+    overflow-x: auto; /* 화면을 벗어나는 테이블에 가로 스크롤 부여 */
     -webkit-overflow-scrolling: touch;
   }
 
   .clean-table {
-    min-width: 620px; /* 테이블이 너무 찌그러지지 않도록 가로 스크롤 허용 */
+    min-width: 600px; /* 테이블이 찌그러지지 않고 스크롤되도록 고정 폭 유지 */
   }
 
-  .clean-table th, .clean-table td {
+  .clean-table th,
+  .clean-table td {
     padding: 10px 12px;
     font-size: 12.5px;
   }
