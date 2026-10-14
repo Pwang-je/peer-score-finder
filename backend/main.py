@@ -163,35 +163,30 @@ def predict_university(
     X_past_weighted = df_past[features].values * weights
     current_student_weighted = np.array([[grammar, vocabulary, logic, reading]]) * weights
 
-    # 🌟 [개선 1] 과거 연도(20~22년) 데이터까지 폭넓게 확보하기 위해 이웃 수를 250명으로 확장
-    n_neighbors = min(250, len(df_past))
+    # 1. 넉넉하게 전체 풀에 대해 거리 계산 (최대 500명)
+    n_neighbors = min(500, len(df_past))
     knn = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean')
     knn.fit(X_past_weighted)
 
     distances, indices = knn.kneighbors(current_student_weighted)
-    matched_seniors = df_past.iloc[indices[0]].copy()
-    # 거리(유사도) 컬럼을 붙여 순서 관리
-    matched_seniors['distance'] = distances[0]
+    all_matched = df_past.iloc[indices[0]].copy()
+    all_matched['distance'] = distances[0]
+    all_matched = all_matched.drop_duplicates(subset=['student_name', 'total_score'])
 
-    # 중복 제거
-    matched_seniors = matched_seniors.drop_duplicates(subset=['student_name', 'total_score'])
+    # 🌟 2. [핵심] 연도별 강제 균등 쿼터 배분 (20, 21, 22년도 무조건 확보)
+    # 데이터에 존재하는 연도별로 가장 가까운 순서대로 각 연도당 최대 15명씩 선발
+    balanced_seniors_list = []
+    available_years = sorted(all_matched['year'].unique())
 
-    # 🌟 [개선 1-2] 연도별 편중 해소: 연도(year)별로 최소 3~5명 이상 골고루 포함되도록 보정
-    # 거리순으로 정렬된 상태에서 연도별 균형 있게 샘플링
-    years = matched_seniors['year'].unique()
-    balanced_list = []
-    # 각 연도별로 가장 가까운 상위 표본들을 우선 확보
-    for y in sorted(years):
-        y_df = matched_seniors[matched_seniors['year'] == y]
-        balanced_list.append(y_df.head(15))  # 각 연도별 상위 15명씩 확보
+    for y in available_years:
+        year_df = all_matched[all_matched['year'] == y].sort_values(by='distance')
+        # 각 연도별로 가장 점수가 가까운 12명씩 강제 추출
+        balanced_seniors_list.append(year_df.head(12))
 
-    # 균형 표본 + 전체 근접 표본 병합 후 거리순 정렬
-    matched_seniors = pd.concat([pd.concat(balanced_list), matched_seniors]).drop_duplicates(
-        subset=['student_name', 'total_score'])
-    matched_seniors = matched_seniors.sort_values(by='distance').reset_index(drop=True)
+    # 연도별 대표 선배들 병합
+    matched_seniors = pd.concat(balanced_seniors_list).reset_index(drop=True)
 
     matched_names = matched_seniors['student_name'].tolist()
-
     df_all_months = get_all_months_data()
     df_matched_timeline = df_all_months[df_all_months['student_name'].isin(matched_names)]
 
@@ -226,11 +221,9 @@ def predict_university(
         else:
             my_timeline_stats[f"{m}월"] = None
 
-    # 3) TOP 10 대학 및 학과별 분포 추출
+    # 3) TOP 10 대학 및 학과별 분포 추출 (과거 연도 선배 우선 포함 정렬)
     top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
     univ_details = []
-
-    # 🌟 [개선 2] TOP 10에 등장한 학생 식별자(이름 + 연도)를 추적하여 수집
     top10_student_keys = set()
 
     for univ in top_univ_names:
@@ -240,10 +233,11 @@ def predict_university(
 
         for major_name, group in major_groups:
             score_details = []
-            for _, row in group.iterrows():
-                short_year = f"{str(row['year'])[2:]}'"
+            # 🌟 학과 내에서도 연도가 골고루 보이도록 연도 오름차순(20년도부터)으로 정렬
+            sorted_group = group.sort_values(by=['year', 'distance'], ascending=[True, True])
 
-                # TOP 10에 포함된 학생 키 등록
+            for _, row in sorted_group.iterrows():
+                short_year = f"{str(row['year'])[2:]}'"
                 top10_student_keys.add(f"{row['year']}_{row['student_name']}")
 
                 score_details.append({
@@ -269,14 +263,19 @@ def predict_university(
             "majors": major_list
         })
 
-    # 🌟 [개선 2] 4) 상세 목록: TOP 10에 나오지 않은 학생들로만 필터링하여 상위 10명 추출!
+    # 🌟 4) 하단 상세 목록: TOP 10 제외 + 과거 연도(20, 21, 22년) 선배들을 우선 배치
     senior_list = []
-    for _, row in matched_seniors.iterrows():
-        s_key = f"{row['year']}_{row['student_name']}"
-        # 이미 TOP 10에 나온 학생이면 건너뜁니다
-        if s_key in top10_student_keys:
-            continue
+    # TOP 10에 없는 학생들만 추림
+    remaining_seniors = all_matched[
+        ~all_matched.apply(lambda r: f"{r['year']}_{r['student_name']}" in top10_student_keys, axis=1)]
 
+    # 20~22년도 선배를 먼저 찾아서 넣고, 남은 자리를 23~25년도로 채움
+    past_seniors = remaining_seniors[remaining_seniors['year'] <= 2022].sort_values(by='distance')
+    recent_seniors = remaining_seniors[remaining_seniors['year'] > 2022].sort_values(by='distance')
+
+    combined_remaining = pd.concat([past_seniors, recent_seniors]).reset_index(drop=True)
+
+    for _, row in combined_remaining.head(10).iterrows():
         senior_list.append({
             "year": int(row['year']),
             "univ": row['univ'],
@@ -291,29 +290,6 @@ def predict_university(
                 "total": float(row['total_score'])
             }
         })
-        # 10명만 채우면 중단
-        if len(senior_list) >= 10:
-            break
-
-    # 만약 TOP 10 외 학생이 10명 미만일 경우(데이터가 적을 때 대비 fallback)
-    if len(senior_list) < 5:
-        for _, row in matched_seniors.head(10).iterrows():
-            senior_list.append({
-                "year": int(row['year']),
-                "univ": row['univ'],
-                "major": row['major'],
-                "department": row['department'],
-                "scores": {
-                    "name": row['student_name'],
-                    "grammar": float(row['grammar']),
-                    "vocabulary": float(row['vocabulary']),
-                    "logic": float(row['logic']),
-                    "reading": float(row['reading']),
-                    "total": float(row['total_score'])
-                }
-            })
-            if len(senior_list) >= 10:
-                break
 
     return {
         "status": "success",
@@ -323,7 +299,6 @@ def predict_university(
         "univ_details": univ_details,
         "all_seniors": senior_list
     }
-
 
 if __name__ == "__main__":
     import uvicorn
