@@ -2,6 +2,58 @@
   <div class="dashboard-root">
     <!-- 헤더 섹션 -->
     <header class="app-header">
+
+      <!-- 헤더 우측 상단 관리자 업로드 버튼 -->
+    <div class="admin-action-row">
+      <button @click="showUploadModal = true" class="admin-upload-btn">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        <span>성적 엑셀/CSV 일괄 업로드</span>
+      </button>
+    </div>
+
+    <!-- 🌟 엑셀 대량 업로드 모달 창 -->
+    <div v-if="showUploadModal" class="modal-backdrop" @click.self="showUploadModal = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>📂 성적 엑셀/CSV 일괄 업로드</h3>
+          <button @click="showUploadModal = false" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-guide">
+            엑셀(.xlsx) 또는 .csv 파일을 선택해 주세요.<br>
+            <strong>필수 컬럼:</strong> <code>year</code>, <code>month</code>, <code>student_name</code>, <code>total_score</code>, <code>grammar</code>, <code>vocabulary</code>, <code>logic</code>, <code>reading</code><br>
+            <strong>합격자 데이터인 경우:</strong> <code>univ</code>, <code>major</code>, <code>department</code> 포함
+          </p>
+
+          <div class="file-drop-zone">
+            <input type="file" ref="excelFileInput" @change="handleFileChange" accept=".xlsx, .xls, .csv" class="file-input-hidden" id="excelFile">
+            <label for="excelFile" class="file-drop-label">
+              <span class="file-icon">📄</span>
+              <span v-if="!selectedFile" class="file-txt">여기를 클릭하여 파일을 선택하세요 (.xlsx, .csv)</span>
+              <span v-else class="file-txt selected">{{ selectedFile.name }} ({{ (selectedFile.size / 1024).toFixed(1) }} KB)</span>
+            </label>
+          </div>
+
+          <div v-if="uploadStatusMsg" :class="['upload-msg-box', uploadStatusType]">
+            {{ uploadStatusMsg }}
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button @click="showUploadModal = false" class="cancel-btn" :disabled="isUploading">닫기</button>
+          <button @click="submitExcelUpload" class="confirm-btn" :disabled="!selectedFile || isUploading">
+            <span v-if="isUploading">업로드 중...</span>
+            <span v-else>DB 반영 실행</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+
       <div class="header-content">
         <div class="brand-badge">예측 및 분석 연습용</div>
         <h1 class="main-title">Peer Analyzer</h1>
@@ -310,6 +362,12 @@ Chart.register(...registerables);
 export default {
   data() {
     return {
+      // status at upload modal
+      showUploadModal: false,
+      selectedFile: null,
+      isUploading: false,
+      uploadStatusMsg: '',
+      uploadStatusType: '',
       allStudents: [],
       form: {
         month: '',
@@ -365,6 +423,47 @@ export default {
     this.fetchAllStudents();
   },
   methods: {
+    handleFileChange(e) {
+      const file = e.target.files[0];
+      if (file) {
+        this.selectedFile = file;
+        this.uploadStatusMsg = '';
+      }
+    },
+    async submitExcelUpload() {
+      if (!this.selectedFile) return;
+
+      this.isUploading = true;
+      this.uploadStatusMsg = '파일을 분석하여 TiDB에 적재 중입니다... 잠시만 기다려 주세요.';
+      this.uploadStatusType = 'info';
+
+      const formData = new FormData();
+      formData.append('file', this.selectedFile);
+
+      try {
+        const res = await axios.post('https://peer-score-finder.onrender.com/upload-scores', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (res.data.status === 'success') {
+          this.uploadStatusMsg = res.data.message;
+          this.uploadStatusType = 'success';
+          this.selectedFile = null;
+          if (this.$refs.excelFileInput) this.$refs.excelFileInput.value = '';
+          // 학생 목록 최신화
+          this.fetchAllStudents();
+        } else {
+          this.uploadStatusMsg = res.data.message;
+          this.uploadStatusType = 'error';
+        }
+      } catch (err) {
+        console.error('업로드 실패:', err);
+        this.uploadStatusMsg = '서버 통신 중 에러가 발생했습니다.';
+        this.uploadStatusType = 'error';
+      } finally {
+        this.isUploading = false;
+      }
+    },
     resetWeights() {
       this.weights = {
         grammar: 1.0,
@@ -1217,6 +1316,211 @@ export default {
 .cell-mono { font-family: monospace; color: #475569; }
 .cell-bold { font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 6px; }
 .cell-mute { color: #94a3b8; font-size: 12.5px; }
+
+/* 관리자 업로드 버튼 */
+.admin-action-row {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 1140px;
+  margin: 0 auto 16px;
+}
+
+.admin-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.admin-upload-btn:hover {
+  background: #f8fafc;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+/* 모달 백드롭 및 카드 */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: #0f172a;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-guide {
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.6;
+  background: #f8fafc;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin: 0 0 16px;
+}
+
+.modal-guide code {
+  background: #e2e8f0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.file-drop-zone {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.file-drop-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 24px 16px;
+  cursor: pointer;
+  background: #ffffff;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.file-drop-label:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.file-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.file-txt {
+  font-size: 13px;
+  color: #64748b;
+  text-align: center;
+}
+
+.file-txt.selected {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.upload-msg-box {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.upload-msg-box.info {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.upload-msg-box.success {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.upload-msg-box.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+.cancel-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.confirm-btn {
+  background: #2563eb;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.confirm-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
 
 
 /* ========================================================

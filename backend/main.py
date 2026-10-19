@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, Form
+import io
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import pymysql
@@ -71,6 +72,109 @@ def get_my_all_months_data(student_name: str):
     df = pd.read_sql(query, conn, params=[student_name])
     conn.close()
     return df.fillna("")
+
+
+# 엑셀로 업로드 가능하게 하는 코드
+@app.post("/upload-scores")
+async def upload_scores(file: UploadFile = File(...)):
+    """
+    엑셀(.xlsx) 또는 CSV 파일을 업로드 받아 TiDB peer_data 테이블에 일괄 적재/갱신
+    필수 컬럼: year, month, student_name, total_score, grammar, vocabulary, logic, reading
+    선택 컬럼: univ, major, department
+    """
+    try:
+        contents = await file.read()
+        filename = file.filename.lower()
+
+        # 1. 파일 확장자에 따라 판다스 DataFrame으로 읽기
+        if filename.endswith(".csv"):
+            try:
+                df = pd.read_csv(io.BytesIO(contents), encoding="utf-8")
+            except UnicodeDecodeError:
+                df = pd.read_csv(io.BytesIO(contents), encoding="cp949")
+        elif filename.endswith(".xlsx") or filename.endswith(".xls"):
+            df = pd.read_excel(io.BytesIO(contents))
+        else:
+            return {"status": "error", "message": "지원하지 않는 파일 형식입니다. .xlsx 또는 .csv 파일을 업로드해 주세요."}
+
+        # 2. 컬럼 공백 제거 및 소문자 정렬
+        df.columns = df.columns.str.strip()
+
+        # 필수 컬럼 체크
+        required_cols = ['year', 'month', 'student_name', 'total_score', 'grammar', 'vocabulary', 'logic', 'reading']
+        for col in required_cols:
+            if col not in df.columns:
+                return {"status": "error", "message": f"필수 컬럼 누락: '{col}' 열이 파일에 존재하지 않습니다."}
+
+        # 선택 컬럼 기본값 처리
+        for col in ['univ', 'major', 'department']:
+            if col not in df.columns:
+                df[col] = ""
+
+        # 결측치 빈 문자열 및 기본값 처리
+        df = df.fillna("")
+
+        # 3. DB 연결 및 배치 INSERT / UPDATE
+        conn = pymysql.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+
+        sql = """
+              INSERT INTO peer_data (year, month, student_name, total_score, grammar, vocabulary, logic, reading, univ, \
+                                     major, department)
+              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON DUPLICATE KEY \
+              UPDATE \
+                  total_score = \
+              VALUES (total_score), grammar = \
+              VALUES (grammar), vocabulary = \
+              VALUES (vocabulary), logic = \
+              VALUES (logic), reading = \
+              VALUES (reading), univ = \
+              VALUES (univ), major = \
+              VALUES (major), department = \
+              VALUES (department) \
+              """
+
+        rows_to_insert = []
+        for _, row in df.iterrows():
+            # 빈 행 스킵
+            if not str(row['student_name']).strip() or not str(row['year']).strip():
+                continue
+
+            rows_to_insert.append((
+                int(row['year']),
+                int(row['month']),
+                str(row['student_name']).strip(),
+                float(row['total_score']) if row['total_score'] != "" else 0.0,
+                float(row['grammar']) if row['grammar'] != "" else 0.0,
+                float(row['vocabulary']) if row['vocabulary'] != "" else 0.0,
+                float(row['logic']) if row['logic'] != "" else 0.0,
+                float(row['reading']) if row['reading'] != "" else 0.0,
+                str(row['univ']).strip(),
+                str(row['major']).strip(),
+                str(row['department']).strip()
+            ))
+
+        if not rows_to_insert:
+            return {"status": "error", "message": "업로드할 유효한 데이터가 없습니다."}
+
+        cursor.executemany(sql, rows_to_insert)
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return {
+            "status": "success",
+            "message": f"총 {len(rows_to_insert)}건의 성적 데이터가 성공적으로 반영되었습니다.",
+            "count": len(rows_to_insert)
+        }
+
+    except Exception as e:
+        print("엑셀 업로드 에러:", e)
+        return {"status": "error", "message": f"업로드 처리 중 오류 발생: {str(e)}"}
+
+
+
+
 
 
 # 🌟 특정 학생 명단만 반환하는 API

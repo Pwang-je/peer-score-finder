@@ -24,3 +24,5 @@ typing_extensions==4.16.0
 tzdata==2026.5
 uvicorn
 cryptography
+openpyxl
+python-multipart
