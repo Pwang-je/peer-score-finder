@@ -14,7 +14,7 @@
         </button>
       </div>
 
-      <!-- 🌟 엑셀 대량 업로드 모달 창 -->
+      <!-- 엑셀 대량 업로드 모달 창 -->
       <div v-if="showUploadModal" class="modal-backdrop" @click.self="showUploadModal = false">
         <div class="modal-card">
           <div class="modal-header">
@@ -54,10 +54,10 @@
       </div>
 
       <div class="header-content">
-        <div class="brand-badge">(알고리즘명)</div>
+        <div class="brand-badge">PREDICTIVE AI ENGINE</div>
         <h1 class="main-title">Peer Analyzer</h1>
         <p class="main-desc">
-          2019~2025 합격자 성적 데이터를 기반으로 나와 가장 비슷한 점수 그룹을 탐색합니다.
+          2020~2025 합격자 성적 패턴 데이터를 기반으로 나와 가장 비슷한 점수 그룹을 탐색합니다.
         </p>
       </div>
     </header>
@@ -105,9 +105,9 @@
         <div class="glass-panel">
           <div class="panel-tag-row">
             <span class="panel-tag">MODE 01</span>
-            <!-- 계열 자동 감지 알림 뱃지 -->
-            <span v-if="form.student_name && isNatural" class="track-badge natural">자연계열</span>
-            <span v-else-if="form.student_name && !isNatural" class="track-badge human">인문계열</span>
+            <!-- 계열 자동 감지 뱃지 -->
+            <span v-if="form.student_name && isNatural" class="track-badge natural">⚙️ 자연계열 (영+수 복합)</span>
+            <span v-else-if="form.student_name && !isNatural" class="track-badge human">📘 인문계열 (영어 4과목)</span>
           </div>
 
           <h2 class="panel-heading">26년도 성적 불러오기</h2>
@@ -140,9 +140,8 @@
               <div class="stat-pill"><span class="k">어휘</span><span class="v">{{ studentDBData.vocabulary }}</span></div>
               <div class="stat-pill"><span class="k">논리</span><span class="v">{{ studentDBData.logic }}</span></div>
               <div class="stat-pill"><span class="k">독해</span><span class="v">{{ studentDBData.reading }}</span></div>
-              <!-- 자연계열일 경우 수학 점수 뱃지 노출 -->
-              <div class="stat-pill total"><span class="k">영어</span><span class="v">{{ studentDBData.total_score }}</span></div>
               <div v-if="isNatural" class="stat-pill math"><span class="k">수학</span><span class="v">{{ studentDBData.math_total }}</span></div>
+              <div class="stat-pill total"><span class="k">영어총점</span><span class="v">{{ studentDBData.total_score }}</span></div>
             </div>
           </div>
         </div>
@@ -151,7 +150,7 @@
         <div class="glass-panel">
           <div class="panel-tag-row">
             <span class="panel-tag">MODE 02</span>
-            <!-- 수동 계열 선택 토글 -->
+            <!-- 수동 계열 선택 토글 버튼 -->
             <div class="track-toggle-group">
               <button :class="['toggle-btn', { active: !manualIsNatural }]" @click="manualIsNatural = false">인문계</button>
               <button :class="['toggle-btn', { active: manualIsNatural }]" @click="manualIsNatural = true">자연계</button>
@@ -169,7 +168,7 @@
             </div>
           </div>
 
-          <!-- 점수 입력 그리드 (자연계 선택 시 5칸 또는 2열로 유연 배치) -->
+          <!-- 점수 입력 그리드 (자연계 선택 시 5칸 또는 2열 배치) -->
           <div :class="['manual-score-grid', { 'grid-natural': manualIsNatural }]">
             <div class="input-wrap">
               <label>문법</label>
@@ -187,7 +186,7 @@
               <label>독해</label>
               <input type="number" v-model.number="form.reading" step="0.1" placeholder="0.0" class="modern-input">
             </div>
-            <!-- 수동 자연계열 선택 시 수학 입력 칸 활성화 -->
+            <!-- 수동 자연계열 선택 시 수학 점수 입력 칸 활성화 -->
             <div v-if="manualIsNatural" class="input-wrap math-wrap">
               <label>수학 총점</label>
               <input type="number" v-model.number="form.math_total" step="0.1" placeholder="0.0" class="modern-input math-input">
@@ -289,6 +288,7 @@
 
         <!-- 차트 대시보드 레이아웃 -->
         <div class="charts-section">
+          <!-- 자연계열일 때 5개 타일 레이아웃 적용 -->
           <div :class="['mini-charts-row', { 'row-five': result.is_natural }]">
             <div class="chart-tile">
               <div class="tile-header">문법 ({{ weights.grammar.toFixed(1) }}x)</div>
@@ -306,19 +306,17 @@
               <div class="tile-header">독해 ({{ weights.reading.toFixed(1) }}x)</div>
               <div class="chart-canvas-box"><canvas id="readingChart"></canvas></div>
             </div>
-            <!-- 자연계열일 때 수학 비교 바 차트 추가 -->
+            <!-- 수학 타일: 2칸 차지하여 깔끔하게 정렬 -->
             <div v-if="result.is_natural" class="chart-tile math-tile">
               <div class="tile-header">수학 ({{ weights.math.toFixed(1) }}x)</div>
               <div class="chart-canvas-box"><canvas id="mathChart"></canvas></div>
             </div>
           </div>
 
-          <!-- 메인 타임라인 차트 타일 -->
+          <!-- 타임라인 꺾은선 차트 (영어/수학 탭 스위치 지원) -->
           <div class="main-timeline-tile">
             <div class="timeline-header-wrap">
               <div class="tile-header">{{ timelineMode === 'eng' ? '영어 총점 추이 비교' : '수학 총점 추이 비교' }} (1월 ~ 11월)</div>
-
-              <!-- 🌟 자연계열일 때 영/수 전환 탭 스위치 -->
               <div v-if="result.is_natural" class="timeline-tab-group">
                 <button :class="['tab-btn', { active: timelineMode === 'eng' }]" @click="switchTimelineMode('eng')">영어 비교</button>
                 <button :class="['tab-btn', { active: timelineMode === 'math' }]" @click="switchTimelineMode('math')">수학 비교</button>
@@ -326,6 +324,7 @@
             </div>
             <div class="timeline-canvas-box"><canvas id="timelineChart"></canvas></div>
           </div>
+        </div>
 
         <!-- 매칭 확률 높은 TOP 10 대학 및 학과별 분포 -->
         <div class="univ-summary-wrap">
@@ -346,7 +345,7 @@
                     <span class="m-count">{{ m.count }}명</span>
                   </div>
 
-                  <!-- 🌟 [3번 요구사항] 문 -> 어 -> 논 -> 독 -> 영어총점 -> 수학 순서 -->
+                  <!-- 🌟 점수 순서: 문 -> 어 -> 논 -> 독 -> 영어총점 -> 수학 -->
                   <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-profile-line">
                     <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
                     <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
@@ -386,6 +385,7 @@
                   <td>{{ s.major }}</td>
                   <td class="cell-mute">{{ s.department }}</td>
                   <td>
+                    <!-- 🌟 표에서도 문 -> 어 -> 논 -> 독 -> 영어총점 -> 수학 순서 -->
                     <div class="table-badge-group">
                       <span class="badge-score b-grammar">{{ s.scores.grammar }}</span>
                       <span class="badge-score b-vocab">{{ s.scores.vocabulary }}</span>
@@ -414,15 +414,15 @@ Chart.register(...registerables);
 export default {
   data() {
     return {
-      timelineMode: 'eng',
       showUploadModal: false,
       selectedFile: null,
       isUploading: false,
       uploadStatusMsg: '',
       uploadStatusType: '',
       allStudents: [],
-      isNatural: false,          // 🌟 26년도 학생 선택 시 자동 감지된 계열
-      manualIsNatural: false,    // 🌟 MODE 02 직접 입력 시 선택한 계열
+      isNatural: false,          // 26년도 학생 선택 시 자동 감지된 계열
+      manualIsNatural: false,    // MODE 02 직접 입력 시 선택한 계열
+      timelineMode: 'eng',       // 추이선 표시 모드 ('eng' 또는 'math')
       form: {
         month: '',
         grammar: '',
@@ -438,7 +438,7 @@ export default {
         vocabulary: 1.0,
         logic: 1.0,
         reading: 1.0,
-        math: 2.0                // 🌟 수학 가중치 (기본 2.0x)
+        math: 2.0
       },
       debounceTimer: null,
       isUpdating: false,
@@ -449,7 +449,6 @@ export default {
     };
   },
   computed: {
-    // 현재 활성화된 계열 상태 (학생 선택 모드 vs 직접 입력 모드)
     activeIsNatural() {
       const hasManual = [this.form.grammar, this.form.vocabulary, this.form.logic, this.form.reading, this.form.math_total].some(v => v !== '');
       return hasManual ? this.manualIsNatural : this.isNatural;
@@ -490,15 +489,172 @@ export default {
     this.fetchAllStudents();
   },
   methods: {
-    // 🌟 영/수 추이선 모드 전환
+    handleFileChange(e) {
+      const file = e.target.files[0];
+      if (file) {
+        this.selectedFile = file;
+        this.uploadStatusMsg = '';
+      }
+    },
+    async submitExcelUpload() {
+      if (!this.selectedFile) return;
+
+      this.isUploading = true;
+      this.uploadStatusMsg = '파일을 분석하여 TiDB에 적재 중입니다... 잠시만 기다려 주세요.';
+      this.uploadStatusType = 'info';
+
+      const formData = new FormData();
+      formData.append('file', this.selectedFile);
+
+      try {
+        const res = await axios.post('https://peer-score-finder.onrender.com/upload-scores', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (res.data.status === 'success') {
+          this.uploadStatusMsg = res.data.message;
+          this.uploadStatusType = 'success';
+          this.selectedFile = null;
+          if (this.$refs.excelFileInput) this.$refs.excelFileInput.value = '';
+          this.fetchAllStudents();
+        } else {
+          this.uploadStatusMsg = res.data.message;
+          this.uploadStatusType = 'error';
+        }
+      } catch (err) {
+        console.error('업로드 실패:', err);
+        this.uploadStatusMsg = '서버 통신 중 에러가 발생했습니다.';
+        this.uploadStatusType = 'error';
+      } finally {
+        this.isUploading = false;
+      }
+    },
+    resetWeights() {
+      this.weights = {
+        grammar: 1.0,
+        vocabulary: 1.0,
+        logic: 1.0,
+        reading: 1.0,
+        math: 2.0
+      };
+    },
+    async fetchAllStudents() {
+      try {
+        const res = await axios.get('https://peer-score-finder.onrender.com/all-students-2026');
+        this.allStudents = res.data;
+      } catch (e) {
+        console.error("전체 학생 명단 로드 실패:", e);
+      }
+    },
+    async loadStudentScore() {
+      if (!this.form.student_name || !this.form.month) return;
+      try {
+        const res = await axios.get('https://peer-score-finder.onrender.com/get-student-score', {
+          params: { student_name: this.form.student_name, month: this.form.month }
+        });
+
+        if (res.data.is_natural !== undefined) {
+          this.isNatural = res.data.is_natural;
+        }
+
+        if (res.data.status === 'success') {
+          const s = res.data.data;
+          this.studentDBData = s;
+          this.form.grammar = '';
+          this.form.vocabulary = '';
+          this.form.logic = '';
+          this.form.reading = '';
+          this.form.math_total = '';
+        } else {
+          this.studentDBData = { grammar: '-', vocabulary: '-', logic: '-', reading: '-', math_total: '-', total_score: '-' };
+          alert(`${this.form.student_name} 학생은 ${this.form.month}월 데이터가 없습니다.`);
+        }
+      } catch (e) {
+        console.error("성적 로드 실패:", e);
+      }
+    },
     switchTimelineMode(mode) {
       this.timelineMode = mode;
       this.$nextTick(() => {
         this.renderTimelineChart();
       });
     },
+    async fetchPrediction(isDebounce = false) {
+      const hasManual = [this.form.grammar, this.form.vocabulary, this.form.logic, this.form.reading, this.form.math_total].some(v => v !== '');
+      let m, name, g, v, l, r, mathScore, isNat;
 
-    renderCharts(averages, timeline, myTimeline, isNat = false) {
+      if (hasManual) {
+        if (!this.manualMonth) {
+          if (!isDebounce) alert("비교 기준 월을 선택해 주세요!");
+          return;
+        }
+        m = this.manualMonth;
+        name = "직접입력수험생";
+        g = Number(this.form.grammar) || 0;
+        v = Number(this.form.vocabulary) || 0;
+        l = Number(this.form.logic) || 0;
+        r = Number(this.form.reading) || 0;
+        mathScore = Number(this.form.math_total) || 0;
+        isNat = this.manualIsNatural;
+      } else {
+        if (!this.form.student_name || this.studentDBData.grammar === '-') {
+          if (!isDebounce) alert("학생을 선택하거나 점수를 직접 입력해 주세요!");
+          this.isUpdating = false;
+          return;
+        }
+        if (!this.form.month) {
+          if (!isDebounce) alert("모의고사 월을 선택해 주세요!");
+          return;
+        }
+        m = this.form.month;
+        name = this.form.student_name;
+        g = Number(this.studentDBData.grammar);
+        v = Number(this.studentDBData.vocabulary);
+        l = Number(this.studentDBData.logic);
+        r = Number(this.studentDBData.reading);
+        mathScore = (this.studentDBData.math_total !== '-' && this.studentDBData.math_total !== '') ? Number(this.studentDBData.math_total) : 0;
+        isNat = this.isNatural;
+      }
+
+      this.currentAnalysisScores = { grammar: g, vocabulary: v, logic: l, reading: r, math: mathScore };
+
+      try {
+        const res = await axios.get('https://peer-score-finder.onrender.com/predict', {
+          params: {
+            month: m,
+            student_name: name,
+            grammar: g,
+            vocabulary: v,
+            logic: l,
+            reading: r,
+            math_total: mathScore,
+            is_natural: isNat,
+            w_grammar: this.weights.grammar,
+            w_vocabulary: this.weights.vocabulary,
+            w_logic: this.weights.logic,
+            w_reading: this.weights.reading,
+            w_math: this.weights.math
+          }
+        });
+
+        if (res.data.status === 'success' || res.data.univ_details || res.data.month_averages) {
+          this.result = res.data;
+          this.$nextTick(() => {
+            requestAnimationFrame(() => {
+              this.renderCharts(this.result.month_averages, this.result.is_natural);
+            });
+          });
+        } else if (!isDebounce) {
+          alert(res.data.message || "결과를 불러올 수 없습니다.");
+        }
+      } catch (e) {
+        console.error("예측 요청 실패:", e);
+        if (!isDebounce) alert("백엔드 분석 에러가 발생했습니다.");
+      } finally {
+        this.isUpdating = false;
+      }
+    },
+    renderCharts(averages, isNat = false) {
       if (!averages) return;
 
       const subConfigs = [
@@ -553,11 +709,8 @@ export default {
         });
       });
 
-      // 타임라인 차트 렌더링 호출
       this.renderTimelineChart();
     },
-
-    // 🌟 영어/수학 모드에 따라 꺾은선 차트 그리기
     renderTimelineChart() {
       if (!this.result) return;
       const tlEl = document.getElementById('timelineChart');
@@ -632,289 +785,6 @@ export default {
         }
       });
     }
-  },
-    handleFileChange(e) {
-      const file = e.target.files[0];
-      if (file) {
-        this.selectedFile = file;
-        this.uploadStatusMsg = '';
-      }
-    },
-    async submitExcelUpload() {
-      if (!this.selectedFile) return;
-
-      this.isUploading = true;
-      this.uploadStatusMsg = '파일을 분석하여 TiDB에 적재 중입니다... 잠시만 기다려 주세요.';
-      this.uploadStatusType = 'info';
-
-      const formData = new FormData();
-      formData.append('file', this.selectedFile);
-
-      try {
-        const res = await axios.post('https://peer-score-finder.onrender.com/upload-scores', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-
-        if (res.data.status === 'success') {
-          this.uploadStatusMsg = res.data.message;
-          this.uploadStatusType = 'success';
-          this.selectedFile = null;
-          if (this.$refs.excelFileInput) this.$refs.excelFileInput.value = '';
-          this.fetchAllStudents();
-        } else {
-          this.uploadStatusMsg = res.data.message;
-          this.uploadStatusType = 'error';
-        }
-      } catch (err) {
-        console.error('업로드 실패:', err);
-        this.uploadStatusMsg = '서버 통신 중 에러가 발생했습니다.';
-        this.uploadStatusType = 'error';
-      } finally {
-        this.isUploading = false;
-      }
-    },
-    resetWeights() {
-      this.weights = {
-        grammar: 1.0,
-        vocabulary: 1.0,
-        logic: 1.0,
-        reading: 1.0,
-        math: 2.0
-      };
-    },
-    async fetchAllStudents() {
-      try {
-        const res = await axios.get('https://peer-score-finder.onrender.com/all-students-2026');
-        this.allStudents = res.data;
-      } catch (e) {
-        console.error("전체 학생 명단 로드 실패:", e);
-      }
-    },
-    async loadStudentScore() {
-      if (!this.form.student_name || !this.form.month) return;
-      try {
-        const res = await axios.get('https://peer-score-finder.onrender.com/get-student-score', {
-          params: { student_name: this.form.student_name, month: this.form.month }
-        });
-
-        // 🌟 백엔드에서 판정한 계열 자동 주입
-        if (res.data.is_natural !== undefined) {
-          this.isNatural = res.data.is_natural;
-        }
-
-        if (res.data.status === 'success') {
-          const s = res.data.data;
-          this.studentDBData = s;
-          this.form.grammar = '';
-          this.form.vocabulary = '';
-          this.form.logic = '';
-          this.form.reading = '';
-          this.form.math_total = '';
-        } else {
-          this.studentDBData = { grammar: '-', vocabulary: '-', logic: '-', reading: '-', math_total: '-', total_score: '-' };
-          alert(`${this.form.student_name} 학생은 ${this.form.month}월 데이터가 없습니다.`);
-        }
-      } catch (e) {
-        console.error("성적 로드 실패:", e);
-      }
-    },
-    async fetchPrediction(isDebounce = false) {
-      const hasManual = [this.form.grammar, this.form.vocabulary, this.form.logic, this.form.reading, this.form.math_total].some(v => v !== '');
-      let m, name, g, v, l, r, mathScore, isNat;
-
-      if (hasManual) {
-        if (!this.manualMonth) {
-          if (!isDebounce) alert("비교 기준 월을 선택해 주세요!");
-          return;
-        }
-        m = this.manualMonth;
-        name = "직접입력수험생";
-        g = Number(this.form.grammar) || 0;
-        v = Number(this.form.vocabulary) || 0;
-        l = Number(this.form.logic) || 0;
-        r = Number(this.form.reading) || 0;
-        mathScore = Number(this.form.math_total) || 0;
-        isNat = this.manualIsNatural;
-      } else {
-        if (!this.form.student_name || this.studentDBData.grammar === '-') {
-          if (!isDebounce) alert("학생을 선택하거나 점수를 직접 입력해 주세요!");
-          this.isUpdating = false;
-          return;
-        }
-        if (!this.form.month) {
-          if (!isDebounce) alert("모의고사 월을 선택해 주세요!");
-          return;
-        }
-        m = this.form.month;
-        name = this.form.student_name;
-        g = Number(this.studentDBData.grammar);
-        v = Number(this.studentDBData.vocabulary);
-        l = Number(this.studentDBData.logic);
-        r = Number(this.studentDBData.reading);
-        mathScore = (this.studentDBData.math_total !== '-' && this.studentDBData.math_total !== '') ? Number(this.studentDBData.math_total) : 0;
-        isNat = this.isNatural;
-      }
-
-      this.currentAnalysisScores = { grammar: g, vocabulary: v, logic: l, reading: r, math: mathScore };
-
-      try {
-        const res = await axios.get('https://peer-score-finder.onrender.com/predict', {
-          params: {
-            month: m,
-            student_name: name,
-            grammar: g,
-            vocabulary: v,
-            logic: l,
-            reading: r,
-            math_total: mathScore,
-            is_natural: isNat,
-            w_grammar: this.weights.grammar,
-            w_vocabulary: this.weights.vocabulary,
-            w_logic: this.weights.logic,
-            w_reading: this.weights.reading,
-            w_math: this.weights.math
-          }
-        });
-
-        if (res.data.status === 'success' || res.data.univ_details || res.data.month_averages) {
-          this.result = res.data;
-          this.$nextTick(() => {
-            requestAnimationFrame(() => {
-              this.renderCharts(this.result.month_averages, this.result.timeline_stats, this.result.my_timeline_stats, this.result.is_natural);
-            });
-          });
-        } else if (!isDebounce) {
-          alert(res.data.message || "결과를 불러올 수 없습니다.");
-        }
-      } catch (e) {
-        console.error("예측 요청 실패:", e);
-        if (!isDebounce) alert("백엔드 분석 에러가 발생했습니다.");
-      } finally {
-        this.isUpdating = false;
-      }
-    },
-    renderCharts(averages, timeline, myTimeline, isNat = false) {
-      if (!averages) return;
-
-      const subConfigs = [
-        { id: 'grammar', my: this.currentAnalysisScores.grammar, avg: averages.grammar, color: 'rgba(132, 204, 22, 0.85)', max: 25 },
-        { id: 'vocabulary', my: this.currentAnalysisScores.vocabulary, avg: averages.vocabulary, color: 'rgba(59, 130, 246, 0.85)', max: 12.5 },
-        { id: 'logic', my: this.currentAnalysisScores.logic, avg: averages.logic, color: 'rgba(249, 115, 22, 0.85)', max: 20 },
-        { id: 'reading', my: this.currentAnalysisScores.reading, avg: averages.reading, color: 'rgba(234, 179, 8, 0.85)', max: 50 }
-      ];
-
-      // 자연계열일 경우 수학 바 차트 추가
-      if (isNat && averages.math !== undefined) {
-        subConfigs.push({
-          id: 'math',
-          my: this.currentAnalysisScores.math,
-          avg: averages.math,
-          color: 'rgba(147, 51, 234, 0.85)',
-          max: 100
-        });
-      }
-
-      subConfigs.forEach(cfg => {
-        const el = document.getElementById(`${cfg.id}Chart`);
-        if (!el) return;
-        const ctx = el.getContext('2d');
-        if (!ctx) return;
-
-        if (this.chartInstances[cfg.id]) {
-          this.chartInstances[cfg.id].destroy();
-          this.chartInstances[cfg.id] = null;
-        }
-
-        this.chartInstances[cfg.id] = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: ['내 성적', '선배 평균'],
-            datasets: [{
-              data: [cfg.my, cfg.avg],
-              backgroundColor: [cfg.color, '#e2e8f0'],
-              borderRadius: 6,
-              barThickness: 18
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 350 },
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#64748b' } },
-              y: { max: cfg.max, grid: { display: false }, ticks: { display: false } }
-            }
-          }
-        });
-      });
-
-      if (!timeline) return;
-      const tlEl = document.getElementById('timelineChart');
-      if (!tlEl) return;
-      const tlCtx = tlEl.getContext('2d');
-      if (!tlCtx) return;
-
-      if (this.chartInstances['timeline']) {
-        this.chartInstances['timeline'].destroy();
-        this.chartInstances['timeline'] = null;
-      }
-
-      const labels = Object.keys(timeline);
-      const cleanNum = s => String(s).replace(/[^0-9]/g, '');
-      const normMy = {};
-      if (myTimeline) {
-        Object.keys(myTimeline).forEach(k => { normMy[cleanNum(k)] = myTimeline[k]; });
-      }
-      const myLineData = labels.map(l => normMy[cleanNum(l)] ?? null);
-
-      this.chartInstances['timeline'] = new Chart(tlCtx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: '매칭 선배 평균 총점',
-              data: Object.values(timeline),
-              borderColor: '#ec4899',
-              borderWidth: 3,
-              pointBackgroundColor: '#ffffff',
-              pointBorderColor: '#ec4899',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              fill: false,
-              tension: 0.35
-            },
-            {
-              label: '나의 총점 추이',
-              data: myLineData,
-              spanGaps: true,
-              borderColor: '#2563eb',
-              backgroundColor: 'rgba(37,99,235,0.05)',
-              fill: true,
-              borderWidth: 3.5,
-              pointBackgroundColor: '#ffffff',
-              pointBorderColor: '#2563eb',
-              pointBorderWidth: 2.5,
-              pointRadius: 5,
-              tension: 0.35
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: { duration: 350 },
-          plugins: {
-            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12, weight: '600' } } }
-          },
-          scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#64748b' } },
-            y: { grid: { color: 'rgba(226, 232, 240, 0.6)' }, ticks: { color: '#64748b' } }
-          }
-        }
-      });
-    }
   }
 };
 </script>
@@ -964,7 +834,7 @@ export default {
   margin: 0;
 }
 
-/* 계열 태그 및 토글 버튼 */
+/* 계열 태그 및 수동 토글 버튼 */
 .panel-tag-row {
   display: flex;
   justify-content: space-between;
@@ -1442,6 +1312,17 @@ export default {
 }
 
 /* 3. 결과 리포트 섹션 */
+.section-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
+  letter-spacing: 0.12em;
+  margin-bottom: 24px;
+}
+
 .charts-section {
   display: grid;
   grid-template-columns: 1fr 1.2fr;
@@ -1460,11 +1341,8 @@ export default {
   width: 100%;
   min-width: 0;
 }
-.mini-charts-row.row-five .math-tile {
-  grid-column: span 2;
-  border-color: #f0abfc;
-}
 
+/* 🌟 자연계열 5개 차트 그리드: 3열로 분할 */
 .mini-charts-row.row-five {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1480,6 +1358,20 @@ export default {
   overflow: hidden;
 }
 
+/* 🌟 1번 요구사항: 수학 타일 2칸 너비 차지 (grid-column: span 2) */
+.mini-charts-row.row-five .math-tile {
+  grid-column: span 2;
+  border-color: #f0abfc;
+}
+
+.tile-header {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 12px;
+}
+
+/* 🌟 2번 요구사항: 타임라인 헤더 및 영/수 탭 전환 스위치 */
 .timeline-header-wrap {
   display: flex;
   justify-content: space-between;
@@ -1515,17 +1407,6 @@ export default {
   background: #ffffff;
   color: #0f172a;
   box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-}
-
-.math-tile {
-  border-color: #e9d5ff;
-}
-
-.tile-header {
-  font-size: 13px;
-  font-weight: 700;
-  color: #334155;
-  margin-bottom: 12px;
 }
 
 .chart-canvas-box {
@@ -1935,7 +1816,8 @@ export default {
     min-width: 0;
   }
 
-  .manual-score-grid {
+  .manual-score-grid,
+  .manual-score-grid.grid-natural {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 10px;
     width: 100%;
@@ -1996,6 +1878,10 @@ export default {
     gap: 10px;
     width: 100%;
     min-width: 0;
+  }
+
+  .mini-charts-row.row-five .math-tile {
+    grid-column: span 2;
   }
 
   .chart-tile {
