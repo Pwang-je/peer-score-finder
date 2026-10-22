@@ -372,40 +372,62 @@ def predict_university(
     df_all_months = get_all_months_data(is_natural=is_natural)
     df_matched_timeline = df_all_months[df_all_months['student_name'].isin(matched_names)]
 
-    # 1) 선배들의 1월 ~ 11월 추이선
+    # 1) 선배들의 1월 ~ 11월 추이선 (영어 & 수학)
     timeline_stats = {}
+    math_timeline_stats = {}
     last_valid_senior_score = None
+    last_valid_senior_math = None
 
     for m in range(1, 12):
         m_df = df_matched_timeline[df_matched_timeline['month'] == m]
-        avg_score = m_df['total_score'].mean() if not m_df.empty else None
 
+        # 영어 총점 평균
+        avg_score = m_df['total_score'].mean() if not m_df.empty else None
         if avg_score is None or pd.isna(avg_score) or np.isnan(avg_score):
             if last_valid_senior_score is not None:
                 avg_score = last_valid_senior_score
             else:
                 global_m_df = df_all_months[df_all_months['month'] == m]
                 avg_score = global_m_df['total_score'].mean() if not global_m_df.empty else 0.0
-
         final_score = round(float(avg_score), 1) if not pd.isna(avg_score) else 0.0
         timeline_stats[f"{m}월"] = final_score
         last_valid_senior_score = final_score
 
-    # 2) 나의 1월 ~ 11월 추이선
+        # 🌟 수학 총점 평균
+        if is_natural and 'math_total' in m_df.columns:
+            m_valid = pd.to_numeric(m_df['math_total'], errors='coerce').dropna()
+            m_valid = m_valid[m_valid > 0]
+            avg_math = m_valid.mean() if not m_valid.empty else None
+            if avg_math is None or pd.isna(avg_math) or np.isnan(avg_math):
+                avg_math = last_valid_senior_math if last_valid_senior_math is not None else 0.0
+            final_math = round(float(avg_math), 1)
+            math_timeline_stats[f"{m}월"] = final_math
+            last_valid_senior_math = final_math
+
+    # 2) 나의 1월 ~ 11월 추이선 (영어 & 수학)
     my_timeline_stats = {}
+    my_math_timeline_stats = {}
     total_input_score = grammar + vocabulary + logic + reading
 
     if student_name == "직접입력수험생":
         for m in range(1, 12):
             my_timeline_stats[f"{m}월"] = round(float(total_input_score), 1) if m == month else None
+            my_math_timeline_stats[f"{m}월"] = round(float(math_total), 1) if (m == month and is_natural) else None
     else:
         df_my = get_my_all_months_data(student_name)
         for m in range(1, 12):
             my_m_df = df_my[df_my['month'] == m]
             if not my_m_df.empty:
                 my_timeline_stats[f"{m}월"] = round(float(my_m_df['total_score'].iloc[0]), 1)
+
+                # 수학
+                if is_natural and 'math_total' in my_m_df.columns:
+                    raw_m = my_m_df['math_total'].iloc[0]
+                    my_math_timeline_stats[f"{m}월"] = round(float(raw_m), 1) if (
+                                raw_m is not None and str(raw_m).strip() != '' and float(raw_m) > 0) else None
             else:
                 my_timeline_stats[f"{m}월"] = None
+                my_math_timeline_stats[f"{m}월"] = None
 
     # 3) TOP 10 대학 및 학과별 분포 추출
     top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
@@ -486,7 +508,9 @@ def predict_university(
         "is_natural": is_natural,
         "month_averages": month_averages,
         "timeline_stats": timeline_stats,
+        "math_timeline_stats": math_timeline_stats,
         "my_timeline_stats": my_timeline_stats,
+        "my_math_timeline_stats": my_math_timeline_stats,
         "univ_details": univ_details,
         "all_seniors": senior_list
     }

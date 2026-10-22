@@ -54,10 +54,10 @@
       </div>
 
       <div class="header-content">
-        <div class="brand-badge">PREDICTIVE AI ENGINE</div>
+        <div class="brand-badge">(알고리즘명)</div>
         <h1 class="main-title">Peer Analyzer</h1>
         <p class="main-desc">
-          2020~2025 합격자 성적 패턴 데이터를 기반으로 나와 가장 비슷한 점수 그룹을 탐색합니다.
+          2019~2025 합격자 성적 데이터를 기반으로 나와 가장 비슷한 점수 그룹을 탐색합니다.
         </p>
       </div>
     </header>
@@ -106,8 +106,8 @@
           <div class="panel-tag-row">
             <span class="panel-tag">MODE 01</span>
             <!-- 계열 자동 감지 알림 뱃지 -->
-            <span v-if="form.student_name && isNatural" class="track-badge natural">⚙️ 자연계열 (영+수 복합)</span>
-            <span v-else-if="form.student_name && !isNatural" class="track-badge human">📘 인문계열 (영어 4과목)</span>
+            <span v-if="form.student_name && isNatural" class="track-badge natural">자연계열</span>
+            <span v-else-if="form.student_name && !isNatural" class="track-badge human">인문계열</span>
           </div>
 
           <h2 class="panel-heading">26년도 성적 불러오기</h2>
@@ -141,8 +141,8 @@
               <div class="stat-pill"><span class="k">논리</span><span class="v">{{ studentDBData.logic }}</span></div>
               <div class="stat-pill"><span class="k">독해</span><span class="v">{{ studentDBData.reading }}</span></div>
               <!-- 자연계열일 경우 수학 점수 뱃지 노출 -->
+              <div class="stat-pill total"><span class="k">영어</span><span class="v">{{ studentDBData.total_score }}</span></div>
               <div v-if="isNatural" class="stat-pill math"><span class="k">수학</span><span class="v">{{ studentDBData.math_total }}</span></div>
-              <div class="stat-pill total"><span class="k">영어총점</span><span class="v">{{ studentDBData.total_score }}</span></div>
             </div>
           </div>
         </div>
@@ -313,11 +313,19 @@
             </div>
           </div>
 
+          <!-- 메인 타임라인 차트 타일 -->
           <div class="main-timeline-tile">
-            <div class="tile-header">영어 총점 추이 비교 (1월 ~ 11월)</div>
+            <div class="timeline-header-wrap">
+              <div class="tile-header">{{ timelineMode === 'eng' ? '영어 총점 추이 비교' : '수학 총점 추이 비교' }} (1월 ~ 11월)</div>
+
+              <!-- 🌟 자연계열일 때 영/수 전환 탭 스위치 -->
+              <div v-if="result.is_natural" class="timeline-tab-group">
+                <button :class="['tab-btn', { active: timelineMode === 'eng' }]" @click="switchTimelineMode('eng')">영어 비교</button>
+                <button :class="['tab-btn', { active: timelineMode === 'math' }]" @click="switchTimelineMode('math')">수학 비교</button>
+              </div>
+            </div>
             <div class="timeline-canvas-box"><canvas id="timelineChart"></canvas></div>
           </div>
-        </div>
 
         <!-- 매칭 확률 높은 TOP 10 대학 및 학과별 분포 -->
         <div class="univ-summary-wrap">
@@ -338,14 +346,15 @@
                     <span class="m-count">{{ m.count }}명</span>
                   </div>
 
+                  <!-- 🌟 [3번 요구사항] 문 -> 어 -> 논 -> 독 -> 영어총점 -> 수학 순서 -->
                   <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-profile-line">
                     <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
                     <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
                     <span class="badge-score b-vocab">{{ scoreObj.vocabulary }}</span>
                     <span class="badge-score b-logic">{{ scoreObj.logic }}</span>
                     <span class="badge-score b-reading">{{ scoreObj.reading }}</span>
-                    <span v-if="scoreObj.math !== null && scoreObj.math !== undefined" class="badge-score b-math">수학 {{ scoreObj.math }}</span>
                     <span class="badge-score b-total">총 {{ scoreObj.total }}</span>
+                    <span v-if="scoreObj.math !== null && scoreObj.math !== undefined" class="badge-score b-math">수학 {{ scoreObj.math }}</span>
                   </div>
                 </div>
               </div>
@@ -382,8 +391,8 @@
                       <span class="badge-score b-vocab">{{ s.scores.vocabulary }}</span>
                       <span class="badge-score b-logic">{{ s.scores.logic }}</span>
                       <span class="badge-score b-reading">{{ s.scores.reading }}</span>
-                      <span v-if="s.scores.math !== null && s.scores.math !== undefined" class="badge-score b-math">수학 {{ s.scores.math }}</span>
                       <span class="badge-score b-total">총 {{ s.scores.total }}</span>
+                      <span v-if="s.scores.math !== null && s.scores.math !== undefined" class="badge-score b-math">수학 {{ s.scores.math }}</span>
                     </div>
                   </td>
                 </tr>
@@ -405,6 +414,7 @@ Chart.register(...registerables);
 export default {
   data() {
     return {
+      timelineMode: 'eng',
       showUploadModal: false,
       selectedFile: null,
       isUploading: false,
@@ -480,6 +490,149 @@ export default {
     this.fetchAllStudents();
   },
   methods: {
+    // 🌟 영/수 추이선 모드 전환
+    switchTimelineMode(mode) {
+      this.timelineMode = mode;
+      this.$nextTick(() => {
+        this.renderTimelineChart();
+      });
+    },
+
+    renderCharts(averages, timeline, myTimeline, isNat = false) {
+      if (!averages) return;
+
+      const subConfigs = [
+        { id: 'grammar', my: this.currentAnalysisScores.grammar, avg: averages.grammar, color: 'rgba(132, 204, 22, 0.85)', max: 25 },
+        { id: 'vocabulary', my: this.currentAnalysisScores.vocabulary, avg: averages.vocabulary, color: 'rgba(59, 130, 246, 0.85)', max: 12.5 },
+        { id: 'logic', my: this.currentAnalysisScores.logic, avg: averages.logic, color: 'rgba(249, 115, 22, 0.85)', max: 20 },
+        { id: 'reading', my: this.currentAnalysisScores.reading, avg: averages.reading, color: 'rgba(234, 179, 8, 0.85)', max: 50 }
+      ];
+
+      if (isNat && averages.math !== undefined) {
+        subConfigs.push({
+          id: 'math',
+          my: this.currentAnalysisScores.math,
+          avg: averages.math,
+          color: 'rgba(147, 51, 234, 0.85)',
+          max: 100
+        });
+      }
+
+      subConfigs.forEach(cfg => {
+        const el = document.getElementById(`${cfg.id}Chart`);
+        if (!el) return;
+        const ctx = el.getContext('2d');
+        if (!ctx) return;
+
+        if (this.chartInstances[cfg.id]) {
+          this.chartInstances[cfg.id].destroy();
+          this.chartInstances[cfg.id] = null;
+        }
+
+        this.chartInstances[cfg.id] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['내 성적', '선배 평균'],
+            datasets: [{
+              data: [cfg.my, cfg.avg],
+              backgroundColor: [cfg.color, '#e2e8f0'],
+              borderRadius: 6,
+              barThickness: 18
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 350 },
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#64748b' } },
+              y: { max: cfg.max, grid: { display: false }, ticks: { display: false } }
+            }
+          }
+        });
+      });
+
+      // 타임라인 차트 렌더링 호출
+      this.renderTimelineChart();
+    },
+
+    // 🌟 영어/수학 모드에 따라 꺾은선 차트 그리기
+    renderTimelineChart() {
+      if (!this.result) return;
+      const tlEl = document.getElementById('timelineChart');
+      if (!tlEl) return;
+      const tlCtx = tlEl.getContext('2d');
+      if (!tlCtx) return;
+
+      if (this.chartInstances['timeline']) {
+        this.chartInstances['timeline'].destroy();
+        this.chartInstances['timeline'] = null;
+      }
+
+      const isMath = (this.timelineMode === 'math');
+      const timelineData = isMath ? (this.result.math_timeline_stats || {}) : (this.result.timeline_stats || {});
+      const myTimelineData = isMath ? (this.result.my_math_timeline_stats || {}) : (this.result.my_timeline_stats || {});
+
+      const labels = Object.keys(timelineData);
+      const cleanNum = s => String(s).replace(/[^0-9]/g, '');
+      const normMy = {};
+      Object.keys(myTimelineData).forEach(k => { normMy[cleanNum(k)] = myTimelineData[k]; });
+      const myLineData = labels.map(l => normMy[cleanNum(l)] ?? null);
+
+      const lineColor = isMath ? '#9333ea' : '#2563eb';
+      const lineBg = isMath ? 'rgba(147, 51, 234, 0.06)' : 'rgba(37, 99, 235, 0.05)';
+      const seniorLabel = isMath ? '매칭 선배 평균 수학' : '매칭 선배 평균 영어';
+      const myLabel = isMath ? '나의 수학 추이' : '나의 영어 추이';
+
+      this.chartInstances['timeline'] = new Chart(tlCtx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: seniorLabel,
+              data: Object.values(timelineData),
+              borderColor: '#ec4899',
+              borderWidth: 3,
+              pointBackgroundColor: '#ffffff',
+              pointBorderColor: '#ec4899',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              fill: false,
+              tension: 0.35
+            },
+            {
+              label: myLabel,
+              data: myLineData,
+              spanGaps: true,
+              borderColor: lineColor,
+              backgroundColor: lineBg,
+              fill: true,
+              borderWidth: 3.5,
+              pointBackgroundColor: '#ffffff',
+              pointBorderColor: lineColor,
+              pointBorderWidth: 2.5,
+              pointRadius: 5,
+              tension: 0.35
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 350 },
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12, weight: '600' } } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#64748b' } },
+            y: { grid: { color: 'rgba(226, 232, 240, 0.6)' }, ticks: { color: '#64748b' } }
+          }
+        }
+      });
+    }
+  },
     handleFileChange(e) {
       const file = e.target.files[0];
       if (file) {
@@ -1307,6 +1460,10 @@ export default {
   width: 100%;
   min-width: 0;
 }
+.mini-charts-row.row-five .math-tile {
+  grid-column: span 2;
+  border-color: #f0abfc;
+}
 
 .mini-charts-row.row-five {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1321,6 +1478,43 @@ export default {
   min-width: 0;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.timeline-header-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.timeline-header-wrap .tile-header {
+  margin-bottom: 0;
+}
+
+.timeline-tab-group {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 
 .math-tile {
