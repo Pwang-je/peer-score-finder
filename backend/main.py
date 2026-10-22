@@ -42,25 +42,25 @@ ALLOWED_STUDENTS = [
 
 
 def get_db_data(month: int, is_natural: bool = False):
-    """월별 과거 합격생 데이터 조회 (계열에 따라 분기)"""
+    """과거 합격생 데이터 조회 (LIKE %자연% / LIKE %인문% 완벽 분기)"""
     conn = pymysql.connect(**DB_CONFIG)
+
+    # 🌟 자연계열: 일반자연, 학사자연, 자연 모두 매칭
     if is_natural:
-        # 자연계열: 과거 자연계열 합격자 중 수학 점수가 있는 학생만
         query = f"""
             SELECT year, student_name, total_score, grammar, vocabulary, logic, reading, math_total, univ, major, department 
             FROM peer_data 
             WHERE month = {month} AND year < 2026 
-              AND department = '자연' 
-              AND math_total IS NOT NULL AND math_total > 0
+              AND department LIKE '%자연%'
               AND univ != '' AND univ IS NOT NULL
         """
+    # 🌟 인문계열: 일반인문, 학사인문, 인문 모두 매칭 (자연 제외)
     else:
-        # 인문계열: 과거 인문계열 합격자만
         query = f"""
             SELECT year, student_name, total_score, grammar, vocabulary, logic, reading, math_total, univ, major, department 
             FROM peer_data 
             WHERE month = {month} AND year < 2026 
-              AND (department != '자연' OR department IS NULL)
+              AND (department LIKE '%인문%' OR department NOT LIKE '%자연%' OR department IS NULL)
               AND univ != '' AND univ IS NOT NULL
         """
     df = pd.read_sql(query, conn)
@@ -69,23 +69,33 @@ def get_db_data(month: int, is_natural: bool = False):
 
 
 def get_all_months_data(is_natural: bool = False):
+    """추이선용 전체 월 과거 합격생 데이터 조회"""
     conn = pymysql.connect(**DB_CONFIG)
     if is_natural:
         query = """
-            SELECT student_name, month, total_score, math_total 
-            FROM peer_data 
-            WHERE year < 2026 AND department = '자연' AND univ != '' AND univ IS NOT NULL
-        """
+                SELECT student_name, month, total_score, math_total
+                FROM peer_data
+                WHERE year \
+                    < 2026
+                  AND department LIKE '%자연%'
+                  AND univ != '' \
+                  AND univ IS NOT NULL \
+                """
     else:
         query = """
-            SELECT student_name, month, total_score, math_total 
-            FROM peer_data 
-            WHERE year < 2026 AND (department != '자연' OR department IS NULL) AND univ != '' AND univ IS NOT NULL
-        """
+                SELECT student_name, month, total_score, math_total
+                FROM peer_data
+                WHERE year \
+                    < 2026
+                  AND (department LIKE '%인문%' \
+                   OR department NOT LIKE '%자연%' \
+                   OR department IS NULL)
+                  AND univ != '' \
+                  AND univ IS NOT NULL \
+                """
     df = pd.read_sql(query, conn)
     conn.close()
     return df.fillna("")
-
 
 def get_my_all_months_data(student_name: str):
     conn = pymysql.connect(**DB_CONFIG)
