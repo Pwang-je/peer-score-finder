@@ -351,16 +351,16 @@
                     <div class="senior-row-main">
                       <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
                       <div class="senior-main-scores">
-                        <span class="badge-score b-total">총 {{ scoreObj.total }}</span>
+                        <span class="badge-score b-total">영어 {{ scoreObj.total }}</span>
                         <span v-if="scoreObj.math !== null && scoreObj.math !== undefined" class="badge-score b-math">수학 {{ scoreObj.math }}</span>
                       </div>
                     </div>
                     <!-- 2행: 세부 4과목 득점 -->
                     <div class="senior-row-subs">
-                      <span class="badge-sub-score b-grammar"><small>문</small> {{ scoreObj.grammar }}</span>
-                      <span class="badge-sub-score b-vocab"><small>어</small> {{ scoreObj.vocabulary }}</span>
-                      <span class="badge-sub-score b-logic"><small>논</small> {{ scoreObj.logic }}</span>
-                      <span class="badge-sub-score b-reading"><small>독</small> {{ scoreObj.reading }}</span>
+                      <span class="badge-sub-score b-grammar">{{ scoreObj.grammar }}</span>
+                      <span class="badge-sub-score b-vocab">{{ scoreObj.vocabulary }}</span>
+                      <span class="badge-sub-score b-logic">{{ scoreObj.logic }}</span>
+                      <span class="badge-sub-score b-reading">{{ scoreObj.reading }}</span>
                     </div>
                   </div>
                 </div>
