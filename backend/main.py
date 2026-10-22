@@ -27,8 +27,6 @@ DB_CONFIG = {
     'ssl': {'ca': None}
 }
 
-# 예: ALLOWED_STUDENTS = ["하민정", "김철수", "이영희"]
-# 빈 리스트 [] 로 두면 26년도 전체 학생이 출력됩니다.
 ALLOWED_STUDENTS = [
     "강승현", "고시후", "고준형", "권도윤", "김가연_1", "김도현", "김민결", "김민재",
     "김병준", "김보승", "김서현", "김수겸", "김승은", "김승재", "김시윤", "김아진",
@@ -42,21 +40,48 @@ ALLOWED_STUDENTS = [
     "최윤지", "하민정", "하승민", "한지윤", "홍승훈", "홍시은", "홍채이", "황혜영"
 ]
 
-def get_db_data(month: int):
+
+def get_db_data(month: int, is_natural: bool = False):
+    """월별 과거 합격생 데이터 조회 (계열에 따라 분기)"""
     conn = pymysql.connect(**DB_CONFIG)
-    query = f"""
-        SELECT year, student_name, total_score, grammar, vocabulary, logic, reading, univ, major, department 
-        FROM peer_data 
-        WHERE month = {month} AND year < 2026 AND univ != '' AND univ IS NOT NULL
-    """
+    if is_natural:
+        # 자연계열: 과거 자연계열 합격자 중 수학 점수가 있는 학생만
+        query = f"""
+            SELECT year, student_name, total_score, grammar, vocabulary, logic, reading, math_total, univ, major, department 
+            FROM peer_data 
+            WHERE month = {month} AND year < 2026 
+              AND department = '자연' 
+              AND math_total IS NOT NULL AND math_total > 0
+              AND univ != '' AND univ IS NOT NULL
+        """
+    else:
+        # 인문계열: 과거 인문계열 합격자만
+        query = f"""
+            SELECT year, student_name, total_score, grammar, vocabulary, logic, reading, math_total, univ, major, department 
+            FROM peer_data 
+            WHERE month = {month} AND year < 2026 
+              AND (department != '자연' OR department IS NULL)
+              AND univ != '' AND univ IS NOT NULL
+        """
     df = pd.read_sql(query, conn)
     conn.close()
     return df.fillna("")
 
 
-def get_all_months_data():
+def get_all_months_data(is_natural: bool = False):
     conn = pymysql.connect(**DB_CONFIG)
-    query = "SELECT student_name, month, total_score FROM peer_data WHERE year < 2026 AND univ != '' AND univ IS NOT NULL"
+    if is_natural:
+        query = """
+            SELECT student_name, month, total_score, math_total 
+            FROM peer_data 
+            WHERE year < 2026 AND department = '자연' AND univ != '' AND univ IS NOT NULL
+        """
+    else:
+        query = """
+            SELECT student_name, month, total_score, math_total 
+            FROM peer_data 
+            WHERE year < 2026 AND (department != '자연' OR department IS NULL) AND univ != '' AND univ IS NOT NULL
+        """
     df = pd.read_sql(query, conn)
     conn.close()
     return df.fillna("")
@@ -64,8 +89,8 @@ def get_all_months_data():
 
 def get_my_all_months_data(student_name: str):
     conn = pymysql.connect(**DB_CONFIG)
-    query = f"""
-        SELECT month, total_score 
+    query = """
+        SELECT month, total_score, math_total 
         FROM peer_data 
         WHERE year = 2026 AND student_name = %s
     """
@@ -74,19 +99,13 @@ def get_my_all_months_data(student_name: str):
     return df.fillna("")
 
 
-# 엑셀로 업로드 가능하게 하는 코드
+# 엑셀/CSV 일괄 업로드
 @app.post("/upload-scores")
 async def upload_scores(file: UploadFile = File(...)):
-    """
-    엑셀(.xlsx) 또는 CSV 파일을 업로드 받아 TiDB peer_data 테이블에 일괄 적재/갱신
-    필수 컬럼: year, month, student_name, total_score, grammar, vocabulary, logic, reading
-    선택 컬럼: univ, major, department
-    """
     try:
         contents = await file.read()
         filename = file.filename.lower()
 
-        # 1. 파일 확장자에 따라 판다스 DataFrame으로 읽기
         if filename.endswith(".csv"):
             try:
                 df = pd.read_csv(io.BytesIO(contents), encoding="utf-8")
@@ -97,48 +116,50 @@ async def upload_scores(file: UploadFile = File(...)):
         else:
             return {"status": "error", "message": "지원하지 않는 파일 형식입니다. .xlsx 또는 .csv 파일을 업로드해 주세요."}
 
-        # 2. 컬럼 공백 제거 및 소문자 정렬
         df.columns = df.columns.str.strip()
 
-        # 필수 컬럼 체크
         required_cols = ['year', 'month', 'student_name', 'total_score', 'grammar', 'vocabulary', 'logic', 'reading']
         for col in required_cols:
             if col not in df.columns:
                 return {"status": "error", "message": f"필수 컬럼 누락: '{col}' 열이 파일에 존재하지 않습니다."}
 
-        # 선택 컬럼 기본값 처리
         for col in ['univ', 'major', 'department']:
             if col not in df.columns:
                 df[col] = ""
+        if 'math_total' not in df.columns:
+            df['math_total'] = None
 
-        # 결측치 빈 문자열 및 기본값 처리
         df = df.fillna("")
 
-        # 3. DB 연결 및 배치 INSERT / UPDATE
         conn = pymysql.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
         sql = """
-              INSERT INTO peer_data (year, month, student_name, total_score, grammar, vocabulary, logic, reading, univ, \
-                                     major, department)
-              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON DUPLICATE KEY \
-              UPDATE \
-                  total_score = \
-              VALUES (total_score), grammar = \
-              VALUES (grammar), vocabulary = \
-              VALUES (vocabulary), logic = \
-              VALUES (logic), reading = \
-              VALUES (reading), univ = \
-              VALUES (univ), major = \
-              VALUES (major), department = \
-              VALUES (department) \
-              """
+            INSERT INTO peer_data (year, month, student_name, total_score, grammar, vocabulary, logic, reading, math_total, univ, major, department)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                total_score = VALUES(total_score),
+                grammar = VALUES(grammar),
+                vocabulary = VALUES(vocabulary),
+                logic = VALUES(logic),
+                reading = VALUES(reading),
+                math_total = VALUES(math_total),
+                univ = VALUES(univ),
+                major = VALUES(major),
+                department = VALUES(department)
+        """
 
         rows_to_insert = []
         for _, row in df.iterrows():
-            # 빈 행 스킵
             if not str(row['student_name']).strip() or not str(row['year']).strip():
                 continue
+
+            math_val = None
+            if row['math_total'] != "" and not pd.isna(row['math_total']):
+                try:
+                    math_val = float(row['math_total'])
+                except ValueError:
+                    math_val = None
 
             rows_to_insert.append((
                 int(row['year']),
@@ -149,6 +170,7 @@ async def upload_scores(file: UploadFile = File(...)):
                 float(row['vocabulary']) if row['vocabulary'] != "" else 0.0,
                 float(row['logic']) if row['logic'] != "" else 0.0,
                 float(row['reading']) if row['reading'] != "" else 0.0,
+                math_val,
                 str(row['univ']).strip(),
                 str(row['major']).strip(),
                 str(row['department']).strip()
@@ -173,18 +195,13 @@ async def upload_scores(file: UploadFile = File(...)):
         return {"status": "error", "message": f"업로드 처리 중 오류 발생: {str(e)}"}
 
 
-
-
-
-
-# 🌟 특정 학생 명단만 반환하는 API
+# 2026 학생 명단 반환 API
 @app.get("/all-students-2026")
 def get_all_students_2026():
     conn = pymysql.connect(**DB_CONFIG)
     try:
         cursor = conn.cursor()
         if ALLOWED_STUDENTS:
-            # 지정된 특정 학생만 DB에 존재하는지 확인 후 가나다순 반환
             format_strings = ','.join(['%s'] * len(ALLOWED_STUDENTS))
             query = f"""
                 SELECT DISTINCT student_name 
@@ -195,11 +212,11 @@ def get_all_students_2026():
             cursor.execute(query, tuple(ALLOWED_STUDENTS))
         else:
             query = """
-                    SELECT DISTINCT student_name
-                    FROM peer_data
-                    WHERE year = 2026 AND student_name != '' AND student_name IS NOT NULL
-                    ORDER BY student_name ASC \
-                    """
+                SELECT DISTINCT student_name
+                FROM peer_data
+                WHERE year = 2026 AND student_name != '' AND student_name IS NOT NULL
+                ORDER BY student_name ASC
+            """
             cursor.execute(query)
 
         rows = cursor.fetchall()
@@ -211,30 +228,59 @@ def get_all_students_2026():
         conn.close()
 
 
+# 🌟 선택된 학생의 성적 조회 및 자연계/인문계 자동 판정 API
 @app.get("/get-student-score")
 def get_student_score(student_name: str, month: int):
     conn = pymysql.connect(**DB_CONFIG)
-    query = """
-            SELECT grammar, vocabulary, logic, reading, total_score
-            FROM peer_data
-            WHERE year = 2026 \
-              AND student_name = %s \
-              AND month = %s \
-            """
     try:
         cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+        # 1. 해당 학생의 2026년도 전체 시험 중 수학 점수가 0점 초과인 이력이 단 1번이라도 있는지 검사
+        check_math_query = """
+            SELECT COUNT(*) as math_count
+            FROM peer_data
+            WHERE year = 2026 AND student_name = %s AND math_total IS NOT NULL AND math_total > 0
+        """
+        cursor.execute(check_math_query, (student_name,))
+        math_history = cursor.fetchone()
+        has_math_history = (math_history['math_count'] > 0) if math_history else False
+
+        # 2. 해당 월의 성적 조회
+        query = """
+            SELECT grammar, vocabulary, logic, reading, total_score, math_total, department
+            FROM peer_data
+            WHERE year = 2026 AND student_name = %s AND month = %s
+        """
         cursor.execute(query, (student_name, month))
         result = cursor.fetchone()
+
         if result:
-            return {"status": "success", "data": result}
+            # 🌟 자연계 자동 판정 규칙: 연중 수학 응시 이력이 있거나 department가 '자연'인 경우
+            dept = result.get('department', '')
+            is_natural = has_math_history or (dept == '자연')
+
+            # math_total이 None일 경우 처리
+            m_val = result.get('math_total')
+            result['math_total'] = float(m_val) if (m_val is not None and m_val != '') else '-'
+
+            return {
+                "status": "success",
+                "data": result,
+                "is_natural": is_natural
+            }
         else:
-            return {"status": "empty", "message": "해당 월의 성적 데이터가 존재하지 않습니다."}
+            return {
+                "status": "empty",
+                "message": "해당 월의 성적 데이터가 존재하지 않습니다.",
+                "is_natural": has_math_history  # 성적이 없어도 이전 이력으로 계열은 전달
+            }
     except Exception as e:
         return {"status": "error", "message": str(e)}
     finally:
         conn.close()
 
 
+# 🌟 계열별(인문/자연) 맞춤형 예측 및 KNN 종합 분석 API
 @app.get("/predict")
 def predict_university(
         month: int,
@@ -243,31 +289,52 @@ def predict_university(
         logic: float,
         reading: float,
         student_name: str,
+        math_total: float = 0.0,
+        is_natural: bool = False,
         w_grammar: float = 1.0,
         w_vocabulary: float = 1.0,
         w_logic: float = 1.0,
-        w_reading: float = 1.0
+        w_reading: float = 1.0,
+        w_math: float = 2.0
 ):
-    df_raw = get_db_data(month)
+    df_raw = get_db_data(month, is_natural=is_natural)
     if df_raw.empty:
-        return {"status": "error", "message": "해당 월의 데이터가 없습니다."}
+        track_name = "자연계열" if is_natural else "인문계열"
+        return {"status": "error", "message": f"{month}월의 {track_name} 합격생 데이터가 없습니다."}
 
+    # 평균 점수 산출
     month_averages = {
-        "grammar": round(float(df_raw['grammar'].mean()), 1),
-        "vocabulary": round(float(df_raw['vocabulary'].mean()), 1),
-        "logic": round(float(df_raw['logic'].mean()), 1),
-        "reading": round(float(df_raw['reading'].mean()), 1),
-        "total": round(float(df_raw['total_score'].mean()), 1)
+        "grammar": round(float(pd.to_numeric(df_raw['grammar'], errors='coerce').mean()), 1),
+        "vocabulary": round(float(pd.to_numeric(df_raw['vocabulary'], errors='coerce').mean()), 1),
+        "logic": round(float(pd.to_numeric(df_raw['logic'], errors='coerce').mean()), 1),
+        "reading": round(float(pd.to_numeric(df_raw['reading'], errors='coerce').mean()), 1),
+        "total": round(float(pd.to_numeric(df_raw['total_score'], errors='coerce').mean()), 1)
     }
+    if is_natural:
+        math_series = pd.to_numeric(df_raw['math_total'], errors='coerce').dropna()
+        month_averages["math"] = round(float(math_series.mean()), 1) if not math_series.empty else 0.0
 
     df_past = df_raw.copy()
-    features = ['grammar', 'vocabulary', 'logic', 'reading']
 
-    weights = np.array([w_grammar, w_vocabulary, w_logic, w_reading])
-    X_past_weighted = df_past[features].values * weights
-    current_student_weighted = np.array([[grammar, vocabulary, logic, reading]]) * weights
+    # 🌟 피처 및 가중치 설정 (자연: 5차원, 인문: 4차원)
+    if is_natural:
+        features = ['grammar', 'vocabulary', 'logic', 'reading', 'math_total']
+        for col in features:
+            df_past[col] = pd.to_numeric(df_past[col], errors='coerce').fillna(0.0)
 
-    # 1. 넉넉하게 전체 풀에 대해 거리 계산 (최대 500명)
+        weights = np.array([w_grammar, w_vocabulary, w_logic, w_reading, w_math])
+        X_past_weighted = df_past[features].values * weights
+        current_student_weighted = np.array([[grammar, vocabulary, logic, reading, math_total]]) * weights
+    else:
+        features = ['grammar', 'vocabulary', 'logic', 'reading']
+        for col in features:
+            df_past[col] = pd.to_numeric(df_past[col], errors='coerce').fillna(0.0)
+
+        weights = np.array([w_grammar, w_vocabulary, w_logic, w_reading])
+        X_past_weighted = df_past[features].values * weights
+        current_student_weighted = np.array([[grammar, vocabulary, logic, reading]]) * weights
+
+    # 1. KNN 거리 계산 (최대 500명 풀)
     n_neighbors = min(500, len(df_past))
     knn = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean')
     knn.fit(X_past_weighted)
@@ -275,23 +342,24 @@ def predict_university(
     distances, indices = knn.kneighbors(current_student_weighted)
     all_matched = df_past.iloc[indices[0]].copy()
     all_matched['distance'] = distances[0]
-    all_matched = all_matched.drop_duplicates(subset=['student_name', 'total_score'])
+    all_matched = all_matched.drop_duplicates(subset=['student_name', 'total_score', 'year'])
 
-    # 🌟 2. [핵심] 연도별 강제 균등 쿼터 배분 (20, 21, 22년도 무조건 확보)
-    # 데이터에 존재하는 연도별로 가장 가까운 순서대로 각 연도당 최대 15명씩 선발
+    # 2. 연도별 균등 쿼터 배분
     balanced_seniors_list = []
-    available_years = sorted(all_matched['year'].unique())
+    valid_years = [int(y) for y in all_matched['year'].dropna().unique() if str(y).isdigit()]
 
-    for y in available_years:
+    for y in sorted(valid_years):
         year_df = all_matched[all_matched['year'] == y].sort_values(by='distance')
-        # 각 연도별로 가장 점수가 가까운 12명씩 강제 추출
-        balanced_seniors_list.append(year_df.head(12))
+        if not year_df.empty:
+            balanced_seniors_list.append(year_df.head(12))
 
-    # 연도별 대표 선배들 병합
-    matched_seniors = pd.concat(balanced_seniors_list).reset_index(drop=True)
+    if balanced_seniors_list:
+        matched_seniors = pd.concat(balanced_seniors_list).reset_index(drop=True)
+    else:
+        matched_seniors = all_matched.head(50).reset_index(drop=True)
 
     matched_names = matched_seniors['student_name'].tolist()
-    df_all_months = get_all_months_data()
+    df_all_months = get_all_months_data(is_natural=is_natural)
     df_matched_timeline = df_all_months[df_all_months['student_name'].isin(matched_names)]
 
     # 1) 선배들의 1월 ~ 11월 추이선
@@ -314,18 +382,22 @@ def predict_university(
         last_valid_senior_score = final_score
 
     # 2) 나의 1월 ~ 11월 추이선
-    df_my = get_my_all_months_data(student_name)
     my_timeline_stats = {}
+    total_input_score = grammar + vocabulary + logic + reading
 
-    for m in range(1, 12):
-        my_m_df = df_my[df_my['month'] == m]
-        if not my_m_df.empty:
-            avg_my_score = round(float(my_m_df['total_score'].iloc[0]), 1)
-            my_timeline_stats[f"{m}월"] = avg_my_score
-        else:
-            my_timeline_stats[f"{m}월"] = None
+    if student_name == "직접입력수험생":
+        for m in range(1, 12):
+            my_timeline_stats[f"{m}월"] = round(float(total_input_score), 1) if m == month else None
+    else:
+        df_my = get_my_all_months_data(student_name)
+        for m in range(1, 12):
+            my_m_df = df_my[df_my['month'] == m]
+            if not my_m_df.empty:
+                my_timeline_stats[f"{m}월"] = round(float(my_m_df['total_score'].iloc[0]), 1)
+            else:
+                my_timeline_stats[f"{m}월"] = None
 
-    # 3) TOP 10 대학 및 학과별 분포 추출 (과거 연도 선배 우선 포함 정렬)
+    # 3) TOP 10 대학 및 학과별 분포 추출
     top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
     univ_details = []
     top10_student_keys = set()
@@ -337,12 +409,14 @@ def predict_university(
 
         for major_name, group in major_groups:
             score_details = []
-            # 🌟 학과 내에서도 연도가 골고루 보이도록 연도 오름차순(20년도부터)으로 정렬
             sorted_group = group.sort_values(by=['year', 'distance'], ascending=[True, True])
 
             for _, row in sorted_group.iterrows():
                 short_year = f"{str(row['year'])[2:]}'"
                 top10_student_keys.add(f"{row['year']}_{row['student_name']}")
+
+                m_score = row.get('math_total', None)
+                m_score_val = float(m_score) if (m_score is not None and m_score != '') else None
 
                 score_details.append({
                     "year": short_year,
@@ -351,6 +425,7 @@ def predict_university(
                     "vocabulary": float(row['vocabulary']),
                     "logic": float(row['logic']),
                     "reading": float(row['reading']),
+                    "math": m_score_val,
                     "total": float(row['total_score'])
                 })
 
@@ -367,19 +442,19 @@ def predict_university(
             "majors": major_list
         })
 
-    # 🌟 4) 하단 상세 목록: TOP 10 제외 + 과거 연도(20, 21, 22년) 선배들을 우선 배치
+    # 4) 하단 상세 목록: TOP 10 제외 + 과거 연도 우선
     senior_list = []
-    # TOP 10에 없는 학생들만 추림
     remaining_seniors = all_matched[
         ~all_matched.apply(lambda r: f"{r['year']}_{r['student_name']}" in top10_student_keys, axis=1)]
 
-    # 20~22년도 선배를 먼저 찾아서 넣고, 남은 자리를 23~25년도로 채움
     past_seniors = remaining_seniors[remaining_seniors['year'] <= 2022].sort_values(by='distance')
     recent_seniors = remaining_seniors[remaining_seniors['year'] > 2022].sort_values(by='distance')
-
     combined_remaining = pd.concat([past_seniors, recent_seniors]).reset_index(drop=True)
 
     for _, row in combined_remaining.head(10).iterrows():
+        m_score = row.get('math_total', None)
+        m_score_val = float(m_score) if (m_score is not None and m_score != '') else None
+
         senior_list.append({
             "year": int(row['year']),
             "univ": row['univ'],
@@ -391,12 +466,14 @@ def predict_university(
                 "vocabulary": float(row['vocabulary']),
                 "logic": float(row['logic']),
                 "reading": float(row['reading']),
+                "math": m_score_val,
                 "total": float(row['total_score'])
             }
         })
 
     return {
         "status": "success",
+        "is_natural": is_natural,
         "month_averages": month_averages,
         "timeline_stats": timeline_stats,
         "my_timeline_stats": my_timeline_stats,
@@ -404,7 +481,7 @@ def predict_university(
         "all_seniors": senior_list
     }
 
+
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
