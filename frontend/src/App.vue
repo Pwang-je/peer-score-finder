@@ -398,7 +398,7 @@
                       <span class="badge-score b-vocab">{{ s.scores.vocabulary }}</span>
                       <span class="badge-score b-logic">{{ s.scores.logic }}</span>
                       <span class="badge-score b-reading">{{ s.scores.reading }}</span>
-                      <span class="badge-score b-total">총 {{ s.scores.total }}</span>
+                      <span class="badge-score b-total">영어 {{ s.scores.total }}</span>
                       <span v-if="s.scores.math !== null && s.scores.math !== undefined" class="badge-score b-math">수학 {{ s.scores.math }}</span>
                     </div>
                   </td>
@@ -695,7 +695,7 @@ export default {
         this.chartInstances[cfg.id] = new Chart(ctx, {
           type: 'bar',
           data: {
-            labels: ['내 성적', '선배 평균'],
+            labels: ['내 성적', '지난 평균'],
             datasets: [{
               data: [cfg.my, cfg.avg],
               backgroundColor: [cfg.color, '#e2e8f0'],
@@ -1596,7 +1596,7 @@ export default {
 .b-vocab   { background: #eff6ff; color: #1d4ed8; }
 .b-logic   { background: #fff7ed; color: #c2410c; }
 .b-reading { background: #fefce8; color: #a16207; }
-.b-total   { background: #0f172a; color: #ffffff; font-weight: 800; }
+.b-total   { background: #e0e7ff; color: #3730a3; font-weight: 800; }
 .b-math    { background: #f3e8ff; color: #7e22ce; font-weight: 800; }
 
 /* ========================================================
