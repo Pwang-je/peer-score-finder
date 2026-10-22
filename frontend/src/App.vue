@@ -106,8 +106,8 @@
           <div class="panel-tag-row">
             <span class="panel-tag">MODE 01</span>
             <!-- 계열 자동 감지 뱃지 -->
-            <span v-if="form.student_name && isNatural" class="track-badge natural">⚙️ 자연계열 (영+수 복합)</span>
-            <span v-else-if="form.student_name && !isNatural" class="track-badge human">📘 인문계열 (영어 4과목)</span>
+            <span v-if="form.student_name && isNatural" class="track-badge natural">자연</span>
+            <span v-else-if="form.student_name && !isNatural" class="track-badge human">인문</span>
           </div>
 
           <h2 class="panel-heading">26년도 성적 불러오기</h2>
@@ -140,8 +140,8 @@
               <div class="stat-pill"><span class="k">어휘</span><span class="v">{{ studentDBData.vocabulary }}</span></div>
               <div class="stat-pill"><span class="k">논리</span><span class="v">{{ studentDBData.logic }}</span></div>
               <div class="stat-pill"><span class="k">독해</span><span class="v">{{ studentDBData.reading }}</span></div>
+              <div class="stat-pill total"><span class="k">영어</span><span class="v">{{ studentDBData.total_score }}</span></div>
               <div v-if="isNatural" class="stat-pill math"><span class="k">수학</span><span class="v">{{ studentDBData.math_total }}</span></div>
-              <div class="stat-pill total"><span class="k">영어총점</span><span class="v">{{ studentDBData.total_score }}</span></div>
             </div>
           </div>
         </div>
@@ -345,22 +345,21 @@
                     <span class="m-count">{{ m.count }}명</span>
                   </div>
 
-                  <!-- 2줄 카드형 구조: 1행(이름 + 영어총점 + 수학) / 2행(문법 + 어휘 + 논리 + 독해) -->
-                  <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-card-item">
-                    <!-- 1행: 이름 및 메인 총점 -->
-                    <div class="senior-row-main">
+                  <!-- 2줄 심플 구조: 1행(이름 + 영어총점 + 수학) / 2행(문/어/논/독 숫자만 나열) -->
+                  <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-block">
+                    <!-- 1행: [20' 설수원]  영어 50  수학 56 -->
+                    <div class="senior-line-top">
                       <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
-                      <div class="senior-main-scores">
-                        <span class="badge-score b-total">영어 {{ scoreObj.total }}</span>
-                        <span v-if="scoreObj.math !== null && scoreObj.math !== undefined" class="badge-score b-math">수학 {{ scoreObj.math }}</span>
-                      </div>
+                      <span class="badge-score b-total">영어 {{ scoreObj.total }}</span>
+                      <span v-if="scoreObj.math !== null && scoreObj.math !== undefined" class="badge-score b-math">수학 {{ scoreObj.math }}</span>
                     </div>
-                    <!-- 2행: 세부 4과목 득점 -->
-                    <div class="senior-row-subs">
-                      <span class="badge-sub-score b-grammar">{{ scoreObj.grammar }}</span>
-                      <span class="badge-sub-score b-vocab">{{ scoreObj.vocabulary }}</span>
-                      <span class="badge-sub-score b-logic">{{ scoreObj.logic }}</span>
-                      <span class="badge-sub-score b-reading">{{ scoreObj.reading }}</span>
+
+                    <!-- 2행: 0  5  12.5  32.5 (문/어/논/독 원색 뱃지) -->
+                    <div class="senior-line-sub">
+                      <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
+                      <span class="badge-score b-vocab">{{ scoreObj.vocabulary }}</span>
+                      <span class="badge-score b-logic">{{ scoreObj.logic }}</span>
+                      <span class="badge-score b-reading">{{ scoreObj.reading }}</span>
                     </div>
                   </div>
                 </div>
@@ -798,6 +797,9 @@ export default {
 </script>
 
 <style scoped>
+/* ========================================================
+   🌐 전역 기본 레이아웃 & 폰트
+   ======================================================== */
 .dashboard-root {
   min-height: 100vh;
   background-color: #f8fafc;
@@ -840,6 +842,36 @@ export default {
   font-size: 14.5px;
   color: #64748b;
   margin: 0;
+}
+
+/* 관리자 업로드 버튼 상단 바 */
+.admin-action-row {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 1140px;
+  margin: 0 auto 16px;
+}
+
+.admin-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.admin-upload-btn:hover {
+  background: #f8fafc;
+  border-color: #2563eb;
+  color: #2563eb;
 }
 
 /* 계열 태그 및 수동 토글 버튼 */
@@ -901,7 +933,9 @@ export default {
   box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 
-/* 1. 상시 노출 알고리즘 카드 */
+/* ========================================================
+   1. 상시 노출 알고리즘 가이드 카드
+   ======================================================== */
 .methodology-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -977,7 +1011,9 @@ export default {
   margin: 0;
 }
 
-/* 2. 컨트롤 패널 */
+/* ========================================================
+   2. 컨트롤 패널 (MODE 01 / MODE 02)
+   ======================================================== */
 .control-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1095,7 +1131,7 @@ export default {
 .stat-pill .v { font-size: 13px; font-weight: 700; color: #0f172a; }
 .stat-pill.total .v { color: #2563eb; }
 
-/* 4칸/5칸 점수 입력 */
+/* 점수 직접 입력 그리드 */
 .manual-score-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1136,7 +1172,9 @@ export default {
   color: #2563eb;
 }
 
-/* 가중치 패널 */
+/* ========================================================
+   가중치 튜닝 슬라이더 패널
+   ======================================================== */
 .weight-control-panel {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -1319,7 +1357,9 @@ export default {
   transform: translateY(-1px);
 }
 
-/* 3. 결과 리포트 섹션 */
+/* ========================================================
+   3. 결과 리포트 섹션 & 차트 레이아웃
+   ======================================================== */
 .section-divider {
   display: flex;
   align-items: center;
@@ -1350,7 +1390,7 @@ export default {
   min-width: 0;
 }
 
-/* 🌟 자연계열 5개 차트 그리드: 3열로 분할 */
+/* 자연계열 5개 차트: 3열 분할 */
 .mini-charts-row.row-five {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1366,7 +1406,7 @@ export default {
   overflow: hidden;
 }
 
-/* 🌟 1번 요구사항: 수학 타일 2칸 너비 차지 (grid-column: span 2) */
+/* 수학 타일: 2칸 너비 차지 */
 .mini-charts-row.row-five .math-tile {
   grid-column: span 2;
   border-color: #f0abfc;
@@ -1379,7 +1419,7 @@ export default {
   margin-bottom: 12px;
 }
 
-/* 🌟 2번 요구사항: 타임라인 헤더 및 영/수 탭 전환 스위치 */
+/* 타임라인 헤더 & 영/수 탭 전환 버튼 */
 .timeline-header-wrap {
   display: flex;
   justify-content: space-between;
@@ -1456,6 +1496,9 @@ export default {
   border-radius: 9999px;
 }
 
+/* ========================================================
+   TOP 10 대학 카드 & 선배 2줄 프로필 스타일
+   ======================================================== */
 .univ-card-flow {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -1505,19 +1548,40 @@ export default {
 .m-title { font-weight: 700; }
 .m-count { color: #64748b; font-size: 11.5px; }
 
-.senior-profile-line {
+/* 🌟 선배 1명당 2줄 블록 구조 */
+.senior-block {
+  padding: 8px 0;
+  border-bottom: 1px dashed #f1f5f9;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
+  flex-direction: column;
+  gap: 4px;
 }
 
+.senior-block:last-child {
+  border-bottom: none;
+}
+
+/* 1행: [20' 설수원]  영어 50  수학 56 */
+.senior-line-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 2행: 0  5  12.5  32.5 (문/어/논/독 원색 뱃지) */
+.senior-line-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 2px;
+}
+
+/* 뱃지 스타일 */
 .badge-meta {
-  font-size: 11px;
-  color: #64748b;
+  font-size: 11.5px;
+  color: #475569;
   font-family: monospace;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .badge-score {
@@ -1532,9 +1596,12 @@ export default {
 .b-vocab   { background: #eff6ff; color: #1d4ed8; }
 .b-logic   { background: #fff7ed; color: #c2410c; }
 .b-reading { background: #fefce8; color: #a16207; }
-.b-math    { background: #f3e8ff; color: #7e22ce; }
-.b-total   { background: #f1f5f9; color: #0f172a; font-weight: 800; }
+.b-total   { background: #0f172a; color: #ffffff; font-weight: 800; }
+.b-math    { background: #f3e8ff; color: #7e22ce; font-weight: 800; }
 
+/* ========================================================
+   상세 매칭 선배 테이블
+   ======================================================== */
 .table-badge-group {
   display: flex;
   flex-wrap: wrap;
@@ -1572,37 +1639,9 @@ export default {
 .cell-bold { font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 6px; }
 .cell-mute { color: #94a3b8; font-size: 12.5px; }
 
-/* 관리자 업로드 버튼 */
-.admin-action-row {
-  display: flex;
-  justify-content: flex-end;
-  max-width: 1140px;
-  margin: 0 auto 16px;
-}
-
-.admin-upload-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-}
-
-.admin-upload-btn:hover {
-  background: #f8fafc;
-  border-color: #2563eb;
-  color: #2563eb;
-}
-
-/* 모달 백드롭 및 카드 */
+/* ========================================================
+   모달 팝업 스타일
+   ======================================================== */
 .modal-backdrop {
   position: fixed;
   top: 0;
