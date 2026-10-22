@@ -743,7 +743,7 @@ export default {
 
       const lineColor = isMath ? '#9333ea' : '#2563eb';
       const lineBg = isMath ? 'rgba(147, 51, 234, 0.06)' : 'rgba(37, 99, 235, 0.05)';
-      const seniorLabel = isMath ? '매칭 선배 평균 수학' : '매칭 선배 평균 영어';
+      const seniorLabel = isMath ? '지난 학생 평균 수학' : '지난 학생 평균 영어';
       const myLabel = isMath ? '나의 수학 추이' : '나의 영어 추이';
 
       this.chartInstances['timeline'] = new Chart(tlCtx, {
