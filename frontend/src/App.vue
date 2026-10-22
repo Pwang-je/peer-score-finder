@@ -345,15 +345,23 @@
                     <span class="m-count">{{ m.count }}명</span>
                   </div>
 
-                  <!-- 🌟 점수 순서: 문 -> 어 -> 논 -> 독 -> 영어총점 -> 수학 -->
-                  <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-profile-line">
-                    <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
-                    <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
-                    <span class="badge-score b-vocab">{{ scoreObj.vocabulary }}</span>
-                    <span class="badge-score b-logic">{{ scoreObj.logic }}</span>
-                    <span class="badge-score b-reading">{{ scoreObj.reading }}</span>
-                    <span class="badge-score b-total">총 {{ scoreObj.total }}</span>
-                    <span v-if="scoreObj.math !== null && scoreObj.math !== undefined" class="badge-score b-math">수학 {{ scoreObj.math }}</span>
+                  <!-- 2줄 카드형 구조: 1행(이름 + 영어총점 + 수학) / 2행(문법 + 어휘 + 논리 + 독해) -->
+                  <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-card-item">
+                    <!-- 1행: 이름 및 메인 총점 -->
+                    <div class="senior-row-main">
+                      <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
+                      <div class="senior-main-scores">
+                        <span class="badge-score b-total">총 {{ scoreObj.total }}</span>
+                        <span v-if="scoreObj.math !== null && scoreObj.math !== undefined" class="badge-score b-math">수학 {{ scoreObj.math }}</span>
+                      </div>
+                    </div>
+                    <!-- 2행: 세부 4과목 득점 -->
+                    <div class="senior-row-subs">
+                      <span class="badge-sub-score b-grammar"><small>문</small> {{ scoreObj.grammar }}</span>
+                      <span class="badge-sub-score b-vocab"><small>어</small> {{ scoreObj.vocabulary }}</span>
+                      <span class="badge-sub-score b-logic"><small>논</small> {{ scoreObj.logic }}</span>
+                      <span class="badge-sub-score b-reading"><small>독</small> {{ scoreObj.reading }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
