@@ -474,34 +474,6 @@ def predict_university(
             "majors": major_list
         })
 
-    # 4) 하단 상세 목록: TOP 10 제외 + 과거 연도 우선
-    senior_list = []
-    remaining_seniors = all_matched[
-        ~all_matched.apply(lambda r: f"{r['year']}_{r['student_name']}" in top10_student_keys, axis=1)]
-
-    past_seniors = remaining_seniors[remaining_seniors['year'] <= 2022].sort_values(by='distance')
-    recent_seniors = remaining_seniors[remaining_seniors['year'] > 2022].sort_values(by='distance')
-    combined_remaining = pd.concat([past_seniors, recent_seniors]).reset_index(drop=True)
-
-    for _, row in combined_remaining.head(10).iterrows():
-        m_score = row.get('math_total', None)
-        m_score_val = float(m_score) if (m_score is not None and m_score != '') else None
-
-        senior_list.append({
-            "year": int(row['year']),
-            "univ": row['univ'],
-            "major": row['major'],
-            "department": row['department'],
-            "scores": {
-                "name": row['student_name'],
-                "grammar": float(row['grammar']),
-                "vocabulary": float(row['vocabulary']),
-                "logic": float(row['logic']),
-                "reading": float(row['reading']),
-                "math": m_score_val,
-                "total": float(row['total_score'])
-            }
-        })
 
     return {
         "status": "success",
@@ -511,8 +483,7 @@ def predict_university(
         "math_timeline_stats": math_timeline_stats,
         "my_timeline_stats": my_timeline_stats,
         "my_math_timeline_stats": my_math_timeline_stats,
-        "univ_details": univ_details,
-        "all_seniors": senior_list
+        "univ_details": univ_details
     }
 
 

@@ -54,10 +54,10 @@
       </div>
 
       <div class="header-content">
-        <div class="brand-badge">PREDICTIVE AI ENGINE</div>
+        <div class="brand-badge">데이터분석 연습용 사이트</div>
         <h1 class="main-title">Peer Analyzer</h1>
         <p class="main-desc">
-          2020~2025 합격자 성적 패턴 데이터를 기반으로 나와 가장 비슷한 점수 그룹을 탐색합니다.
+          2019~2025 합격자 성적 패턴 데이터를 기반으로 나와 가장 비슷한 점수 그룹을 탐색합니다.
         </p>
       </div>
     </header>
@@ -345,7 +345,7 @@
                     <span class="m-count">{{ m.count }}명</span>
                   </div>
 
-                  <!-- 2줄 심플 구조: 1행(이름 + 영어총점 + 수학) / 2행(문/어/논/독 숫자만 나열) -->
+                  <!-- 2줄 구조: 1행(이름 + 영어총점 + 수학) / 2행(문/어/논/독 숫자 나열) -->
                   <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-block">
                     <!-- 1행: [20' 설수원]  영어 50  수학 56 -->
                     <div class="senior-line-top">
@@ -354,7 +354,7 @@
                       <span v-if="scoreObj.math !== null && scoreObj.math !== undefined" class="badge-score b-math">수학 {{ scoreObj.math }}</span>
                     </div>
 
-                    <!-- 2행: 0  5  12.5  32.5 (문/어/논/독 원색 뱃지) -->
+                    <!-- 2행: 문/어/논/독 원색 뱃지 -->
                     <div class="senior-line-sub">
                       <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
                       <span class="badge-score b-vocab">{{ scoreObj.vocabulary }}</span>
@@ -365,46 +365,6 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- 상세 매칭 선배 테이블 -->
-        <div class="table-container">
-          <h2 class="sub-heading">점수와 가까운 지난 학생 리스트</h2>
-          <div class="table-frame">
-            <table class="clean-table">
-              <thead>
-                <tr>
-                  <th>연도</th>
-                  <th>합격 대학</th>
-                  <th>합격 학과</th>
-                  <th>전형 계열</th>
-                  <th>영역별 상세 취득 점수</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(s, sIdx) in result.all_seniors" :key="sIdx">
-                  <td class="cell-mono">{{ s.year }}년</td>
-                  <td class="cell-bold">
-                    <span class="badge-meta">[{{ String(s.year).slice(2) }}' {{ s.scores.name || '선배' }}]</span>
-                    <span>{{ s.univ }}</span>
-                  </td>
-                  <td>{{ s.major }}</td>
-                  <td class="cell-mute">{{ s.department }}</td>
-                  <td>
-                    <!-- 🌟 표에서도 문 -> 어 -> 논 -> 독 -> 영어총점 -> 수학 순서 -->
-                    <div class="table-badge-group">
-                      <span class="badge-score b-grammar">{{ s.scores.grammar }}</span>
-                      <span class="badge-score b-vocab">{{ s.scores.vocabulary }}</span>
-                      <span class="badge-score b-logic">{{ s.scores.logic }}</span>
-                      <span class="badge-score b-reading">{{ s.scores.reading }}</span>
-                      <span class="badge-score b-total">영어 {{ s.scores.total }}</span>
-                      <span v-if="s.scores.math !== null && s.scores.math !== undefined" class="badge-score b-math">수학 {{ s.scores.math }}</span>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </section>
@@ -695,7 +655,7 @@ export default {
         this.chartInstances[cfg.id] = new Chart(ctx, {
           type: 'bar',
           data: {
-            labels: ['내 성적', '지난 평균'],
+            labels: ['내 성적', '선배 평균'],
             datasets: [{
               data: [cfg.my, cfg.avg],
               backgroundColor: [cfg.color, '#e2e8f0'],
@@ -742,7 +702,7 @@ export default {
 
       const lineColor = isMath ? '#9333ea' : '#2563eb';
       const lineBg = isMath ? 'rgba(147, 51, 234, 0.06)' : 'rgba(37, 99, 235, 0.05)';
-      const seniorLabel = isMath ? '지난 학생 평균 수학' : '지난 학생 평균 영어';
+      const seniorLabel = isMath ? '매칭 선배 평균 수학' : '매칭 선배 평균 영어';
       const myLabel = isMath ? '나의 수학 추이' : '나의 영어 추이';
 
       this.chartInstances['timeline'] = new Chart(tlCtx, {
@@ -1548,7 +1508,7 @@ export default {
 .m-title { font-weight: 700; }
 .m-count { color: #64748b; font-size: 11.5px; }
 
-/* 🌟 선배 1명당 2줄 블록 구조 */
+/* 선배 1명당 2줄 블록 구조 */
 .senior-block {
   padding: 8px 0;
   border-bottom: 1px dashed #f1f5f9;
@@ -1568,7 +1528,7 @@ export default {
   gap: 6px;
 }
 
-/* 2행: 0  5  12.5  32.5 (문/어/논/독 원색 뱃지) */
+/* 2행: 문/어/논/독 뱃지 */
 .senior-line-sub {
   display: flex;
   align-items: center;
@@ -1598,46 +1558,6 @@ export default {
 .b-reading { background: #fefce8; color: #a16207; }
 .b-total   { background: #e0e7ff; color: #3730a3; font-weight: 800; }
 .b-math    { background: #f3e8ff; color: #7e22ce; font-weight: 800; }
-
-/* ========================================================
-   상세 매칭 선배 테이블
-   ======================================================== */
-.table-badge-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.table-frame {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  overflow: hidden;
-}
-
-.clean-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13.5px;
-}
-
-.clean-table th {
-  background: #f8fafc;
-  color: #64748b;
-  font-weight: 600;
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.clean-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.cell-mono { font-family: monospace; color: #475569; }
-.cell-bold { font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 6px; }
-.cell-mute { color: #94a3b8; font-size: 12.5px; }
 
 /* ========================================================
    모달 팝업 스타일
@@ -1974,22 +1894,6 @@ export default {
     grid-template-columns: 1fr;
     gap: 12px;
     width: 100%;
-  }
-
-  .table-frame {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .clean-table {
-    min-width: 600px;
-  }
-
-  .clean-table th,
-  .clean-table td {
-    padding: 10px 12px;
-    font-size: 12.5px;
   }
 }
 </style>
