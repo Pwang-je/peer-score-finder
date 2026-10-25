@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- 부드러운 라운드 배경 (배경 투명을 원할 경우 이 rect 태그를 지우셔도 됩니다) -->
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#4F46E5" />
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="12" y1="52" x2="52" y2="12" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#F472B6" />
+    </linearGradient>
+  </defs>
+
+  <!-- 세련된 라운드 스퀘어 배지 -->
+  <rect width="64" height="64" rx="16" fill="url(#bgGrad)" />
+
+  <!-- 상승 그래프 꺾은선 -->
+  <polyline points="14,44 26,34 38,38 50,18" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- 그래프 상승 화살표 -->
+  <polyline points="40,18 50,18 50,28" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- 포인트 데이터 닷(노드) -->
+  <circle cx="26" cy="34" r="3.5" fill="#38BDF8" />
+  <circle cx="38" cy="38" r="3.5" fill="#F472B6" />
+  <circle cx="50" cy="18" r="4.5" fill="#FACC15" />
+</svg>
