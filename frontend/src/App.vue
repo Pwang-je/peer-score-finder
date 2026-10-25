@@ -330,7 +330,7 @@
         <div class="univ-summary-wrap">
           <h2 class="sub-heading">
             매칭 확률 높은 TOP 10 대학 및 학과별 분포
-            <span class="sub-heading-pill">{{ result.is_natural ? '자연계열 선배 기준' : '인문계열 선배 기준' }}</span>
+            <span class="sub-heading-pill">{{ result.is_natural ? '자연계열 기준' : '인문계열 기준' }}</span>
           </h2>
           <div class="univ-card-flow">
             <div v-for="(u, idx) in result.univ_details" :key="idx" class="univ-modern-card">
@@ -655,7 +655,7 @@ export default {
         this.chartInstances[cfg.id] = new Chart(ctx, {
           type: 'bar',
           data: {
-            labels: ['내 성적', '선배 평균'],
+            labels: ['내 성적', '전체 평균'],
             datasets: [{
               data: [cfg.my, cfg.avg],
               backgroundColor: [cfg.color, '#e2e8f0'],
@@ -702,7 +702,7 @@ export default {
 
       const lineColor = isMath ? '#9333ea' : '#2563eb';
       const lineBg = isMath ? 'rgba(147, 51, 234, 0.06)' : 'rgba(37, 99, 235, 0.05)';
-      const seniorLabel = isMath ? '매칭 선배 평균 수학' : '매칭 선배 평균 영어';
+      const seniorLabel = isMath ? '매칭된 학생들 평균 수학' : '매칭된 학생들 평균 영어';
       const myLabel = isMath ? '나의 수학 추이' : '나의 영어 추이';
 
       this.chartInstances['timeline'] = new Chart(tlCtx, {
