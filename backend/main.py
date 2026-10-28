@@ -582,6 +582,62 @@ def predict_university(
             "majors": major_list
         })
 
+        # 🌟 [신규 추가] 4) 취약/강점 파트 자동 진단 로직
+    senior_avg_grammar = round(float(matched_seniors['grammar'].mean()), 1)
+    senior_avg_vocab = round(float(matched_seniors['vocabulary'].mean()), 1)
+    senior_avg_logic = round(float(matched_seniors['logic'].mean()), 1)
+    senior_avg_reading = round(float(matched_seniors['reading'].mean()), 1)
+
+    diagnostic_tags = []
+
+    # 파트별 편차 체크 (내 점수 - 매칭 선배 평균)
+    diff_g = round(grammar - senior_avg_grammar, 1)
+    diff_v = round(vocabulary - senior_avg_vocab, 1)
+    diff_l = round(logic - senior_avg_logic, 1)
+    diff_r = round(reading - senior_avg_reading, 1)
+
+    # 1. 문법 진단
+    if diff_g <= -3.0:
+        diagnostic_tags.append({"type": "weak", "part": "문법", "diff": diff_g, "text": f"문법 보완 시급 ({diff_g}점)"})
+    elif diff_g >= 3.0:
+        diagnostic_tags.append({"type": "strong", "part": "문법", "diff": diff_g, "text": f"문법 우수 (+{diff_g}점)"})
+
+    # 2. 어휘 진단
+    if diff_v <= -2.5:
+        diagnostic_tags.append({"type": "weak", "part": "어휘", "diff": diff_v, "text": f"어휘 보완 필요 ({diff_v}점)"})
+    elif diff_v >= 2.5:
+        diagnostic_tags.append({"type": "strong", "part": "어휘", "diff": diff_v, "text": f"어휘 강점 (+{diff_v}점)"})
+
+    # 3. 논리 진단
+    if diff_l <= -2.5:
+        diagnostic_tags.append({"type": "weak", "part": "논리", "diff": diff_l, "text": f"논리 보완 필요 ({diff_l}점)"})
+    elif diff_l >= 2.5:
+        diagnostic_tags.append({"type": "strong", "part": "논리", "diff": diff_l, "text": f"논리 우수 (+{diff_l}점)"})
+
+    # 4. 독해 진단 (배점이 크므로 기준을 4.0점으로 설정)
+    if diff_r <= -4.0:
+        diagnostic_tags.append({"type": "weak", "part": "독해", "diff": diff_r, "text": f"독해 집중 보완 ({diff_r}점)"})
+    elif diff_r >= 4.0:
+        diagnostic_tags.append({"type": "strong", "part": "독해", "diff": diff_r, "text": f"독해 견인 (+{diff_r}점)"})
+
+    # 5. 자연계열 수학 진단
+    if is_natural:
+        valid_math = pd.to_numeric(matched_seniors['math_total'], errors='coerce').dropna()
+        valid_math = valid_math[valid_math > 0]
+        if not valid_math.empty:
+            senior_avg_math = round(float(valid_math.mean()), 1)
+            diff_m = round(math_total - senior_avg_math, 1)
+            if diff_m <= -8.0:
+                diagnostic_tags.append(
+                    {"type": "weak-math", "part": "수학", "diff": diff_m, "text": f"수학 고득점 필요 ({diff_m}점)"})
+            elif diff_m >= 8.0:
+                diagnostic_tags.append(
+                    {"type": "strong-math", "part": "수학", "diff": diff_m, "text": f"수학 강세 (+{diff_m}점)"})
+
+    # 고르게 분포된 경우
+    if not diagnostic_tags:
+        diagnostic_tags.append({"type": "balanced", "part": "종합", "diff": 0, "text": "영역별 균형 양호 (선배 평균 수렴)"})
+
     return {
         "status": "success",
         "is_natural": is_natural,
@@ -590,10 +646,12 @@ def predict_university(
         "math_timeline_stats": math_timeline_stats,
         "my_timeline_stats": my_timeline_stats,
         "my_math_timeline_stats": my_math_timeline_stats,
-        "univ_details": univ_details
+        "univ_details": univ_details,
+        "diagnostic_tags": diagnostic_tags  # 🌟 이 줄이 추가되었습니다
     }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

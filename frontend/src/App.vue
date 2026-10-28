@@ -343,6 +343,24 @@
 
       <!-- 3. 결과 시각화 섹션 -->
       <section v-if="result" class="results-container">
+
+        <!-- 🌟 [신규] 취약/강점 파트 자동 진단 배지 바 -->
+      <div v-if="result.diagnostic_tags && result.diagnostic_tags.length" class="diagnostic-banner">
+        <div class="diag-label">
+          <span class="diag-icon">🎯</span>
+          <strong>합격 선배 대비 영역 진단:</strong>
+        </div>
+        <div class="diag-tags-wrap">
+          <span
+            v-for="(tag, tIdx) in result.diagnostic_tags"
+            :key="tIdx"
+            :class="['diag-tag', tag.type]"
+          >
+            {{ tag.text }}
+          </span>
+        </div>
+      </div>
+
         <div class="section-divider">
           <span>ANALYSIS RESULTS</span>
         </div>
@@ -2106,5 +2124,77 @@ export default {
     gap: 12px;
     width: 100%;
   }
+
+  /* 🌟 취약/강점 진단 배너 스타일 */
+.diagnostic-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.diag-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.diag-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.diag-tag {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 취약 파트: 빨강/주황 계열 */
+.diag-tag.weak {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* 강점 파트: 초록/파랑 계열 */
+.diag-tag.strong {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+/* 수학 취약/강점: 보라 계열 */
+.diag-tag.weak-math {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+}
+
+.diag-tag.strong-math {
+  background: #fdf4ff;
+  color: #9333ea;
+  border: 1px solid #f0abfc;
+}
+
+/* 균형형 */
+.diag-tag.balanced {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
 }
 </style>
