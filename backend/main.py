@@ -101,20 +101,26 @@ def get_all_months_data(is_natural: bool = False):
     conn = pymysql.connect(**DB_CONFIG)
     if is_natural:
         query = """
-            SELECT student_name, month, total_score, math_total
-            FROM peer_data
-            WHERE year < 2026
-              AND department LIKE '%자연%'
-              AND univ != '' AND univ IS NOT NULL
-        """
+                SELECT student_name, month, total_score, math_total
+                FROM peer_data
+                WHERE year
+                    < 2026
+                  AND department LIKE '%자연%'
+                  AND univ != ''
+                  AND univ IS NOT NULL \
+                """
     else:
         query = """
-            SELECT student_name, month, total_score, math_total
-            FROM peer_data
-            WHERE year < 2026
-              AND (department LIKE '%인문%' OR (department NOT LIKE '%자연%' AND department != ''))
-              AND univ != '' AND univ IS NOT NULL
-        """
+                SELECT student_name, month, total_score, math_total
+                FROM peer_data
+                WHERE year
+                    < 2026
+                  AND (department LIKE '%인문%'
+                   OR (department NOT LIKE '%자연%'
+                  AND department != ''))
+                  AND univ != ''
+                  AND univ IS NOT NULL \
+                """
     df = pd.read_sql(query, conn)
     conn.close()
     return df.fillna("")
@@ -123,10 +129,10 @@ def get_all_months_data(is_natural: bool = False):
 def get_my_all_months_data(student_name: str):
     conn = pymysql.connect(**DB_CONFIG)
     query = """
-        SELECT month, total_score, math_total 
-        FROM peer_data 
-        WHERE year = 2026 AND student_name = %s
-    """
+            SELECT month, total_score, math_total
+            FROM peer_data
+            WHERE year = 2026 AND student_name = %s \
+            """
     df = pd.read_sql(query, conn, params=[student_name])
     conn.close()
     return df.fillna("")
@@ -206,9 +212,9 @@ async def validate_excel(file: UploadFile = File(...)):
 # =====================================================================
 @app.post("/api/upload/commit")
 async def commit_excel(
-    file: UploadFile = File(...),
-    resolve_duplicates_with_center: bool = Form(True),
-    auto_fill_missing: bool = Form(True)
+        file: UploadFile = File(...),
+        resolve_duplicates_with_center: bool = Form(True),
+        auto_fill_missing: bool = Form(True)
 ):
     """검증 확인 후 옵션을 적용하여 최종 DB 적재"""
     contents = await file.read()
@@ -246,6 +252,7 @@ async def commit_excel(
                 if dup_mask[row.name] and row.get('center') and row['center'] != '미기재':
                     return f"{row['student_name']}_{row['center']}"
                 return row['student_name']
+
             df['student_name'] = df.apply(make_unique_name, axis=1)
 
     # 3. DB 적재
@@ -253,19 +260,21 @@ async def commit_excel(
     cursor = conn.cursor()
 
     sql = """
-        INSERT INTO peer_data (year, month, student_name, total_score, grammar, vocabulary, logic, reading, math_total, univ, major, department)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-            total_score = VALUES(total_score),
-            grammar = VALUES(grammar),
-            vocabulary = VALUES(vocabulary),
-            logic = VALUES(logic),
-            reading = VALUES(reading),
-            math_total = VALUES(math_total),
-            univ = VALUES(univ),
-            major = VALUES(major),
-            department = VALUES(department)
-    """
+          INSERT INTO peer_data (year, month, student_name, total_score, grammar, vocabulary, logic, reading,
+                                 math_total, univ, major, department)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON DUPLICATE KEY
+          UPDATE
+              total_score =
+          VALUES (total_score), grammar =
+          VALUES (grammar), vocabulary =
+          VALUES (vocabulary), logic =
+          VALUES (logic), reading =
+          VALUES (reading), math_total =
+          VALUES (math_total), univ =
+          VALUES (univ), major =
+          VALUES (major), department =
+          VALUES (department) \
+          """
 
     rows_to_insert = []
     for _, row in df.iterrows():
@@ -337,11 +346,11 @@ def get_all_students_2026():
             cursor.execute(query, tuple(ALLOWED_STUDENTS))
         else:
             query = """
-                SELECT DISTINCT student_name
-                FROM peer_data
-                WHERE year = 2026 AND student_name != '' AND student_name IS NOT NULL
-                ORDER BY student_name ASC
-            """
+                    SELECT DISTINCT student_name
+                    FROM peer_data
+                    WHERE year = 2026 AND student_name != '' AND student_name IS NOT NULL
+                    ORDER BY student_name ASC \
+                    """
             cursor.execute(query)
 
         rows = cursor.fetchall()
@@ -354,37 +363,58 @@ def get_all_students_2026():
 
 
 # 🌟 선택된 학생의 성적 조회 및 자연계/인문계 자동 판정 API
+# 🌟 선택된 학생의 성적 조회 및 자연계/인문계 자동 판정 API (보강 버전)
 @app.get("/get-student-score")
 def get_student_score(student_name: str, month: int):
     conn = pymysql.connect(**DB_CONFIG)
     try:
         cursor = conn.cursor(pymysql.cursors.DictCursor)
 
-        # 1. 2026년도 전체 시험 중 수학 점수 0점 초과 응시 이력 검사
-        check_math_query = """
-            SELECT COUNT(*) as math_count
+        # 1. 2026년도 전체 시험 중 수학 점수 응시 이력 또는 자연계 표기 확인
+        check_query = """
+            SELECT 
+                MAX(CASE WHEN math_total IS NOT NULL AND math_total != '' AND CAST(math_total AS DECIMAL(5,1)) > 0 THEN 1 ELSE 0 END) as has_math,
+                MAX(CASE WHEN department LIKE '%자연%' THEN 1 ELSE 0 END) as is_dept_nat
             FROM peer_data
-            WHERE year = 2026 AND student_name = %s AND math_total IS NOT NULL AND math_total > 0
+            WHERE year = 2026 AND student_name = %s
         """
-        cursor.execute(check_math_query, (student_name,))
-        math_history = cursor.fetchone()
-        has_math_history = (math_history['math_count'] > 0) if math_history else False
+        cursor.execute(check_query, (student_name,))
+        chk_res = cursor.fetchone()
+        has_math_history = bool(chk_res['has_math']) if chk_res else False
+        is_dept_natural = bool(chk_res['is_dept_nat']) if chk_res else False
 
-        # 2. 해당 월 성적 조회
+        # 2. 해당 월의 성적 조회 (MAX 집계로 공백/None 무시하고 유효 점수 추출)
         query = """
-            SELECT grammar, vocabulary, logic, reading, total_score, math_total, department
+            SELECT 
+                MAX(grammar) as grammar, 
+                MAX(vocabulary) as vocabulary, 
+                MAX(logic) as logic, 
+                MAX(reading) as reading, 
+                MAX(total_score) as total_score, 
+                MAX(math_total) as math_total, 
+                MAX(department) as department
             FROM peer_data
             WHERE year = 2026 AND student_name = %s AND month = %s
         """
         cursor.execute(query, (student_name, month))
         result = cursor.fetchone()
 
-        if result:
-            dept = result.get('department', '')
-            is_natural = has_math_history or ('자연' in str(dept))
+        if result and result.get('total_score') is not None:
+            dept = str(result.get('department') or '')
+            is_natural = has_math_history or is_dept_natural or ('자연' in dept)
 
-            m_val = result.get('math_total')
-            result['math_total'] = float(m_val) if (m_val is not None and str(m_val).strip() != '') else '-'
+            # 수학 점수 정밀 파싱
+            raw_math = result.get('math_total')
+            parsed_math = '-'
+            if raw_math is not None and str(raw_math).strip() not in ['', 'None', 'nan', 'null', '-']:
+                try:
+                    val = float(raw_math)
+                    if val > 0 or is_natural:
+                        parsed_math = val
+                except ValueError:
+                    parsed_math = '-'
+
+            result['math_total'] = parsed_math
 
             return {
                 "status": "success",
@@ -395,9 +425,10 @@ def get_student_score(student_name: str, month: int):
             return {
                 "status": "empty",
                 "message": "해당 월의 성적 데이터가 존재하지 않습니다.",
-                "is_natural": has_math_history
+                "is_natural": has_math_history or is_dept_natural
             }
     except Exception as e:
+        print("get-student-score 에러:", e)
         return {"status": "error", "message": str(e)}
     finally:
         conn.close()
@@ -532,7 +563,7 @@ def predict_university(
                 if is_natural and 'math_total' in my_m_df.columns:
                     raw_m = my_m_df['math_total'].iloc[0]
                     my_math_timeline_stats[f"{m}월"] = round(float(raw_m), 1) if (
-                        raw_m is not None and str(raw_m).strip() != '' and float(raw_m) > 0) else None
+                            raw_m is not None and str(raw_m).strip() != '' and float(raw_m) > 0) else None
             else:
                 my_timeline_stats[f"{m}월"] = None
                 my_math_timeline_stats[f"{m}월"] = None
