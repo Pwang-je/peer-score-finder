@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="dataSourceStorageLocal" created-in="PY-262.10968.92">
+  <component name="dataSourceStorageLocal" created-in="PY-261.24374.152">
     <data-source name="@localhost" uuid="22ec5d61-f513-48cb-84d0-6617eb5ca5f0">
       <database-info product="MySQL" version="26.7.0" jdbc-version="4.2" driver-name="MySQL Connector/J" driver-version="mysql-connector-j-9.7.0 (Revision: 0aade1f13bcc98faf7dda5c02e782481eb291f62)" dbms="MYSQL" exact-version="26.7.0" exact-driver-version="9.7">
         <extra-name-characters>$</extra-name-characters>
@@ -22,7 +22,6 @@
       <database-info product="MySQL" version="8.0.11-TiDB-v8.5.3-serverless" jdbc-version="4.2" driver-name="MySQL Connector/J" driver-version="mysql-connector-j-9.7.0 (Revision: 0aade1f13bcc98faf7dda5c02e782481eb291f62)" dbms="TIDB" exact-version="8.5.3" exact-driver-version="9.7">
         <extra-name-characters>$</extra-name-characters>
         <identifier-quote-string>`</identifier-quote-string>
-        <jdbc-catalog-is-schema>true</jdbc-catalog-is-schema>
       </database-info>
       <case-sensitivity plain-identifiers="mixed" quoted-identifiers="mixed" />
       <secret-storage>master_key</secret-storage>

@@ -4,7 +4,7 @@
     <header class="app-header">
       <!-- 헤더 우측 상단 관리자 업로드 버튼 -->
       <div class="admin-action-row">
-        <button @click="showUploadModal = true" class="admin-upload-btn">
+        <button @click="openUploadModal" class="admin-upload-btn">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="17 8 12 3 7 8" />
@@ -14,19 +14,20 @@
         </button>
       </div>
 
-      <!-- 엑셀 대량 업로드 모달 창 -->
-      <div v-if="showUploadModal" class="modal-backdrop" @click.self="showUploadModal = false">
+      <!-- 🌟 단계별(사전검증 ➔ 확인 ➔ 반영) 업로드 모달 창 -->
+      <div v-if="showUploadModal" class="modal-backdrop" @click.self="closeUploadModal">
         <div class="modal-card">
           <div class="modal-header">
-            <h3>📂 성적 엑셀/CSV 일괄 업로드</h3>
-            <button @click="showUploadModal = false" class="modal-close-btn">&times;</button>
+            <h3>📂 성적 엑셀/CSV 사전 검증 및 적재</h3>
+            <button @click="closeUploadModal" class="modal-close-btn">&times;</button>
           </div>
-          <div class="modal-body">
+
+          <!-- 1단계: 파일 선택 및 기본 가이드 -->
+          <div v-if="uploadStep === 'select'" class="modal-body">
             <p class="modal-guide">
-              엑셀(.xlsx) 또는 .csv 파일을 선택해 주세요.<br>
+              엑셀(.xlsx) 또는 .csv 파일을 선택하면 <strong>DB에 넣기 전 동명이인 및 결측치를 먼저 진단</strong>합니다.<br>
               <strong>필수 컬럼:</strong> <code>year</code>, <code>month</code>, <code>student_name</code>, <code>total_score</code>, <code>grammar</code>, <code>vocabulary</code>, <code>logic</code>, <code>reading</code><br>
-              <strong>자연계 수학 점수:</strong> <code>math_total</code> 컬럼 추가 가능<br>
-              <strong>합격자 데이터인 경우:</strong> <code>univ</code>, <code>major</code>, <code>department</code> 포함
+              <strong>선택 컬럼:</strong> <code>math_total</code>, <code>univ</code>, <code>major</code>, <code>department</code>, <code>center(분원)</code>
             </p>
 
             <div class="file-drop-zone">
@@ -43,12 +44,72 @@
             </div>
           </div>
 
+          <!-- 2단계: 사전 검증(Dry-run) 결과 리포트 및 보정 옵션 확인 -->
+          <div v-else-if="uploadStep === 'review'" class="modal-body">
+            <div class="report-header">
+              <span class="report-filename">{{ validationReport.filename }}</span>
+              <span class="report-total">총 <strong>{{ validationReport.total_rows }}</strong>행 분석 완료</span>
+            </div>
+
+            <!-- 동명이인 충돌 알림 -->
+            <div v-if="validationReport.duplicate_count > 0" class="alert-block warning">
+              <div class="alert-title">
+                <span>⚠️ 동명이인 충돌 {{ validationReport.duplicate_count }}건 감지</span>
+              </div>
+              <p class="alert-desc">동일 연도/월에 이름이 같아 덮어쓰기 위험이 있습니다.</p>
+              <div class="dup-scroll-list">
+                <div v-for="(d, i) in validationReport.issues.duplicates" :key="i" class="dup-item">
+                  <strong>{{ d.year }}년 {{ d.month }}월 {{ d.name }}</strong> ({{ d.count }}명):
+                  <span>분원 [{{ d.centers.length ? d.centers.join(', ') : '미기재' }}]</span> /
+                  <span>계열 [{{ d.departments.length ? d.departments.join(', ') : '미기재' }}]</span>
+                </div>
+              </div>
+              <label class="custom-checkbox">
+                <input type="checkbox" v-model="uploadOptions.resolveDuplicates" />
+                <span>타 분원 학생 이름 뒤에 분원명 자동 부착 (예: <code>이름_노원</code>)</span>
+              </label>
+            </div>
+
+            <!-- 계열 및 정보 누락 알림 -->
+            <div v-if="validationReport.issues.missing_department > 0" class="alert-block info">
+              <div class="alert-title">
+                <span>ℹ️ 계열(department) 미기재 {{ validationReport.issues.missing_department }}건 발견</span>
+              </div>
+              <p class="alert-desc">
+                해당 학생의 다른 월 합격/응시 기록을 바탕으로 <strong>{{ validationReport.issues.auto_fixable_department }}건</strong> 자동 복구 가능합니다.
+              </p>
+              <label class="custom-checkbox">
+                <input type="checkbox" v-model="uploadOptions.autoFillMissing" />
+                <span>다른 월 유효 기록을 탐색하여 빈칸(계열/학과/대학) 자동 보정</span>
+              </label>
+            </div>
+
+            <!-- 완전 무결할 때 -->
+            <div v-if="validationReport.duplicate_count === 0 && validationReport.issues.missing_department === 0" class="alert-block success">
+              ✅ 데이터 충돌이나 누락 없이 완벽합니다. 즉시 적재 가능합니다.
+            </div>
+
+            <div v-if="uploadStatusMsg" :class="['upload-msg-box', uploadStatusType]" style="margin-top: 12px;">
+              {{ uploadStatusMsg }}
+            </div>
+          </div>
+
+          <!-- 모달 하단 버튼 -->
           <div class="modal-footer">
-            <button @click="showUploadModal = false" class="cancel-btn" :disabled="isUploading">닫기</button>
-            <button @click="submitExcelUpload" class="confirm-btn" :disabled="!selectedFile || isUploading">
-              <span v-if="isUploading">업로드 중...</span>
-              <span v-else>DB 반영 실행</span>
-            </button>
+            <template v-if="uploadStep === 'select'">
+              <button @click="closeUploadModal" class="cancel-btn" :disabled="isUploading">닫기</button>
+              <button @click="runValidation" class="confirm-btn" :disabled="!selectedFile || isUploading">
+                <span v-if="isUploading">파일 분석 중...</span>
+                <span v-else>검증 및 리포트 확인</span>
+              </button>
+            </template>
+            <template v-else-if="uploadStep === 'review'">
+              <button @click="resetUploadStep" class="cancel-btn" :disabled="isUploading">파일 다시 선택</button>
+              <button @click="commitValidatedUpload" class="confirm-btn" :disabled="isUploading">
+                <span v-if="isUploading">DB 반영 적재 중...</span>
+                <span v-else>최종 DB 반영 실행</span>
+              </button>
+            </template>
           </div>
         </div>
       </div>
@@ -168,7 +229,7 @@
             </div>
           </div>
 
-          <!-- 점수 입력 그리드 (자연계 선택 시 5칸 또는 2열 배치) -->
+          <!-- 점수 입력 그리드 -->
           <div :class="['manual-score-grid', { 'grid-natural': manualIsNatural }]">
             <div class="input-wrap">
               <label>문법</label>
@@ -186,7 +247,7 @@
               <label>독해</label>
               <input type="number" v-model.number="form.reading" step="0.1" placeholder="0.0" class="modern-input">
             </div>
-            <!-- 수동 자연계열 선택 시 수학 점수 입력 칸 활성화 -->
+            <!-- 수동 자연계열 선택 시 수학 점수 입력 칸 -->
             <div v-if="manualIsNatural" class="input-wrap math-wrap">
               <label>수학 총점</label>
               <input type="number" v-model.number="form.math_total" step="0.1" placeholder="0.0" class="modern-input math-input">
@@ -260,7 +321,7 @@
             <div class="slider-scale"><span>0.2x</span><span>1.0x</span><span>2.5x</span></div>
           </div>
 
-          <!-- 자연계열일 경우 수학 가중치 슬라이더 활성화 (기본 2.0x) -->
+          <!-- 자연계열일 경우 수학 가중치 슬라이더 활성화 -->
           <div v-if="activeIsNatural" class="slider-card b-math-border">
             <div class="slider-meta">
               <span class="slider-name">수학 가중치</span>
@@ -313,7 +374,7 @@
             </div>
           </div>
 
-          <!-- 타임라인 꺾은선 차트 (영어/수학 탭 스위치 지원) -->
+          <!-- 타임라인 꺾은선 차트 -->
           <div class="main-timeline-tile">
             <div class="timeline-header-wrap">
               <div class="tile-header">{{ timelineMode === 'eng' ? '영어 총점 추이 비교' : '수학 총점 추이 비교' }} (1월 ~ 11월)</div>
@@ -345,16 +406,14 @@
                     <span class="m-count">{{ m.count }}명</span>
                   </div>
 
-                  <!-- 2줄 구조: 1행(이름 + 영어총점 + 수학) / 2행(문/어/논/독 숫자 나열) -->
+                  <!-- 선배 2줄 블록 구조 -->
                   <div v-for="(scoreObj, sIdx) in m.scores" :key="sIdx" class="senior-block">
-                    <!-- 1행: [20' 설수원]  영어 50  수학 56 -->
                     <div class="senior-line-top">
                       <span class="badge-meta">[{{ scoreObj.year }} {{ scoreObj.name }}]</span>
                       <span class="badge-score b-total">영어 {{ scoreObj.total }}</span>
                       <span v-if="scoreObj.math !== null && scoreObj.math !== undefined" class="badge-score b-math">수학 {{ scoreObj.math }}</span>
                     </div>
 
-                    <!-- 2행: 문/어/논/독 원색 뱃지 -->
                     <div class="senior-line-sub">
                       <span class="badge-score b-grammar">{{ scoreObj.grammar }}</span>
                       <span class="badge-score b-vocab">{{ scoreObj.vocabulary }}</span>
@@ -378,14 +437,25 @@ import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
 
+// 백엔드 URL 기본 상수로 선언 (로컬 테스트 시 http://127.0.0.1:8000 으로 변경 가능)
+const API_BASE_URL = 'https://peer-score-finder.onrender.com';
+
 export default {
   data() {
     return {
+      // 모달 상태
       showUploadModal: false,
+      uploadStep: 'select', // 'select' | 'review'
       selectedFile: null,
       isUploading: false,
       uploadStatusMsg: '',
       uploadStatusType: '',
+      validationReport: null,
+      uploadOptions: {
+        resolveDuplicates: true,
+        autoFillMissing: true
+      },
+
       allStudents: [],
       isNatural: false,          // 26년도 학생 선택 시 자동 감지된 계열
       manualIsNatural: false,    // MODE 02 직접 입력 시 선택한 계열
@@ -456,6 +526,22 @@ export default {
     this.fetchAllStudents();
   },
   methods: {
+    openUploadModal() {
+      this.resetUploadStep();
+      this.showUploadModal = true;
+    },
+    closeUploadModal() {
+      if (this.isUploading) return;
+      this.showUploadModal = false;
+      this.resetUploadStep();
+    },
+    resetUploadStep() {
+      this.uploadStep = 'select';
+      this.selectedFile = null;
+      this.uploadStatusMsg = '';
+      this.validationReport = null;
+      if (this.$refs.excelFileInput) this.$refs.excelFileInput.value = '';
+    },
     handleFileChange(e) {
       const file = e.target.files[0];
       if (file) {
@@ -463,33 +549,64 @@ export default {
         this.uploadStatusMsg = '';
       }
     },
-    async submitExcelUpload() {
+    // 🌟 1단계: 사전 검증(Dry-run) 요청
+    async runValidation() {
       if (!this.selectedFile) return;
 
       this.isUploading = true;
-      this.uploadStatusMsg = '파일을 분석하여 TiDB에 적재 중입니다... 잠시만 기다려 주세요.';
+      this.uploadStatusMsg = '파일의 동명이인 및 결측치를 사전 진단 중입니다...';
       this.uploadStatusType = 'info';
 
       const formData = new FormData();
       formData.append('file', this.selectedFile);
 
       try {
-        const res = await axios.post('https://peer-score-finder.onrender.com/upload-scores', formData, {
+        const res = await axios.post(`${API_BASE_URL}/api/upload/validate`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        this.validationReport = res.data;
+        this.uploadStep = 'review';
+        this.uploadStatusMsg = '';
+      } catch (err) {
+        console.error('검증 실패:', err);
+        this.uploadStatusMsg = err.response?.data?.detail || '파일 검증 중 오류가 발생했습니다. 파일 형식을 확인해 주세요.';
+        this.uploadStatusType = 'error';
+      } finally {
+        this.isUploading = false;
+      }
+    },
+    // 🌟 2단계: 옵션 적용 후 최종 DB 반영
+    async commitValidatedUpload() {
+      if (!this.selectedFile) return;
+
+      this.isUploading = true;
+      this.uploadStatusMsg = '정제 규칙을 적용하여 TiDB에 안전하게 적재 중입니다...';
+      this.uploadStatusType = 'info';
+
+      const formData = new FormData();
+      formData.append('file', this.selectedFile);
+      formData.append('resolve_duplicates_with_center', this.uploadOptions.resolveDuplicates);
+      formData.append('auto_fill_missing', this.uploadOptions.autoFillMissing);
+
+      try {
+        const res = await axios.post(`${API_BASE_URL}/api/upload/commit`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
 
         if (res.data.status === 'success') {
           this.uploadStatusMsg = res.data.message;
           this.uploadStatusType = 'success';
-          this.selectedFile = null;
-          if (this.$refs.excelFileInput) this.$refs.excelFileInput.value = '';
-          this.fetchAllStudents();
+          setTimeout(() => {
+            this.closeUploadModal();
+            this.fetchAllStudents();
+          }, 1500);
         } else {
           this.uploadStatusMsg = res.data.message;
           this.uploadStatusType = 'error';
         }
       } catch (err) {
-        console.error('업로드 실패:', err);
+        console.error('DB 적재 실패:', err);
         this.uploadStatusMsg = '서버 통신 중 에러가 발생했습니다.';
         this.uploadStatusType = 'error';
       } finally {
@@ -507,7 +624,7 @@ export default {
     },
     async fetchAllStudents() {
       try {
-        const res = await axios.get('https://peer-score-finder.onrender.com/all-students-2026');
+        const res = await axios.get(`${API_BASE_URL}/all-students-2026`);
         this.allStudents = res.data;
       } catch (e) {
         console.error("전체 학생 명단 로드 실패:", e);
@@ -516,7 +633,7 @@ export default {
     async loadStudentScore() {
       if (!this.form.student_name || !this.form.month) return;
       try {
-        const res = await axios.get('https://peer-score-finder.onrender.com/get-student-score', {
+        const res = await axios.get(`${API_BASE_URL}/get-student-score`, {
           params: { student_name: this.form.student_name, month: this.form.month }
         });
 
@@ -586,7 +703,7 @@ export default {
       this.currentAnalysisScores = { grammar: g, vocabulary: v, logic: l, reading: r, math: mathScore };
 
       try {
-        const res = await axios.get('https://peer-score-finder.onrender.com/predict', {
+        const res = await axios.get(`${API_BASE_URL}/predict`, {
           params: {
             month: m,
             student_name: name,
@@ -1350,7 +1467,6 @@ export default {
   min-width: 0;
 }
 
-/* 자연계열 5개 차트: 3열 분할 */
 .mini-charts-row.row-five {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1366,7 +1482,6 @@ export default {
   overflow: hidden;
 }
 
-/* 수학 타일: 2칸 너비 차지 */
 .mini-charts-row.row-five .math-tile {
   grid-column: span 2;
   border-color: #f0abfc;
@@ -1379,7 +1494,6 @@ export default {
   margin-bottom: 12px;
 }
 
-/* 타임라인 헤더 & 영/수 탭 전환 버튼 */
 .timeline-header-wrap {
   display: flex;
   justify-content: space-between;
@@ -1508,7 +1622,6 @@ export default {
 .m-title { font-weight: 700; }
 .m-count { color: #64748b; font-size: 11.5px; }
 
-/* 선배 1명당 2줄 블록 구조 */
 .senior-block {
   padding: 8px 0;
   border-bottom: 1px dashed #f1f5f9;
@@ -1521,14 +1634,12 @@ export default {
   border-bottom: none;
 }
 
-/* 1행: [20' 설수원]  영어 50  수학 56 */
 .senior-line-top {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-/* 2행: 문/어/논/독 뱃지 */
 .senior-line-sub {
   display: flex;
   align-items: center;
@@ -1536,7 +1647,6 @@ export default {
   padding-left: 2px;
 }
 
-/* 뱃지 스타일 */
 .badge-meta {
   font-size: 11.5px;
   color: #475569;
@@ -1560,7 +1670,7 @@ export default {
 .b-math    { background: #f3e8ff; color: #7e22ce; font-weight: 800; }
 
 /* ========================================================
-   모달 팝업 스타일
+   모달 팝업 및 사전 검증(Dry-run) 리포트 스타일
    ======================================================== */
 .modal-backdrop {
   position: fixed;
@@ -1568,7 +1678,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -1580,7 +1690,7 @@ export default {
 .modal-card {
   background: #ffffff;
   border-radius: 16px;
-  max-width: 500px;
+  max-width: 520px;
   width: 100%;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -1610,7 +1720,7 @@ export default {
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 20px 24px;
 }
 
 .modal-guide {
@@ -1673,6 +1783,107 @@ export default {
 .file-txt.selected {
   color: #2563eb;
   font-weight: 700;
+}
+
+/* 검증 리포트 전용 스타일 */
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.report-filename {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.report-total {
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.alert-block {
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+}
+
+.alert-block.warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.alert-block.info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+.alert-block.success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  font-weight: 600;
+}
+
+.alert-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.alert-desc {
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+.dup-scroll-list {
+  max-height: 110px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #fef3c7;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+}
+
+.dup-item {
+  font-size: 11.5px;
+  padding: 3px 0;
+  border-bottom: 1px dashed #fef3c7;
+  color: #78350f;
+}
+
+.dup-item:last-child {
+  border-bottom: none;
+}
+
+.custom-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.custom-checkbox input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.custom-checkbox code {
+  background: rgba(0,0,0,0.06);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: monospace;
 }
 
 .upload-msg-box {
