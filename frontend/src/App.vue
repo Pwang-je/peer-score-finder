@@ -414,9 +414,24 @@
           <div class="univ-card-flow">
             <div v-for="(u, idx) in result.univ_details" :key="idx" class="univ-modern-card">
               <div class="u-card-head">
-                <span class="u-name">{{ u.univ }}</span>
-                <span class="u-badge">총 {{ u.total_count }}명</span>
-              </div>
+  <div class="u-title-group">
+    <span class="u-name">{{ u.univ }}</span>
+    <span class="u-badge">총 {{ u.total_count }}명</span>
+  </div>
+
+  <!-- 🌟 대학별 합격 선배 평균 대비 갭 배지 -->
+  <div v-if="u.gaps" class="u-gap-group">
+    <!-- 영어 총점 갭 -->
+    <span :class="['gap-badge', u.gaps.total >= 0 ? 'plus' : 'minus']">
+      영어 {{ u.gaps.total >= 0 ? '+' + u.gaps.total : u.gaps.total }}점
+    </span>
+
+    <!-- 자연계열일 때 수학 총점 갭 -->
+    <span v-if="result.is_natural && u.gaps.math !== null" :class="['gap-badge math', u.gaps.math >= 0 ? 'plus' : 'minus']">
+      수학 {{ u.gaps.math >= 0 ? '+' + u.gaps.math : u.gaps.math }}점
+    </span>
+  </div>
+</div>
               <div class="u-card-body">
                 <div v-for="(m, mIdx) in u.majors" :key="mIdx" class="major-pill-group">
                   <div class="m-title-bar">
@@ -2203,5 +2218,60 @@ export default {
   border: 1px solid #cbd5e1 !important;
 }
 
+/* 🌟 대학 카드 헤더 및 갭 배지 스타일 */
+.u-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
 
+.u-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.u-gap-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gap-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: -0.02em;
+}
+
+/* 선배 평균 이상 (여유/적정) -> 초록 계열 */
+.gap-badge.plus {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+/* 선배 평균 미달 (보완 필요) -> 빨간/주황 계열 */
+.gap-badge.minus {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* 수학 점수 갭 (자연계열) 테두리 강조 */
+.gap-badge.math.plus {
+  background: #fdf4ff;
+  color: #9333ea;
+  border-color: #f0abfc;
+}
+
+.gap-badge.math.minus {
+  background: #fff1f2;
+  color: #e11d48;
+  border-color: #fecdd3;
+}
 </style>

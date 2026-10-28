@@ -537,50 +537,81 @@ def predict_university(
                 my_timeline_stats[f"{m}월"] = None
                 my_math_timeline_stats[f"{m}월"] = None
 
-    # 3) TOP 10 대학 및 학과별 분포 추출
-    top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
-    univ_details = []
-    top10_student_keys = set()
+        # 3) TOP 10 대학 및 학과별 분포 추출 (대학별 점수 갭 계산 추가)
+        top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
+        univ_details = []
+        top10_student_keys = set()
 
-    for univ in top_univ_names:
-        univ_df = matched_seniors[matched_seniors['univ'] == univ]
-        major_groups = univ_df.groupby('major')
-        major_list = []
+        for univ in top_univ_names:
+            univ_df = matched_seniors[matched_seniors['univ'] == univ]
 
-        for major_name, group in major_groups:
-            score_details = []
-            sorted_group = group.sort_values(by=['year', 'distance'], ascending=[True, True])
+            # 🌟 해당 대학 매칭 선배들의 평균 점수 산출
+            u_avg_total = float(pd.to_numeric(univ_df['total_score'], errors='coerce').mean())
 
-            for _, row in sorted_group.iterrows():
-                short_year = f"{str(row['year'])[2:]}'"
-                top10_student_keys.add(f"{row['year']}_{row['student_name']}")
+            # 영어 총점 갭 (내 총점 - 해당 대학 선배 평균)
+            diff_total = round(total_input_score - u_avg_total, 1)
 
-                m_score = row.get('math_total', None)
-                m_score_val = float(m_score) if (m_score is not None and str(m_score).strip() != '') else None
+            # 수학 총점 갭 (자연계열인 경우)
+            diff_math = None
+            if is_natural and 'math_total' in univ_df.columns:
+                u_math_series = pd.to_numeric(univ_df['math_total'], errors='coerce').dropna()
+                u_math_series = u_math_series[u_math_series > 0]
+                if not u_math_series.empty:
+                    diff_math = round(math_total - float(u_math_series.mean()), 1)
 
-                score_details.append({
-                    "year": short_year,
-                    "name": row['student_name'],
-                    "grammar": float(row['grammar']),
-                    "vocabulary": float(row['vocabulary']),
-                    "logic": float(row['logic']),
-                    "reading": float(row['reading']),
-                    "math": m_score_val,
-                    "total": float(row['total_score'])
+            # 세부 영역 갭 (필요 시 활용)
+            u_avg_g = float(pd.to_numeric(univ_df['grammar'], errors='coerce').mean())
+            u_avg_v = float(pd.to_numeric(univ_df['vocabulary'], errors='coerce').mean())
+            u_avg_l = float(pd.to_numeric(univ_df['logic'], errors='coerce').mean())
+            u_avg_r = float(pd.to_numeric(univ_df['reading'], errors='coerce').mean())
+
+            gaps = {
+                "total": diff_total,
+                "math": diff_math,
+                "grammar": round(grammar - u_avg_g, 1),
+                "vocabulary": round(vocabulary - u_avg_v, 1),
+                "logic": round(logic - u_avg_l, 1),
+                "reading": round(reading - u_avg_r, 1)
+            }
+
+            major_groups = univ_df.groupby('major')
+            major_list = []
+
+            for major_name, group in major_groups:
+                score_details = []
+                sorted_group = group.sort_values(by=['year', 'distance'], ascending=[True, True])
+
+                for _, row in sorted_group.iterrows():
+                    short_year = f"{str(row['year'])[2:]}'"
+                    top10_student_keys.add(f"{row['year']}_{row['student_name']}")
+
+                    m_score = row.get('math_total', None)
+                    m_score_val = float(m_score) if (m_score is not None and str(m_score).strip() != '') else None
+
+                    score_details.append({
+                        "year": short_year,
+                        "name": row['student_name'],
+                        "grammar": float(row['grammar']),
+                        "vocabulary": float(row['vocabulary']),
+                        "logic": float(row['logic']),
+                        "reading": float(row['reading']),
+                        "math": m_score_val,
+                        "total": float(row['total_score'])
+                    })
+
+                major_list.append({
+                    "major": major_name,
+                    "count": int(len(group)),
+                    "scores": score_details
                 })
 
-            major_list.append({
-                "major": major_name,
-                "count": int(len(group)),
-                "scores": score_details
+            major_list = sorted(major_list, key=lambda x: x['count'], reverse=True)
+            univ_details.append({
+                "univ": univ,
+                "total_count": int(len(univ_df)),
+                "gaps": gaps,  # 🌟 대학별 점수 차이 객체 전달
+                "majors": major_list
             })
-
-        major_list = sorted(major_list, key=lambda x: x['count'], reverse=True)
-        univ_details.append({
-            "univ": univ,
-            "total_count": int(len(univ_df)),
-            "majors": major_list
-        })
 
         # 🌟 [신규 추가] 4) 취약/강점 파트 자동 진단 로직
     senior_avg_grammar = round(float(matched_seniors['grammar'].mean()), 1)
