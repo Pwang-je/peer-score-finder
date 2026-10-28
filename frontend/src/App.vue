@@ -2124,8 +2124,11 @@ export default {
     gap: 12px;
     width: 100%;
   }
+}
 
-  /* 🌟 취약/강점 진단 배너 스타일 */
+/* ========================================================
+   🎯 합격 선배 대비 영역 진단 배너 & 배지 스타일
+   ======================================================== */
 .diagnostic-banner {
   display: flex;
   align-items: center;
@@ -2134,17 +2137,18 @@ export default {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 14px 18px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  padding: 12px 18px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .diag-label {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  color: #334155;
+  font-size: 13.5px;
+  color: #1e293b;
+  font-weight: 700;
 }
 
 .diag-tags-wrap {
@@ -2153,48 +2157,51 @@ export default {
   gap: 8px;
 }
 
+/* 개별 알약 배지 공통 */
 .diag-tag {
+  display: inline-flex;
+  align-items: center;
   font-size: 12px;
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 9999px;
-  display: inline-flex;
-  align-items: center;
+  letter-spacing: -0.01em;
 }
 
-/* 취약 파트: 빨강/주황 계열 */
+/* 취약 파트 (어휘/문법/독해 부족) -> 빨간색 경고 */
 .diag-tag.weak {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca !important;
 }
 
-/* 강점 파트: 초록/파랑 계열 */
+/* 강점 파트 (우수/견인) -> 초록색 긍정 */
 .diag-tag.strong {
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
+  background: #f0fdf4 !important;
+  color: #16a34a !important;
+  border: 1px solid #bbf7d0 !important;
 }
 
-/* 수학 취약/강점: 보라 계열 */
+/* 수학 취약 -> 핑크/로즈 경고 */
 .diag-tag.weak-math {
-  background: #fff1f2;
-  color: #e11d48;
-  border: 1px solid #fecdd3;
+  background: #fff1f2 !important;
+  color: #e11d48 !important;
+  border: 1px solid #fecdd3 !important;
 }
 
+/* 수학 강점 -> 보라색 */
 .diag-tag.strong-math {
-  background: #fdf4ff;
-  color: #9333ea;
-  border: 1px solid #f0abfc;
+  background: #fdf4ff !important;
+  color: #9333ea !important;
+  border: 1px solid #f0abfc !important;
 }
 
-/* 균형형 */
+/* 균형형 -> 그레이 */
 .diag-tag.balanced {
-  background: #f8fafc;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border: 1px solid #cbd5e1 !important;
 }
 
-}
+
 </style>
