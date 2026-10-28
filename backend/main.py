@@ -44,7 +44,6 @@ INVALID_VALUES = ['미기재', '', ' ', '-', 'nan', 'NaN', 'None', 'null', 'NULL
 
 
 def normalize_df(df: pd.DataFrame) -> pd.DataFrame:
-    """엑셀 업로드 시 컬럼명 표준화 및 결측치 치환 함수"""
     df.columns = df.columns.str.strip()
     rename_dict = {}
     for c in df.columns:
@@ -73,7 +72,6 @@ def normalize_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_db_data(month: int, is_natural: bool = False):
-    """과거 합격생 데이터 조회 (자연계열/인문계열 엄격 분기)"""
     conn = pymysql.connect(**DB_CONFIG)
     if is_natural:
         query = f"""
@@ -97,30 +95,23 @@ def get_db_data(month: int, is_natural: bool = False):
 
 
 def get_all_months_data(is_natural: bool = False):
-    """추이선용 전체 월 과거 합격생 데이터 조회"""
     conn = pymysql.connect(**DB_CONFIG)
     if is_natural:
         query = """
-                SELECT student_name, month, total_score, math_total
-                FROM peer_data
-                WHERE year
-                    < 2026
-                  AND department LIKE '%자연%'
-                  AND univ != ''
-                  AND univ IS NOT NULL \
-                """
+            SELECT student_name, month, total_score, math_total
+            FROM peer_data
+            WHERE year < 2026
+              AND department LIKE '%자연%'
+              AND univ != '' AND univ IS NOT NULL
+        """
     else:
         query = """
-                SELECT student_name, month, total_score, math_total
-                FROM peer_data
-                WHERE year
-                    < 2026
-                  AND (department LIKE '%인문%'
-                   OR (department NOT LIKE '%자연%'
-                  AND department != ''))
-                  AND univ != ''
-                  AND univ IS NOT NULL \
-                """
+            SELECT student_name, month, total_score, math_total
+            FROM peer_data
+            WHERE year < 2026
+              AND (department LIKE '%인문%' OR (department NOT LIKE '%자연%' AND department != ''))
+              AND univ != '' AND univ IS NOT NULL
+        """
     df = pd.read_sql(query, conn)
     conn.close()
     return df.fillna("")
@@ -129,21 +120,20 @@ def get_all_months_data(is_natural: bool = False):
 def get_my_all_months_data(student_name: str):
     conn = pymysql.connect(**DB_CONFIG)
     query = """
-            SELECT month, total_score, math_total
-            FROM peer_data
-            WHERE year = 2026 AND student_name = %s \
-            """
+        SELECT month, total_score, math_total
+        FROM peer_data
+        WHERE year = 2026 AND student_name = %s
+    """
     df = pd.read_sql(query, conn, params=[student_name])
     conn.close()
     return df.fillna("")
 
 
 # =====================================================================
-# 🌟 [신규] 엑셀 사전 검증(Dry-run) API
+# 엑셀 사전 검증(Dry-run) 및 적재 API
 # =====================================================================
 @app.post("/api/upload/validate")
 async def validate_excel(file: UploadFile = File(...)):
-    """DB에 저장하지 않고 검증 리포트만 반환 (Dry-run)"""
     contents = await file.read()
     filename = file.filename.lower()
 
@@ -166,7 +156,6 @@ async def validate_excel(file: UploadFile = File(...)):
         "auto_fixable_department": 0
     }
 
-    # 1. 동명이인 충돌 검사 (year, month, student_name 기준)
     if 'year' in df.columns and 'month' in df.columns and 'student_name' in df.columns:
         dup_mask = df.duplicated(subset=['year', 'month', 'student_name'], keep=False)
         if dup_mask.any():
@@ -183,7 +172,6 @@ async def validate_excel(file: UploadFile = File(...)):
                     "departments": depts
                 })
 
-    # 2. 결측치 및 자체 보정 가능 건수 확인
     if 'student_name' in df.columns and 'department' in df.columns:
         dept_missing_mask = df['department'].isna()
         issues["missing_department"] = int(dept_missing_mask.sum())
@@ -207,16 +195,12 @@ async def validate_excel(file: UploadFile = File(...)):
     }
 
 
-# =====================================================================
-# 🌟 [신규] 사전 검증 후 최종 DB 적재 API
-# =====================================================================
 @app.post("/api/upload/commit")
 async def commit_excel(
         file: UploadFile = File(...),
         resolve_duplicates_with_center: bool = Form(True),
         auto_fill_missing: bool = Form(True)
 ):
-    """검증 확인 후 옵션을 적용하여 최종 DB 적재"""
     contents = await file.read()
     filename = file.filename.lower()
 
@@ -232,7 +216,6 @@ async def commit_excel(
 
     df = normalize_df(df)
 
-    # 1. 결측치 자동 보정 (다른 월 유효값으로 채우기)
     if auto_fill_missing:
         for col in ['department', 'major', 'univ']:
             if col in df.columns and 'student_name' in df.columns:
@@ -244,7 +227,6 @@ async def commit_excel(
                     df[col] = df[col].fillna(df['student_name'].map(info_map))
         df = df.fillna("")
 
-    # 2. 동명이인 분원명 결합 고유화
     if resolve_duplicates_with_center and 'center' in df.columns:
         dup_mask = df.duplicated(subset=['year', 'month', 'student_name'], keep=False)
         if dup_mask.any():
@@ -255,25 +237,23 @@ async def commit_excel(
 
             df['student_name'] = df.apply(make_unique_name, axis=1)
 
-    # 3. DB 적재
     conn = pymysql.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
     sql = """
           INSERT INTO peer_data (year, month, student_name, total_score, grammar, vocabulary, logic, reading,
                                  math_total, univ, major, department)
-          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON DUPLICATE KEY
-          UPDATE
-              total_score =
-          VALUES (total_score), grammar =
-          VALUES (grammar), vocabulary =
-          VALUES (vocabulary), logic =
-          VALUES (logic), reading =
-          VALUES (reading), math_total =
-          VALUES (math_total), univ =
-          VALUES (univ), major =
-          VALUES (major), department =
-          VALUES (department) \
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
+          ON DUPLICATE KEY UPDATE
+              total_score = VALUES(total_score),
+              grammar = VALUES(grammar),
+              vocabulary = VALUES(vocabulary),
+              logic = VALUES(logic),
+              reading = VALUES(reading),
+              math_total = VALUES(math_total),
+              univ = VALUES(univ),
+              major = VALUES(major),
+              department = VALUES(department)
           """
 
     rows_to_insert = []
@@ -323,13 +303,11 @@ async def commit_excel(
     }
 
 
-# 기존 단일 업로드 호환 엔드포인트 유지
 @app.post("/upload-scores")
 async def upload_scores(file: UploadFile = File(...)):
     return await commit_excel(file=file, resolve_duplicates_with_center=True, auto_fill_missing=True)
 
 
-# 2026 학생 명단 반환 API
 @app.get("/all-students-2026")
 def get_all_students_2026():
     conn = pymysql.connect(**DB_CONFIG)
@@ -346,11 +324,11 @@ def get_all_students_2026():
             cursor.execute(query, tuple(ALLOWED_STUDENTS))
         else:
             query = """
-                    SELECT DISTINCT student_name
-                    FROM peer_data
-                    WHERE year = 2026 AND student_name != '' AND student_name IS NOT NULL
-                    ORDER BY student_name ASC \
-                    """
+                SELECT DISTINCT student_name
+                FROM peer_data
+                WHERE year = 2026 AND student_name != '' AND student_name IS NOT NULL
+                ORDER BY student_name ASC
+            """
             cursor.execute(query)
 
         rows = cursor.fetchall()
@@ -362,59 +340,74 @@ def get_all_students_2026():
         conn.close()
 
 
-# 🌟 선택된 학생의 성적 조회 및 자연계/인문계 자동 판정 API
-# 🌟 선택된 학생의 성적 조회 및 자연계/인문계 자동 판정 API (보강 버전)
+# =====================================================================
+# 🌟 [오류 해결] 2026 재원생 성적 조회 및 자연/인문 자동 판정 API
+# =====================================================================
 @app.get("/get-student-score")
 def get_student_score(student_name: str, month: int):
     conn = pymysql.connect(**DB_CONFIG)
     try:
         cursor = conn.cursor(pymysql.cursors.DictCursor)
 
-        # 1. 2026년도 전체 시험 중 수학 점수 응시 이력 또는 자연계 표기 확인
+        # 1. 자연계 이력 확인 (연중 수학 점수 존재 여부 또는 계열 확인)
         check_query = """
-            SELECT 
-                MAX(CASE WHEN math_total IS NOT NULL AND math_total != '' AND CAST(math_total AS DECIMAL(5,1)) > 0 THEN 1 ELSE 0 END) as has_math,
-                MAX(CASE WHEN department LIKE '%자연%' THEN 1 ELSE 0 END) as is_dept_nat
+            SELECT math_total, department
             FROM peer_data
             WHERE year = 2026 AND student_name = %s
         """
         cursor.execute(check_query, (student_name,))
-        chk_res = cursor.fetchone()
-        has_math_history = bool(chk_res['has_math']) if chk_res else False
-        is_dept_natural = bool(chk_res['is_dept_nat']) if chk_res else False
+        all_records = cursor.fetchall()
 
-        # 2. 해당 월의 성적 조회 (MAX 집계로 공백/None 무시하고 유효 점수 추출)
+        has_math_history = False
+        is_dept_natural = False
+
+        for r in all_records:
+            m_val = r.get('math_total')
+            if m_val is not None and str(m_val).strip() not in ['', 'None', 'nan', 'null', '-']:
+                try:
+                    if float(m_val) > 0:
+                        has_math_history = True
+                except ValueError:
+                    pass
+            dept = str(r.get('department') or '')
+            if '자연' in dept:
+                is_dept_natural = True
+
+        # 2. 해당 월 성적 조회 (가장 최근 등록된 유효 행 조회)
         query = """
-            SELECT 
-                MAX(grammar) as grammar, 
-                MAX(vocabulary) as vocabulary, 
-                MAX(logic) as logic, 
-                MAX(reading) as reading, 
-                MAX(total_score) as total_score, 
-                MAX(math_total) as math_total, 
-                MAX(department) as department
+            SELECT grammar, vocabulary, logic, reading, total_score, math_total, department
             FROM peer_data
             WHERE year = 2026 AND student_name = %s AND month = %s
+            ORDER BY (CASE WHEN total_score IS NOT NULL AND total_score > 0 THEN 1 ELSE 0 END) DESC
+            LIMIT 1
         """
         cursor.execute(query, (student_name, month))
         result = cursor.fetchone()
 
-        if result and result.get('total_score') is not None:
-            dept = str(result.get('department') or '')
-            is_natural = has_math_history or is_dept_natural or ('자연' in dept)
+        if result:
+            curr_dept = str(result.get('department') or '')
+            is_natural = has_math_history or is_dept_natural or ('자연' in curr_dept)
 
             # 수학 점수 정밀 파싱
             raw_math = result.get('math_total')
-            parsed_math = '-'
             if raw_math is not None and str(raw_math).strip() not in ['', 'None', 'nan', 'null', '-']:
                 try:
-                    val = float(raw_math)
-                    if val > 0 or is_natural:
-                        parsed_math = val
+                    result['math_total'] = float(raw_math)
                 except ValueError:
-                    parsed_math = '-'
+                    result['math_total'] = '-'
+            else:
+                result['math_total'] = '-'
 
-            result['math_total'] = parsed_math
+            # 영어 영역 점수 숫자화
+            for k in ['grammar', 'vocabulary', 'logic', 'reading', 'total_score']:
+                val = result.get(k)
+                if val is not None and str(val).strip() not in ['', 'None', 'nan', 'null', '-']:
+                    try:
+                        result[k] = float(val)
+                    except ValueError:
+                        result[k] = '-'
+                else:
+                    result[k] = '-'
 
             return {
                 "status": "success",
@@ -424,7 +417,7 @@ def get_student_score(student_name: str, month: int):
         else:
             return {
                 "status": "empty",
-                "message": "해당 월의 성적 데이터가 존재하지 않습니다.",
+                "message": f"{student_name} 학생은 {month}월 데이터가 없습니다.",
                 "is_natural": has_math_history or is_dept_natural
             }
     except Exception as e:
@@ -434,7 +427,9 @@ def get_student_score(student_name: str, month: int):
         conn.close()
 
 
-# 🌟 계열별(인문/자연) 맞춤형 예측 및 KNN 종합 분석 API
+# =====================================================================
+# 🌟 [들여쓰기 완전 교정] KNN 종합 분석 API
+# =====================================================================
 @app.get("/predict")
 def predict_university(
         month: int,
@@ -568,83 +563,78 @@ def predict_university(
                 my_timeline_stats[f"{m}월"] = None
                 my_math_timeline_stats[f"{m}월"] = None
 
-        # 3) TOP 10 대학 및 학과별 분포 추출 (대학별 점수 갭 계산 추가)
-        top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
-        univ_details = []
-        top10_student_keys = set()
+    # 3) TOP 10 대학 및 학과별 분포 추출 (들여쓰기 교정 완료)
+    top_univ_names = matched_seniors['univ'].value_counts().head(10).index.tolist()
+    univ_details = []
+    top10_student_keys = set()
 
-        for univ in top_univ_names:
-            univ_df = matched_seniors[matched_seniors['univ'] == univ]
+    for univ in top_univ_names:
+        univ_df = matched_seniors[matched_seniors['univ'] == univ]
 
-            # 🌟 해당 대학 매칭 선배들의 평균 점수 산출
-            u_avg_total = float(pd.to_numeric(univ_df['total_score'], errors='coerce').mean())
+        u_avg_total = float(pd.to_numeric(univ_df['total_score'], errors='coerce').mean())
+        diff_total = round(total_input_score - u_avg_total, 1)
 
-            # 영어 총점 갭 (내 총점 - 해당 대학 선배 평균)
-            diff_total = round(total_input_score - u_avg_total, 1)
+        diff_math = None
+        if is_natural and 'math_total' in univ_df.columns:
+            u_math_series = pd.to_numeric(univ_df['math_total'], errors='coerce').dropna()
+            u_math_series = u_math_series[u_math_series > 0]
+            if not u_math_series.empty:
+                diff_math = round(math_total - float(u_math_series.mean()), 1)
 
-            # 수학 총점 갭 (자연계열인 경우)
-            diff_math = None
-            if is_natural and 'math_total' in univ_df.columns:
-                u_math_series = pd.to_numeric(univ_df['math_total'], errors='coerce').dropna()
-                u_math_series = u_math_series[u_math_series > 0]
-                if not u_math_series.empty:
-                    diff_math = round(math_total - float(u_math_series.mean()), 1)
+        u_avg_g = float(pd.to_numeric(univ_df['grammar'], errors='coerce').mean())
+        u_avg_v = float(pd.to_numeric(univ_df['vocabulary'], errors='coerce').mean())
+        u_avg_l = float(pd.to_numeric(univ_df['logic'], errors='coerce').mean())
+        u_avg_r = float(pd.to_numeric(univ_df['reading'], errors='coerce').mean())
 
-            # 세부 영역 갭 (필요 시 활용)
-            u_avg_g = float(pd.to_numeric(univ_df['grammar'], errors='coerce').mean())
-            u_avg_v = float(pd.to_numeric(univ_df['vocabulary'], errors='coerce').mean())
-            u_avg_l = float(pd.to_numeric(univ_df['logic'], errors='coerce').mean())
-            u_avg_r = float(pd.to_numeric(univ_df['reading'], errors='coerce').mean())
+        gaps = {
+            "total": diff_total,
+            "math": diff_math,
+            "grammar": round(grammar - u_avg_g, 1),
+            "vocabulary": round(vocabulary - u_avg_v, 1),
+            "logic": round(logic - u_avg_l, 1),
+            "reading": round(reading - u_avg_r, 1)
+        }
 
-            gaps = {
-                "total": diff_total,
-                "math": diff_math,
-                "grammar": round(grammar - u_avg_g, 1),
-                "vocabulary": round(vocabulary - u_avg_v, 1),
-                "logic": round(logic - u_avg_l, 1),
-                "reading": round(reading - u_avg_r, 1)
-            }
+        major_groups = univ_df.groupby('major')
+        major_list = []
 
-            major_groups = univ_df.groupby('major')
-            major_list = []
+        for major_name, group in major_groups:
+            score_details = []
+            sorted_group = group.sort_values(by=['year', 'distance'], ascending=[True, True])
 
-            for major_name, group in major_groups:
-                score_details = []
-                sorted_group = group.sort_values(by=['year', 'distance'], ascending=[True, True])
+            for _, row in sorted_group.iterrows():
+                short_year = f"{str(row['year'])[2:]}'"
+                top10_student_keys.add(f"{row['year']}_{row['student_name']}")
 
-                for _, row in sorted_group.iterrows():
-                    short_year = f"{str(row['year'])[2:]}'"
-                    top10_student_keys.add(f"{row['year']}_{row['student_name']}")
+                m_score = row.get('math_total', None)
+                m_score_val = float(m_score) if (m_score is not None and str(m_score).strip() != '') else None
 
-                    m_score = row.get('math_total', None)
-                    m_score_val = float(m_score) if (m_score is not None and str(m_score).strip() != '') else None
-
-                    score_details.append({
-                        "year": short_year,
-                        "name": row['student_name'],
-                        "grammar": float(row['grammar']),
-                        "vocabulary": float(row['vocabulary']),
-                        "logic": float(row['logic']),
-                        "reading": float(row['reading']),
-                        "math": m_score_val,
-                        "total": float(row['total_score'])
-                    })
-
-                major_list.append({
-                    "major": major_name,
-                    "count": int(len(group)),
-                    "scores": score_details
+                score_details.append({
+                    "year": short_year,
+                    "name": row['student_name'],
+                    "grammar": float(row['grammar']),
+                    "vocabulary": float(row['vocabulary']),
+                    "logic": float(row['logic']),
+                    "reading": float(row['reading']),
+                    "math": m_score_val,
+                    "total": float(row['total_score'])
                 })
 
-            major_list = sorted(major_list, key=lambda x: x['count'], reverse=True)
-            univ_details.append({
-                "univ": univ,
-                "total_count": int(len(univ_df)),
-                "gaps": gaps,  # 🌟 대학별 점수 차이 객체 전달
-                "majors": major_list
+            major_list.append({
+                "major": major_name,
+                "count": int(len(group)),
+                "scores": score_details
             })
 
-        # 🌟 [신규 추가] 4) 취약/강점 파트 자동 진단 로직
+        major_list = sorted(major_list, key=lambda x: x['count'], reverse=True)
+        univ_details.append({
+            "univ": univ,
+            "total_count": int(len(univ_df)),
+            "gaps": gaps,
+            "majors": major_list
+        })
+
+    # 4) 취약/강점 파트 자동 진단 로직
     senior_avg_grammar = round(float(matched_seniors['grammar'].mean()), 1)
     senior_avg_vocab = round(float(matched_seniors['vocabulary'].mean()), 1)
     senior_avg_logic = round(float(matched_seniors['logic'].mean()), 1)
@@ -652,37 +642,31 @@ def predict_university(
 
     diagnostic_tags = []
 
-    # 파트별 편차 체크 (내 점수 - 매칭 선배 평균)
     diff_g = round(grammar - senior_avg_grammar, 1)
     diff_v = round(vocabulary - senior_avg_vocab, 1)
     diff_l = round(logic - senior_avg_logic, 1)
     diff_r = round(reading - senior_avg_reading, 1)
 
-    # 1. 문법 진단
     if diff_g <= -3.0:
         diagnostic_tags.append({"type": "weak", "part": "문법", "diff": diff_g, "text": f"문법 보완 시급 ({diff_g}점)"})
     elif diff_g >= 3.0:
         diagnostic_tags.append({"type": "strong", "part": "문법", "diff": diff_g, "text": f"문법 우수 (+{diff_g}점)"})
 
-    # 2. 어휘 진단
     if diff_v <= -2.5:
         diagnostic_tags.append({"type": "weak", "part": "어휘", "diff": diff_v, "text": f"어휘 보완 필요 ({diff_v}점)"})
     elif diff_v >= 2.5:
         diagnostic_tags.append({"type": "strong", "part": "어휘", "diff": diff_v, "text": f"어휘 강점 (+{diff_v}점)"})
 
-    # 3. 논리 진단
     if diff_l <= -2.5:
         diagnostic_tags.append({"type": "weak", "part": "논리", "diff": diff_l, "text": f"논리 보완 필요 ({diff_l}점)"})
     elif diff_l >= 2.5:
         diagnostic_tags.append({"type": "strong", "part": "논리", "diff": diff_l, "text": f"논리 우수 (+{diff_l}점)"})
 
-    # 4. 독해 진단 (배점이 크므로 기준을 4.0점으로 설정)
     if diff_r <= -4.0:
         diagnostic_tags.append({"type": "weak", "part": "독해", "diff": diff_r, "text": f"독해 집중 보완 ({diff_r}점)"})
     elif diff_r >= 4.0:
         diagnostic_tags.append({"type": "strong", "part": "독해", "diff": diff_r, "text": f"독해 견인 (+{diff_r}점)"})
 
-    # 5. 자연계열 수학 진단
     if is_natural:
         valid_math = pd.to_numeric(matched_seniors['math_total'], errors='coerce').dropna()
         valid_math = valid_math[valid_math > 0]
@@ -696,7 +680,6 @@ def predict_university(
                 diagnostic_tags.append(
                     {"type": "strong-math", "part": "수학", "diff": diff_m, "text": f"수학 강세 (+{diff_m}점)"})
 
-    # 고르게 분포된 경우
     if not diagnostic_tags:
         diagnostic_tags.append({"type": "balanced", "part": "종합", "diff": 0, "text": "영역별 균형 양호 (선배 평균 수렴)"})
 
@@ -709,11 +692,10 @@ def predict_university(
         "my_timeline_stats": my_timeline_stats,
         "my_math_timeline_stats": my_math_timeline_stats,
         "univ_details": univ_details,
-        "diagnostic_tags": diagnostic_tags  # 🌟 이 줄이 추가되었습니다
+        "diagnostic_tags": diagnostic_tags
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
