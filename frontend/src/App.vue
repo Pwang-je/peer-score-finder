@@ -369,13 +369,13 @@
         <div v-if="result.diagnostic_tags && result.diagnostic_tags.length" class="diagnostic-banner">
           <div class="diag-label">
             <span class="diag-icon">🎯</span>
-            <strong>합격 선배 대비 영역 진단:</strong>
+            <strong>지난 합격생 대비:</strong>
           </div>
           <div class="diag-tags-wrap">
           <span
               v-for="(tag, tIdx) in result.diagnostic_tags"
               :key="tIdx"
-              :class="['diag-tag', tag.type]"
+              :class="['diag-tag', tag.part_class]"
           >
             {{ tag.text }}
           </span>
@@ -2313,7 +2313,7 @@ export default {
 }
 
 /* ========================================================
-   🎯 합격 선배 대비 영역 진단 배너 & 배지 스타일
+   1. 합격 선배 대비 영역 진단 배너 (하단 카드 고유색 적용)
    ======================================================== */
 .diagnostic-banner {
   display: flex;
@@ -2343,7 +2343,6 @@ export default {
   gap: 8px;
 }
 
-/* 개별 알약 배지 공통 */
 .diag-tag {
   display: inline-flex;
   align-items: center;
@@ -2354,42 +2353,52 @@ export default {
   letter-spacing: -0.01em;
 }
 
-/* 취약 파트 (어휘/문법/독해 부족) -> 빨간색 경고 */
-.diag-tag.weak {
-  background: #fef2f2 !important;
-  color: #dc2626 !important;
-  border: 1px solid #fecaca !important;
+/* 문법 고유색: 연두 */
+.diag-tag.grammar {
+  background: #ecfccb !important;
+  color: #4d7c0f !important;
+  border: 1px solid #d9f99d !important;
 }
 
-/* 강점 파트 (우수/견인) -> 초록색 긍정 */
-.diag-tag.strong {
-  background: #f0fdf4 !important;
-  color: #16a34a !important;
-  border: 1px solid #bbf7d0 !important;
+/* 어휘 고유색: 파랑 */
+.diag-tag.vocab {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid #bfdbfe !important;
 }
 
-/* 수학 취약 -> 핑크/로즈 경고 */
-.diag-tag.weak-math {
-  background: #fff1f2 !important;
-  color: #e11d48 !important;
-  border: 1px solid #fecdd3 !important;
+/* 논리 고유색: 주황 */
+.diag-tag.logic {
+  background: #fff7ed !important;
+  color: #c2410c !important;
+  border: 1px solid #fed7aa !important;
 }
 
-/* 수학 강점 -> 보라색 */
-.diag-tag.strong-math {
-  background: #fdf4ff !important;
-  color: #9333ea !important;
-  border: 1px solid #f0abfc !important;
+/* 독해 고유색: 노랑/골드 */
+.diag-tag.reading {
+  background: #fefce8 !important;
+  color: #a16207 !important;
+  border: 1px solid #fef08a !important;
 }
 
-/* 균형형 -> 그레이 */
+/* 수학 고유색: 보라 */
+.diag-tag.math {
+  background: #f3e8ff !important;
+  color: #7e22ce !important;
+  border: 1px solid #e9d5ff !important;
+}
+
+/* 균형형: 그레이 */
 .diag-tag.balanced {
   background: #f8fafc !important;
   color: #475569 !important;
   border: 1px solid #cbd5e1 !important;
 }
 
-/* 🌟 대학 카드 헤더 및 갭 배지 스타일 */
+
+/* ========================================================
+   2. TOP 10 대학 카드 점수 갭 배지 (차분한 소프트 톤)
+   ======================================================== */
 .u-card-head {
   display: flex;
   justify-content: space-between;
@@ -2411,38 +2420,42 @@ export default {
   gap: 6px;
 }
 
+/* 갭 배지: 눈이 편안한 미니멀/소프트 스타일 */
 .gap-badge {
   font-size: 11px;
-  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, monospace;
+  font-weight: 600;
   padding: 3px 8px;
   border-radius: 6px;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
-/* 선배 평균 이상 (여유/적정) -> 초록 계열 */
+/* 기준점 초과(+): 자극적인 초록/원색 대신 은은한 민트-슬레이트 톤 */
 .gap-badge.plus {
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
+  background: #f1f5f9;
+  color: #0f766e;
+  border: 1px solid #cbd5e1;
 }
 
-/* 선배 평균 미달 (보완 필요) -> 빨간/주황 계열 */
+/* 기준점 미달(-): 눈 아픈 빨강 대신 은은한 로즈-슬레이트 톤 */
 .gap-badge.minus {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background: #f8fafc;
+  color: #b91c1c;
+  border: 1px solid #e2e8f0;
 }
 
-/* 수학 점수 갭 (자연계열) 테두리 강조 */
+/* 수학 점수 갭: 파랑/보라 대비를 줄이고 서체 두께와 톤다운된 보더로 구분 */
 .gap-badge.math.plus {
-  background: #fdf4ff;
-  color: #9333ea;
-  border-color: #f0abfc;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  font-weight: 700;
 }
 
 .gap-badge.math.minus {
-  background: #fff1f2;
-  color: #e11d48;
-  border-color: #fecdd3;
+  background: #f8fafc;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+  font-weight: 700;
 }
 </style>

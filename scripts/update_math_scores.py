@@ -13,7 +13,7 @@ DB_CONFIG = {
 }
 
 # 2. 정리하신 엑셀/CSV 파일 경로 (.xlsx 또는 .csv)
-FILE_PATH = "C:\\Users\\esang\\Documents\\work\\devel\\peer-score-finder\\data\\raw\\26_수학점수.xlsx"  # 실제 저장하신 파일명으로 수정해 주세요.
+FILE_PATH = "C:\\Users\\esang\\Documents\\work\\devel\\peer-score-finder\\data\\raw\\math\\26_수학점수.xlsx"  # 실제 저장하신 파일명으로 수정해 주세요.
 
 print("파일 로딩 중...")
 if FILE_PATH.endswith(".csv"):
