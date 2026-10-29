@@ -91,7 +91,20 @@ def get_db_data(month: int, is_natural: bool = False):
         """
     df = pd.read_sql(query, conn)
     conn.close()
-    return df.fillna("")
+
+    # 문자열 컬럼만 공백 채우기
+    str_cols = ['student_name', 'univ', 'major', 'department']
+    for c in str_cols:
+        if c in df.columns:
+            df[c] = df[c].fillna("")
+
+    # 숫자 컬럼은 float 변환 (수학 점수 유실 방지)
+    num_cols = ['total_score', 'grammar', 'vocabulary', 'logic', 'reading', 'math_total']
+    for c in num_cols:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors='coerce')
+
+    return df
 
 
 def get_all_months_data(is_natural: bool = False):
@@ -464,22 +477,19 @@ def predict_university(
 
     df_past = df_raw.copy()
 
-    # 가중치 벡터 곱셈
+    # 가중치 벡터 곱셈 (원본 df_past의 math_total을 보존)
     if is_natural:
         features = ['grammar', 'vocabulary', 'logic', 'reading', 'math_total']
-        for col in features:
-            df_past[col] = pd.to_numeric(df_past[col], errors='coerce').fillna(0.0)
-
+        # 계산용 임시 행렬 생성
+        X_mat = df_past[features].fillna(0.0).values
         weights = np.array([w_grammar, w_vocabulary, w_logic, w_reading, w_math])
-        X_past_weighted = df_past[features].values * weights
+        X_past_weighted = X_mat * weights
         current_student_weighted = np.array([[grammar, vocabulary, logic, reading, math_total]]) * weights
     else:
         features = ['grammar', 'vocabulary', 'logic', 'reading']
-        for col in features:
-            df_past[col] = pd.to_numeric(df_past[col], errors='coerce').fillna(0.0)
-
+        X_mat = df_past[features].fillna(0.0).values
         weights = np.array([w_grammar, w_vocabulary, w_logic, w_reading])
-        X_past_weighted = df_past[features].values * weights
+        X_past_weighted = X_mat * weights
         current_student_weighted = np.array([[grammar, vocabulary, logic, reading]]) * weights
 
     # 1. KNN 거리 계산
@@ -606,8 +616,14 @@ def predict_university(
                 short_year = f"{str(row['year'])[2:]}'"
                 top10_student_keys.add(f"{row['year']}_{row['student_name']}")
 
-                m_score = row.get('math_total', None)
-                m_score_val = float(m_score) if (m_score is not None and str(m_score).strip() != '') else None
+                raw_m = row.get('math_total', None)
+                if pd.isna(raw_m) or raw_m is None or str(raw_m).strip() in ['', 'None', 'nan', '-']:
+                    m_score_val = None
+                else:
+                    try:
+                        m_score_val = float(raw_m)
+                    except ValueError:
+                        m_score_val = None
 
                 score_details.append({
                     "year": short_year,
