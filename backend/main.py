@@ -258,15 +258,15 @@ async def commit_excel(
                                  math_total, univ, major, department)
           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
           ON DUPLICATE KEY UPDATE
-              total_score = VALUES(total_score),
-              grammar = VALUES(grammar),
-              vocabulary = VALUES(vocabulary),
-              logic = VALUES(logic),
-              reading = VALUES(reading),
-              math_total = VALUES(math_total),
-              univ = VALUES(univ),
-              major = VALUES(major),
-              department = VALUES(department)
+              total_score = CASE WHEN VALUES(total_score) > 0 THEN VALUES(total_score) ELSE total_score END,
+              grammar = CASE WHEN VALUES(grammar) > 0 THEN VALUES(grammar) ELSE grammar END,
+              vocabulary = CASE WHEN VALUES(vocabulary) > 0 THEN VALUES(vocabulary) ELSE vocabulary END,
+              logic = CASE WHEN VALUES(logic) > 0 THEN VALUES(logic) ELSE logic END,
+              reading = CASE WHEN VALUES(reading) > 0 THEN VALUES(reading) ELSE reading END,
+              math_total = CASE WHEN VALUES(math_total) IS NOT NULL AND VALUES(math_total) > 0 THEN VALUES(math_total) ELSE math_total END,
+              univ = CASE WHEN VALUES(univ) != '' THEN VALUES(univ) ELSE univ END,
+              major = CASE WHEN VALUES(major) != '' THEN VALUES(major) ELSE major END,
+              department = CASE WHEN VALUES(department) != '' THEN VALUES(department) ELSE department END
           """
 
     rows_to_insert = []
