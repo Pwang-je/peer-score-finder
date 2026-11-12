@@ -263,7 +263,8 @@ import { ref, computed, onMounted } from 'vue'
 const currentTab = ref('univ')
 
 // 로컬 테스트 및 배포 주소 자동 대응 (App.vue와 동일하게 맞추어 사용)
-const API_BASE = 'http://127.0.0.1:8000'
+// const API_BASE = 'http://127.0.0.1:8000'
+const API_BASE = 'https://peer-score-finder.onrender.com'
 
 // 1. 대학 목록 및 학과 현황 상태
 const univList = ref([])
