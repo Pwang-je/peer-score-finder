@@ -195,7 +195,7 @@
                 :key="d.id"
                 :value="d.major"
               >
-                {{ d.major }} (일반 {{ d.gen }}명 / 학사 {{ d.bac }}명)
+                {{ d.major }}
               </option>
             </select>
           </div>
