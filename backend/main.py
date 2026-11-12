@@ -3,8 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import io
 import pandas as pd
 import pymysql
+from tidb_db import DB_CONFIG
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
+from pydantic import BaseModel
+from typing import Optional
+
 
 app = FastAPI()
 
@@ -26,6 +30,14 @@ DB_CONFIG = {
     'charset': 'utf8mb4',
     'ssl': {'ca': None}
 }
+
+# DB 연결 헬퍼 함수 정의ㄹ
+def get_db_connection():
+    conn = pymysql.connect(**DB_CONFIG)
+    # 딕셔너리 형태로 컬럼명을 받기 위해 cursorclass 기본 설정
+    with conn.cursor() as cursor:
+        cursor.execute("USE peer_data")
+    return conn
 
 ALLOWED_STUDENTS = [
     "강승현", "고시후", "고준형", "권도윤", "김가연_1", "김도현", "김민결", "김민재",
@@ -353,9 +365,9 @@ def get_all_students_2026():
         conn.close()
 
 
-# =====================================================================
-# 🌟 [오류 해결] 2026 재원생 성적 조회 및 자연/인문 자동 판정 API
-# =====================================================================
+
+# 2026 재원생 성적 조회 및 자연/인문 자동 판정 API
+
 @app.get("/get-student-score")
 def get_student_score(student_name: str, month: int):
     conn = pymysql.connect(**DB_CONFIG)
@@ -440,9 +452,7 @@ def get_student_score(student_name: str, month: int):
         conn.close()
 
 
-# =====================================================================
-# 🌟 [들여쓰기 완전 교정] KNN 종합 분석 API
-# =====================================================================
+# KNN 종합 분석 API
 @app.get("/predict")
 def predict_university(
         month: int,
@@ -715,6 +725,323 @@ def predict_university(
         "univ_details": univ_details,
         "diagnostic_tags": diagnostic_tags
     }
+
+
+# 원서 지원 전략, 모집요강 관련 API 추가
+
+class ApplicationCreate(BaseModel):
+    student_name: str
+    univ: str
+    major: str
+    memo: Optional[str] = "적정"
+
+
+# 0. student_applications 테이블 자동 보장 함수
+def ensure_application_tables():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS student_applications
+                   (
+                       id
+                       INT
+                       AUTO_INCREMENT
+                       PRIMARY
+                       KEY,
+                       year
+                       INT
+                       NOT
+                       NULL
+                       DEFAULT
+                       2026,
+                       student_name
+                       VARCHAR
+                   (
+                       50
+                   ) NOT NULL,
+                       univ VARCHAR
+                   (
+                       50
+                   ) NOT NULL,
+                       major VARCHAR
+                   (
+                       50
+                   ) NOT NULL,
+                       memo VARCHAR
+                   (
+                       50
+                   ) DEFAULT '적정',
+                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                       UNIQUE KEY uq_student_univ
+                   (
+                       year,
+                       student_name,
+                       univ
+                   )
+                       );
+                   """)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+# 서버 시작 시 테이블 점검
+try:
+    ensure_application_tables()
+except Exception as e:
+    print(f"테이블 점검 알림: {e}")
+
+
+# 1. 모집요강 등록 대학 목록
+@app.get("/api/quota/univ-list")
+def get_quota_univ_list():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT univ FROM recruit_quota WHERE year = 2026 ORDER BY univ ASC;")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [r[0] if isinstance(r, tuple) else r["univ"] for r in rows]
+
+
+# 2. 대학별 모집요강 + 해당 학과 지원 원생 명단(최신 성적 매핑) 통합 조회
+@app.get("/api/quota/departments")
+def get_quota_departments(univ: str = "가천대학교"):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # 1) 해당 대학 학과 및 정원 조회
+    cursor.execute("""
+                   SELECT id, univ, department, major, general_quota, bachelor_quota
+                   FROM recruit_quota
+                   WHERE year = 2026 AND univ = %s
+                   ORDER BY department DESC, major ASC;
+                   """, (univ,))
+    depts = cursor.fetchall()
+
+    # 2) 해당 대학에 원서를 넣은 원생들 + 최신(10월) 성적 조인 조회
+    cursor.execute("""
+                   SELECT a.id          AS app_id,
+                          a.student_name,
+                          a.univ,
+                          a.major,
+                          a.memo,
+                          p.department  AS student_dept,
+                          p.total_score AS eng_score,
+                          p.math_total  AS math_score
+                   FROM student_applications a
+                            LEFT JOIN (
+                       -- 2026년 각 학생의 가장 최신 응시 월 점수 서브쿼리
+                       SELECT p1.student_name, p1.department, p1.total_score, p1.math_total
+                       FROM peer_data p1
+                                INNER JOIN (SELECT student_name, MAX(month) AS max_month
+                                            FROM peer_data
+                                            WHERE year = 2026
+                                            GROUP BY student_name) p2
+                                           ON p1.student_name = p2.student_name AND p1.month = p2.max_month
+                       WHERE p1.year = 2026) p ON a.student_name = p.student_name
+                   WHERE a.year = 2026
+                     AND a.univ = %s;
+                   """, (univ,))
+    apps = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    # 3) 학과별 지원자 리스트 그룹핑
+    result = []
+    for d in depts:
+        d_id = d[0] if isinstance(d, tuple) else d["id"]
+        d_univ = d[1] if isinstance(d, tuple) else d["univ"]
+        d_dept = d[2] if isinstance(d, tuple) else d["department"]
+        d_major = d[3] if isinstance(d, tuple) else d["major"]
+        d_gen = d[4] if isinstance(d, tuple) else d["general_quota"]
+        d_bac = d[5] if isinstance(d, tuple) else d["bachelor_quota"]
+
+        # 이 학과에 지원한 학생들 필터링
+        dept_apps = []
+        for app in apps:
+            app_major = app[3] if isinstance(app, tuple) else app["major"]
+            if app_major == d_major:
+                s_name = app[1] if isinstance(app, tuple) else app["student_name"]
+                s_memo = app[4] if isinstance(app, tuple) else app["memo"]
+                s_dept = (app[5] if isinstance(app, tuple) else app["student_dept"]) or ""
+                eng = app[6] if isinstance(app, tuple) else app["eng_score"]
+                math = app[7] if isinstance(app, tuple) else app["math_score"]
+
+                # '학사인문' -> '학사', '일반자연' -> '일반' 판정
+                apply_type = "학사" if "학사" in s_dept else "일반"
+
+                dept_apps.append({
+                    "app_id": app[0] if isinstance(app, tuple) else app["app_id"],
+                    "student_name": s_name,
+                    "type": apply_type,
+                    "dept_full": s_dept,
+                    "eng": eng if eng is not None else "-",
+                    "math": math,
+                    "memo": s_memo
+                })
+
+        result.append({
+            "id": d_id,
+            "univ": d_univ,
+            "dept": d_dept,
+            "major": d_major,
+            "gen": d_gen,
+            "bac": d_bac,
+            "applicants": dept_apps
+        })
+
+    return result
+
+
+# 모집요강 엑셀 일괄 업로드 API (대학, 계열, 학과명, 일반정원, 학사정원)
+@app.post("/api/quota/upload")
+async def upload_quota_excel(file: UploadFile = File(...)):
+    if not file.filename.endswith((".xlsx", ".xls", ".csv")):
+        raise HTTPException(status_code=400, detail="엑셀(.xlsx, .xls) 또는 CSV 파일만 업로드 가능합니다.")
+
+    contents = await file.read()
+    try:
+        if file.filename.endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(contents))
+        else:
+            df = pd.read_excel(io.BytesIO(contents))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"파일 읽기 실패: {str(e)}")
+
+    # 컬럼명 공백 제거
+    df.columns = [str(c).strip() for c in df.columns]
+
+    # 한글 또는 영문 컬럼명 유연하게 매핑
+    col_map = {
+        "대학": "univ", "학교": "univ", "대학명": "univ",
+        "계열": "department",
+        "학과": "major", "학과명": "major", "모집단위": "major",
+        "일반": "general_quota", "일반정원": "general_quota", "일반편입": "general_quota",
+        "학사": "bachelor_quota", "학사정원": "bachelor_quota", "학사편입": "bachelor_quota"
+    }
+    df.rename(columns=col_map, inplace=True)
+
+    required_cols = {"univ", "department", "major"}
+    if not required_cols.issubset(set(df.columns)):
+        raise HTTPException(
+            status_code=400,
+            detail=f"필수 컬럼이 누락되었습니다. (필수: 대학, 계열, 학과명 / 선택: 일반정원, 학사정원)"
+        )
+
+    df["general_quota"] = pd.to_numeric(df.get("general_quota", 0), errors="coerce").fillna(0).astype(int)
+    df["bachelor_quota"] = pd.to_numeric(df.get("bachelor_quota", 0), errors="coerce").fillna(0).astype(int)
+    df = df.dropna(subset=["univ", "department", "major"])
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    query = """
+        INSERT INTO recruit_quota (year, univ, department, major, general_quota, bachelor_quota)
+        VALUES (2026, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            department = VALUES(department),
+            general_quota = VALUES(general_quota),
+            bachelor_quota = VALUES(bachelor_quota)
+    """
+
+    count = 0
+    for _, row in df.iterrows():
+        univ_val = str(row["univ"]).strip()
+        dept_val = str(row["department"]).strip()
+        major_val = str(row["major"]).strip()
+        if not univ_val or not major_val:
+            continue
+
+        cursor.execute(query, (
+            univ_val,
+            dept_val,
+            major_val,
+            int(row["general_quota"]),
+            int(row["bachelor_quota"])
+        ))
+        count += 1
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return {"status": "success", "message": f"총 {count}개 학과 모집요강 데이터가 성공적으로 반영되었습니다."}
+
+
+
+# 3. 특정 학생의 지원 희망 리스트 조회
+@app.get("/api/applications")
+def get_student_applications(student_name: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+                   SELECT a.id,
+                          a.univ,
+                          a.major,
+                          a.memo,
+                          COALESCE(q.general_quota, 0)  AS gen_quota,
+                          COALESCE(q.bachelor_quota, 0) AS bac_quota
+                   FROM student_applications a
+                            LEFT JOIN recruit_quota q
+                                      ON a.year = q.year AND a.univ = q.univ AND a.major = q.major
+                   WHERE a.year = 2026
+                     AND a.student_name = %s
+                   ORDER BY a.created_at ASC;
+                   """, (student_name,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    cards = []
+    for r in rows:
+        cards.append({
+            "id": r[0] if isinstance(r, tuple) else r["id"],
+            "univ": r[1] if isinstance(r, tuple) else r["univ"],
+            "major": r[2] if isinstance(r, tuple) else r["major"],
+            "memo": r[3] if isinstance(r, tuple) else r["memo"],
+            "gen_quota": r[4] if isinstance(r, tuple) else r["gen_quota"],
+            "bac_quota": r[5] if isinstance(r, tuple) else r["bac_quota"],
+        })
+    return cards
+
+
+# 4. 지원 원서 카드 추가 (한 학교당 1개 과만 지원 가능)
+@app.post("/api/applications")
+def add_application(app_data: ApplicationCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    query = """
+            INSERT INTO student_applications (year, student_name, univ, major, memo)
+            VALUES (2026, %s, %s, %s, %s) ON DUPLICATE KEY \
+            UPDATE \
+                major = \
+            VALUES (major), memo = \
+            VALUES (memo) \
+            """
+    cursor.execute(query, (
+        app_data.student_name,
+        app_data.univ,
+        app_data.major,
+        app_data.memo
+    ))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"status": "success", "message": f"{app_data.student_name}의 {app_data.univ} {app_data.major} 지원 등록 완료"}
+
+
+# 5. 지원 원서 카드 삭제
+@app.delete("/api/applications/{app_id}")
+def delete_application(app_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM student_applications WHERE id = %s;", (app_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"status": "success", "message": "삭제 완료"}
 
 
 if __name__ == "__main__":
