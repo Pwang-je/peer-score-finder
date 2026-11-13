@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import io
 import pandas as pd
 import pymysql
+import re
 from tidb_db import DB_CONFIG
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
@@ -804,7 +805,26 @@ def get_quota_univ_list():
     return [r[0] if isinstance(r, tuple) else r["univ"] for r in rows]
 
 
-# 2. 대학별 모집요강 + 해당 학과 지원 원생 명단(최신 성적 매핑) 통합 조회
+def clean_major_name(s: str) -> str:
+    if not s:
+        return ""
+    s = re.sub(r'[*()\[\]·/,\s]', '', str(s))
+    s = re.sub(r'(학과|학부|전공|과)$', '', s)
+    return s.strip()
+
+
+def is_major_matched(target_clean: str, past_clean: str) -> bool:
+    if not target_clean or not past_clean:
+        return False
+    if target_clean == past_clean:
+        return True
+    if len(target_clean) >= 2 and len(past_clean) >= 2:
+        if target_clean in past_clean or past_clean in target_clean:
+            return True
+    return False
+
+
+# 2. 대학별 모집요강 + 해당 학과 지원 원생 명단(최신 성적 매핑) + 과거 합격생 통합 조회
 @app.get("/api/quota/departments")
 def get_quota_departments(univ: str = "가천대학교"):
     conn = get_db_connection()
@@ -819,7 +839,7 @@ def get_quota_departments(univ: str = "가천대학교"):
                    """, (univ,))
     depts = cursor.fetchall()
 
-    # 2) 해당 대학에 원서를 넣은 원생들 + 최신(10월) 성적 조인 조회
+    # 2) 해당 대학에 원서를 넣은 2026 원생들 + 최신 성적 조인 조회
     cursor.execute("""
                    SELECT a.id          AS app_id,
                           a.student_name,
@@ -845,10 +865,35 @@ def get_quota_departments(univ: str = "가천대학교"):
                    """, (univ,))
     apps = cursor.fetchall()
 
+    # 3) 과거 합격생 조회 (대학명 정규화 매칭: 예 '가천대학교' -> '가천')
+    clean_univ = univ.replace("대학교", "").replace("대학", "").strip()
+    cursor.execute("""
+                   SELECT p1.year,
+                          p1.student_name,
+                          p1.univ,
+                          p1.major,
+                          p1.department,
+                          p1.total_score AS eng_score,
+                          p1.math_total  AS math_score
+                   FROM peer_data p1
+                            INNER JOIN (SELECT year, student_name, MAX(month) AS max_month
+                                        FROM peer_data
+                                        WHERE year < 2026
+                                          AND univ LIKE %s
+                                          AND major IS NOT NULL AND major != '' AND major != '-' AND major != '미기재'
+                                        GROUP BY year, student_name) p2
+                                       ON p1.year = p2.year AND p1.student_name = p2.student_name AND p1.month = p2.max_month
+                   WHERE p1.year < 2026
+                     AND p1.univ LIKE %s
+                     AND p1.major IS NOT NULL AND p1.major != '' AND p1.major != '-' AND p1.major != '미기재'
+                   ORDER BY p1.year DESC, p1.total_score DESC;
+                   """, (f"%{clean_univ}%", f"%{clean_univ}%"))
+    past_rows = cursor.fetchall()
+
     cursor.close()
     conn.close()
 
-    # 3) 학과별 지원자 리스트 그룹핑
+    # 4) 학과별 지원자 리스트 및 과거 합격생 매칭 그룹핑
     result = []
     for d in depts:
         d_id = d[0] if isinstance(d, tuple) else d["id"]
@@ -882,6 +927,35 @@ def get_quota_departments(univ: str = "가천대학교"):
                     "memo": s_memo
                 })
 
+        # 이 학과에 합격했던 과거 학생들 매칭
+        target_clean = clean_major_name(d_major)
+        dept_past = []
+        seen_past = set()
+        for p in past_rows:
+            p_year = p[0] if isinstance(p, tuple) else p["year"]
+            p_name = p[1] if isinstance(p, tuple) else p["student_name"]
+            p_univ = p[2] if isinstance(p, tuple) else p["univ"]
+            p_major = p[3] if isinstance(p, tuple) else p["major"]
+            p_dept = (p[4] if isinstance(p, tuple) else p["department"]) or ""
+            p_eng = p[5] if isinstance(p, tuple) else p["eng_score"]
+            p_math = p[6] if isinstance(p, tuple) else p["math_score"]
+
+            past_clean = clean_major_name(p_major)
+            if is_major_matched(target_clean, past_clean):
+                key = (p_year, p_name)
+                if key not in seen_past:
+                    seen_past.add(key)
+                    apply_type = "학사" if "학사" in p_dept else "일반"
+                    dept_past.append({
+                        "year": int(p_year),
+                        "student_name": p_name,
+                        "type": apply_type,
+                        "dept_full": p_dept,
+                        "eng": p_eng if p_eng is not None else "-",
+                        "math": p_math,
+                        "major": p_major
+                    })
+
         result.append({
             "id": d_id,
             "univ": d_univ,
@@ -889,7 +963,8 @@ def get_quota_departments(univ: str = "가천대학교"):
             "major": d_major,
             "gen": d_gen,
             "bac": d_bac,
-            "applicants": dept_apps
+            "applicants": dept_apps,
+            "past_admissions": dept_past
         })
 
     return result

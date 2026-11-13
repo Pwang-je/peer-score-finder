@@ -101,12 +101,13 @@
         <table class="quota-table">
           <thead>
             <tr>
-              <th style="width: 75px;" class="text-center">계열</th>
-              <th style="width: 220px;">모집단위 (학과명)</th>
-              <th style="width: 85px;" class="text-center">일반 정원</th>
-              <th style="width: 85px;" class="text-center">학사 정원</th>
-              <th>원내 지원 희망자 명단 (모의고사 성적)</th>
-              <th style="width: 155px;" class="text-center">지원 인원</th>
+              <th style="width: 65px;" class="text-center">계열</th>
+              <th style="width: 180px;">모집단위 (학과명)</th>
+              <th style="width: 75px;" class="text-center">일반 정원</th>
+              <th style="width: 75px;" class="text-center">학사 정원</th>
+              <th style="min-width: 220px;">원내 지원 희망자 명단 (모의고사 성적)</th>
+              <th style="width: 140px;" class="text-center">지원 인원</th>
+              <th style="min-width: 260px;">지난 합격생 이력 (합격년도 / 성적)</th>
             </tr>
           </thead>
           <tbody>
@@ -141,7 +142,7 @@
                   </div>
                 </div>
               </td>
-              <!-- 변경된 지원 인원수 표시 컬럼 -->
+              <!-- 지원 인원수 표시 컬럼 -->
               <td class="text-center">
                 <div v-if="dept.applicants && dept.applicants.length > 0" class="count-summary-cell">
                   <span class="total-app-badge">총 {{ dept.applicants.length }}명</span>
@@ -150,6 +151,28 @@
                   </span>
                 </div>
                 <span v-else class="zero-app-text">0명</span>
+              </td>
+              <!-- 지난 합격생 이력 컬럼 -->
+              <td>
+                <div v-if="!dept.past_admissions || dept.past_admissions.length === 0" class="empty-applicant">
+                  -
+                </div>
+                <div v-else class="past-tag-list">
+                  <div
+                    v-for="(past, pIdx) in dept.past_admissions"
+                    :key="pIdx"
+                    class="past-student-tag"
+                  >
+                    <span class="tag-year">{{ past.year % 100 }}년</span>
+                    <span :class="['tag-type', past.type === '학사' ? 'tag-bac' : 'tag-gen']">
+                      {{ past.type }}
+                    </span>
+                    <span class="tag-name">{{ past.student_name }}</span>
+                    <span class="tag-score">
+                      영{{ past.eng }}<template v-if="past.math"> / 수{{ past.math }}</template>
+                    </span>
+                  </div>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -262,9 +285,10 @@ import { ref, computed, onMounted } from 'vue'
 
 const currentTab = ref('univ')
 
-// 로컬 테스트 및 배포 주소 자동 대응 (App.vue와 동일하게 맞추어 사용)
-// const API_BASE = 'http://127.0.0.1:8000'
-const API_BASE = 'https://peer-score-finder.onrender.com'
+// 로컬 테스트 및 배포 주소 자동 대응 (로컬 실행 시 8000번 포트 자동 감지)
+const API_BASE = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+  ? 'http://127.0.0.1:8000'
+  : 'https://peer-score-finder.onrender.com'
 
 // 1. 대학 목록 및 학과 현황 상태
 const univList = ref([])
@@ -686,6 +710,26 @@ onMounted(async () => {
 .tag-gen { background: #f1f5f9; color: #475569; }
 .tag-name { font-weight: 700; color: #1e293b; }
 .tag-score { font-size: 11px; color: #0284c7; font-family: monospace; font-weight: 600; }
+
+/* 지난 합격생 태그 스타일 */
+.past-tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.past-student-tag {
+  display: inline-flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 3px 7px;
+  gap: 5px;
+}
+.tag-year {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
 
 /* 지원 인원수 셀 스타일 */
 .count-summary-cell {
