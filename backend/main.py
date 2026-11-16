@@ -1016,22 +1016,25 @@ def get_quota_departments(univ: str = "가천대학교"):
 # 모집요강 엑셀 일괄 업로드 API (대학, 계열, 학과명, 일반정원, 학사정원)
 @app.post("/api/quota/upload")
 async def upload_quota_excel(file: UploadFile = File(...)):
-    if not file.filename.endswith((".xlsx", ".xls", ".csv")):
+    filename = file.filename.lower()
+    if not filename.endswith((".xlsx", ".xls", ".csv")):
         raise HTTPException(status_code=400, detail="엑셀(.xlsx, .xls) 또는 CSV 파일만 업로드 가능합니다.")
 
     contents = await file.read()
     try:
-        if file.filename.endswith(".csv"):
-            df = pd.read_csv(io.BytesIO(contents))
+        if filename.endswith(".csv"):
+            try:
+                df = pd.read_csv(io.BytesIO(contents), encoding="utf-8-sig")
+            except UnicodeDecodeError:
+                df = pd.read_csv(io.BytesIO(contents), encoding="cp949")
         else:
             df = pd.read_excel(io.BytesIO(contents))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"파일 읽기 실패: {str(e)}")
 
-    # 컬럼명 공백 제거
-    df.columns = [str(c).strip() for c in df.columns]
+    # 컬럼명 공백 및 BOM 제거
+    df.columns = [str(c).strip().replace("\ufeff", "") for c in df.columns]
 
-    # 한글 또는 영문 컬럼명 유연하게 매핑
     col_map = {
         "대학": "univ", "학교": "univ", "대학명": "univ",
         "계열": "department",
@@ -1045,48 +1048,55 @@ async def upload_quota_excel(file: UploadFile = File(...)):
     if not required_cols.issubset(set(df.columns)):
         raise HTTPException(
             status_code=400,
-            detail=f"필수 컬럼이 누락되었습니다. (필수: 대학, 계열, 학과명 / 선택: 일반정원, 학사정원)"
+            detail=f"필수 컬럼 누락 (현재 컬럼: {list(df.columns)} / 필수: 대학, 계열, 학과명)"
         )
 
     df["general_quota"] = pd.to_numeric(df.get("general_quota", 0), errors="coerce").fillna(0).astype(int)
     df["bachelor_quota"] = pd.to_numeric(df.get("bachelor_quota", 0), errors="coerce").fillna(0).astype(int)
     df = df.dropna(subset=["univ", "department", "major"])
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    query = """
-        INSERT INTO recruit_quota (year, univ, department, major, general_quota, bachelor_quota)
-        VALUES (2026, %s, %s, %s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-            department = VALUES(department),
-            general_quota = VALUES(general_quota),
-            bachelor_quota = VALUES(bachelor_quota)
-    """
-
-    count = 0
+    rows_to_insert = []
     for _, row in df.iterrows():
         univ_val = str(row["univ"]).strip()
         dept_val = str(row["department"]).strip()
         major_val = str(row["major"]).strip()
-        if not univ_val or not major_val:
+        if not univ_val or not major_val or univ_val == "nan" or major_val == "nan":
             continue
-
-        cursor.execute(query, (
+        rows_to_insert.append((
             univ_val,
             dept_val,
             major_val,
             int(row["general_quota"]),
             int(row["bachelor_quota"])
         ))
-        count += 1
 
-    conn.commit()
-    cursor.close()
-    conn.close()
+    if not rows_to_insert:
+        raise HTTPException(status_code=400, detail="유효한 데이터가 없습니다.")
 
-    return {"status": "success", "message": f"총 {count}개 학과 모집요강 데이터가 성공적으로 반영되었습니다."}
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        # 컬럼 길이 부족 방지를 위해 major 컬럼 크기 확장 보장
+        cursor.execute("ALTER TABLE recruit_quota MODIFY COLUMN major VARCHAR(150) NOT NULL;")
 
+        query = """
+            INSERT INTO recruit_quota (year, univ, department, major, general_quota, bachelor_quota)
+            VALUES (2026, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                department = VALUES(department),
+                general_quota = VALUES(general_quota),
+                bachelor_quota = VALUES(bachelor_quota)
+        """
+        cursor.executemany(query, rows_to_insert)
+        conn.commit()
+        cursor.close()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"DB 적재 오류: {str(e)}")
+    finally:
+        conn.close()
+
+    return {"status": "success", "message": f"총 {len(rows_to_insert)}개 학과 모집요강 데이터가 성공적으로 반영되었습니다."}
 
 
 # 3. 특정 학생의 지원 희망 리스트 조회
