@@ -137,7 +137,10 @@
                     </span>
                     <span class="tag-name">{{ app.student_name }}</span>
                     <span class="tag-score">
-                      영{{ app.eng }} <template v-if="app.math">/ 수{{ app.math }}</template>
+                      <template v-if="app.eng && app.eng !== '-'">영{{ app.eng }}</template>
+                      <template v-if="app.eng && app.eng !== '-' && app.math && app.math !== '-' && Number(app.math) > 0"> / </template>
+                      <template v-if="app.math && app.math !== '-' && Number(app.math) > 0">수{{ app.math }}</template>
+                      <template v-if="(!app.eng || app.eng === '-') && (!app.math || app.math === '-' || Number(app.math) <= 0)">-</template>
                     </span>
                   </div>
                 </div>
@@ -163,13 +166,16 @@
                     :key="pIdx"
                     class="past-student-tag"
                   >
-                    <span class="tag-year">{{ past.year % 100 }}년</span>
+                    <span class="tag-year">{{ String(past.year).slice(-2) }}'</span>
                     <span :class="['tag-type', past.type === '학사' ? 'tag-bac' : 'tag-gen']">
                       {{ past.type }}
                     </span>
                     <span class="tag-name">{{ past.student_name }}</span>
                     <span class="tag-score">
-                      영{{ past.eng }}<template v-if="past.math"> / 수{{ past.math }}</template>
+                      <template v-if="past.eng && past.eng !== '-'">영{{ past.eng }}</template>
+                      <template v-if="past.eng && past.eng !== '-' && past.math && past.math !== '-' && Number(past.math) > 0"> / </template>
+                      <template v-if="past.math && past.math !== '-' && Number(past.math) > 0">수{{ past.math }}</template>
+                      <template v-if="(!past.eng || past.eng === '-') && (!past.math || past.math === '-' || Number(past.math) <= 0)">-</template>
                     </span>
                   </div>
                 </div>

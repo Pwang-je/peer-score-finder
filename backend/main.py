@@ -824,6 +824,30 @@ def is_major_matched(target_clean: str, past_clean: str) -> bool:
     return False
 
 
+def format_score_val(v):
+    if v is None:
+        return None
+    try:
+        f = float(v)
+        if f > 0:
+            return int(f) if f.is_integer() else f
+        return None
+    except (ValueError, TypeError):
+        return None
+
+
+def format_eng_val(v):
+    if v is None:
+        return "-"
+    try:
+        f = float(v)
+        if f > 0:
+            return int(f) if f.is_integer() else f
+        return v
+    except (ValueError, TypeError):
+        return v
+
+
 # 2. 대학별 모집요강 + 해당 학과 지원 원생 명단(최신 성적 매핑) + 과거 합격생 통합 조회
 @app.get("/api/quota/departments")
 def get_quota_departments(univ: str = "가천대학교"):
@@ -848,18 +872,27 @@ def get_quota_departments(univ: str = "가천대학교"):
                           a.memo,
                           p.department  AS student_dept,
                           p.total_score AS eng_score,
-                          p.math_total  AS math_score
+                          COALESCE(p.math_total, p_math.latest_math)  AS math_score
                    FROM student_applications a
                             LEFT JOIN (
-                       -- 2026년 각 학생의 가장 최신 응시 월 점수 서브쿼리
-                       SELECT p1.student_name, p1.department, p1.total_score, p1.math_total
-                       FROM peer_data p1
-                                INNER JOIN (SELECT student_name, MAX(month) AS max_month
-                                            FROM peer_data
-                                            WHERE year = 2026
-                                            GROUP BY student_name) p2
-                                           ON p1.student_name = p2.student_name AND p1.month = p2.max_month
-                       WHERE p1.year = 2026) p ON a.student_name = p.student_name
+                        -- 2026년 각 학생의 가장 최신 응시 월 점수 서브쿼리
+                        SELECT p1.student_name, p1.department, p1.total_score, p1.math_total
+                        FROM peer_data p1
+                                 INNER JOIN (SELECT student_name, MAX(month) AS max_month
+                                             FROM peer_data
+                                             WHERE year = 2026
+                                             GROUP BY student_name) p2
+                                            ON p1.student_name = p2.student_name AND p1.month = p2.max_month
+                        WHERE p1.year = 2026) p ON a.student_name = p.student_name
+                            LEFT JOIN (
+                        SELECT pm.student_name, pm.math_total AS latest_math
+                        FROM peer_data pm
+                                 INNER JOIN (SELECT student_name, MAX(month) AS max_m_month
+                                             FROM peer_data
+                                             WHERE year = 2026 AND math_total IS NOT NULL AND math_total > 0
+                                             GROUP BY student_name) pm2
+                                            ON pm.student_name = pm2.student_name AND pm.month = pm2.max_m_month
+                        WHERE pm.year = 2026) p_math ON a.student_name = p_math.student_name
                    WHERE a.year = 2026
                      AND a.univ = %s;
                    """, (univ,))
@@ -874,7 +907,7 @@ def get_quota_departments(univ: str = "가천대학교"):
                           p1.major,
                           p1.department,
                           p1.total_score AS eng_score,
-                          p1.math_total  AS math_score
+                          COALESCE(p1.math_total, p_math.latest_math)  AS math_score
                    FROM peer_data p1
                             INNER JOIN (SELECT year, student_name, MAX(month) AS max_month
                                         FROM peer_data
@@ -883,6 +916,16 @@ def get_quota_departments(univ: str = "가천대학교"):
                                           AND major IS NOT NULL AND major != '' AND major != '-' AND major != '미기재'
                                         GROUP BY year, student_name) p2
                                        ON p1.year = p2.year AND p1.student_name = p2.student_name AND p1.month = p2.max_month
+                            LEFT JOIN (
+                                 SELECT pm.year, pm.student_name, pm.math_total AS latest_math
+                                 FROM peer_data pm
+                                          INNER JOIN (SELECT year, student_name, MAX(month) AS max_m_month
+                                                      FROM peer_data
+                                                      WHERE year < 2026 AND math_total IS NOT NULL AND math_total > 0
+                                                      GROUP BY year, student_name) pm2
+                                                     ON pm.year = pm2.year AND pm.student_name = pm2.student_name AND pm.month = pm2.max_m_month
+                                 WHERE pm.year < 2026) p_math
+                                 ON p1.year = p_math.year AND p1.student_name = p_math.student_name
                    WHERE p1.year < 2026
                      AND p1.univ LIKE %s
                      AND p1.major IS NOT NULL AND p1.major != '' AND p1.major != '-' AND p1.major != '미기재'
@@ -922,8 +965,8 @@ def get_quota_departments(univ: str = "가천대학교"):
                     "student_name": s_name,
                     "type": apply_type,
                     "dept_full": s_dept,
-                    "eng": eng if eng is not None else "-",
-                    "math": math,
+                    "eng": format_eng_val(eng),
+                    "math": format_score_val(math),
                     "memo": s_memo
                 })
 
@@ -951,8 +994,8 @@ def get_quota_departments(univ: str = "가천대학교"):
                         "student_name": p_name,
                         "type": apply_type,
                         "dept_full": p_dept,
-                        "eng": p_eng if p_eng is not None else "-",
-                        "math": p_math,
+                        "eng": format_eng_val(p_eng),
+                        "math": format_score_val(p_math),
                         "major": p_major
                     })
 
