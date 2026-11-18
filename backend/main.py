@@ -935,7 +935,7 @@ def get_quota_departments(univ: str = "가천대학교"):
     #
     # cursor.close()
     # conn.close()
-    # 3) 과거 합격생 조회 쿼리 수정 (함수 공백 및 문법 정돈)
+    # 3) 과거 합격생 조회 쿼리 (별칭 및 문법 완벽 정비)
     cursor.execute("""
                    SELECT p1.year,
                           p1.student_name,
@@ -961,7 +961,11 @@ def get_quota_departments(univ: str = "가천대학교"):
                                        FROM peer_data pm
                                                 INNER JOIN (SELECT year, student_name, MAX (month) AS max_m_month
                                                             FROM peer_data
-                                                            WHERE year < 2026 AND math_total IS NOT NULL AND math_total > 0
+                                                            WHERE year
+                                                                < 2026
+                                                              AND math_total IS NOT NULL
+                                                              AND math_total
+                                                                > 0
                                                             GROUP BY year, student_name) pm2 ON pm.year = pm2.year
                                            AND pm.student_name = pm2.student_name
                                            AND pm.month = pm2.max_m_month
@@ -970,7 +974,9 @@ def get_quota_departments(univ: str = "가천대학교"):
                    WHERE p1.year < 2026
                      AND p1.univ = %s
                      AND p1.major IS NOT NULL
-                     AND major != '' AND major != '-' AND major != '미기재'
+                     AND p1.major != '' 
+              AND p1.major != '-' 
+              AND p1.major != '미기재'
                    ORDER BY p1.year DESC, p1.total_score DESC;
                    """, (univ, univ))
 
