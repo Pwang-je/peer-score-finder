@@ -930,7 +930,7 @@ def get_quota_departments(univ: str = "가천대학교"):
                      AND p1.univ = %s
                      AND p1.major IS NOT NULL AND p1.major != '' AND p1.major != '-' AND p1.major != '미기재'
                    ORDER BY p1.year DESC, p1.total_score DESC;
-                   """, (f"%{univ}%", f"%{univ}%"))
+                   """, (univ, univ))
     past_rows = cursor.fetchall()
 
     cursor.close()
