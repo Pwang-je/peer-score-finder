@@ -935,8 +935,7 @@ def get_quota_departments(univ: str = "가천대학교"):
     #
     # cursor.close()
     # conn.close()
-    # 3) 과거 합격생 조회 (전달받은 대학명 그대로 정확히 일치하는 데이터 조회)
-    # 3) 과거 합격생 조회 쿼리 정돈
+    # 3) 과거 합격생 조회 쿼리 수정 (함수 공백 및 문법 정돈)
     cursor.execute("""
                    SELECT p1.year,
                           p1.student_name,
@@ -971,7 +970,7 @@ def get_quota_departments(univ: str = "가천대학교"):
                    WHERE p1.year < 2026
                      AND p1.univ = %s
                      AND p1.major IS NOT NULL
-                     AND p1.major != '' AND p1.major != '-' AND p1.major != '미기재'
+                     AND major != '' AND major != '-' AND major != '미기재'
                    ORDER BY p1.year DESC, p1.total_score DESC;
                    """, (univ, univ))
 
