@@ -899,42 +899,82 @@ def get_quota_departments(univ: str = "가천대학교"):
     apps = cursor.fetchall()
 
     # 3) 과거 합격생 조회 (대학명 정규화 매칭: 예 '가천대학교' -> '가천')
-    clean_univ = univ.replace("대학교", "").replace("대학", "").strip()
+    # clean_univ = univ.replace("대학교", "").replace("대학", "").strip()
+    # cursor.execute("""
+    #                SELECT p1.year,
+    #                       p1.student_name,
+    #                       p1.univ,
+    #                       p1.major,
+    #                       p1.department,
+    #                       p1.total_score AS eng_score,
+    #                       COALESCE(p1.math_total, p_math.latest_math)  AS math_score
+    #                FROM peer_data p1
+    #                         INNER JOIN (SELECT year, student_name, MAX(month) AS max_month
+    #                                     FROM peer_data
+    #                                     WHERE year < 2026
+    #                                       AND univ LIKE %s
+    #                                       AND major IS NOT NULL AND major != '' AND major != '-' AND major != '미기재'
+    #                                     GROUP BY year, student_name) p2
+    #                                    ON p1.year = p2.year AND p1.student_name = p2.student_name AND p1.month = p2.max_month
+    #                         LEFT JOIN (
+    #                              SELECT pm.year, pm.student_name, pm.math_total AS latest_math
+    #                              FROM peer_data pm
+    #                                       INNER JOIN (SELECT year, student_name, MAX(month) AS max_m_month
+    #                                                   FROM peer_data
+    #                                                   WHERE year < 2026 AND math_total IS NOT NULL AND math_total > 0
+    #                                                   GROUP BY year, student_name) pm2
+    #                                                  ON pm.year = pm2.year AND pm.student_name = pm2.student_name AND pm.month = pm2.max_m_month
+    #                              WHERE pm.year < 2026) p_math
+    #                              ON p1.year = p_math.year AND p1.student_name = p_math.student_name
+    #                WHERE p1.year < 2026
+    #                  AND p1.univ LIKE %s
+    #                  AND p1.major IS NOT NULL AND p1.major != '' AND p1.major != '-' AND p1.major != '미기재'
+    #                ORDER BY p1.year DESC, p1.total_score DESC;
+    #                """, (f"%{clean_univ}%", f"%{clean_univ}%"))
+    # past_rows = cursor.fetchall()
+    #
+    # cursor.close()
+    # conn.close()
+    # 3) 과거 합격생 조회 (전달받은 대학명 그대로 정확히 일치하는 데이터 조회)
     cursor.execute("""
                    SELECT p1.year,
                           p1.student_name,
                           p1.univ,
                           p1.major,
                           p1.department,
-                          p1.total_score AS eng_score,
-                          COALESCE(p1.math_total, p_math.latest_math)  AS math_score
+                          p1.total_score                              AS eng_score,
+                          COALESCE(p1.math_total, p_math.latest_math) AS math_score
                    FROM peer_data p1
-                            INNER JOIN (SELECT year, student_name, MAX(month) AS max_month
+                            INNER JOIN (SELECT year, student_name, MAX (month) AS max_month
                                         FROM peer_data
-                                        WHERE year < 2026
-                                          AND univ LIKE %s
-                                          AND major IS NOT NULL AND major != '' AND major != '-' AND major != '미기재'
+                                        WHERE year
+                                            < 2026
+                                          AND univ = %s
+                                          AND major IS NOT NULL
+                                          AND major != ''
+                                          AND major != '-'
+                                          AND major != '미기재'
                                         GROUP BY year, student_name) p2
-                                       ON p1.year = p2.year AND p1.student_name = p2.student_name AND p1.month = p2.max_month
-                            LEFT JOIN (
-                                 SELECT pm.year, pm.student_name, pm.math_total AS latest_math
-                                 FROM peer_data pm
-                                          INNER JOIN (SELECT year, student_name, MAX(month) AS max_m_month
-                                                      FROM peer_data
-                                                      WHERE year < 2026 AND math_total IS NOT NULL AND math_total > 0
-                                                      GROUP BY year, student_name) pm2
-                                                     ON pm.year = pm2.year AND pm.student_name = pm2.student_name AND pm.month = pm2.max_m_month
-                                 WHERE pm.year < 2026) p_math
-                                 ON p1.year = p_math.year AND p1.student_name = p_math.student_name
+                                       ON p1.year = p2.year AND p1.student_name = p2.student_name AND
+                                          p1.month = p2.max_month
+                            LEFT JOIN (SELECT pm.year, pm.student_name, pm.math_total AS latest_math
+                                       FROM peer_data pm
+                                                INNER JOIN (SELECT year, student_name, MAX (month) AS max_m_month
+                                                            FROM peer_data
+                                                            WHERE year < 2026 AND math_total IS NOT NULL AND math_total > 0
+                                                            GROUP BY year, student_name) pm2
+                                                           ON pm.year = pm2.year AND
+                                                              pm.student_name = pm2.student_name AND
+                                                              pm.month = pm2.max_m_month
+                                       WHERE pm.year < 2026) p_math
+                                      ON p1.year = p_math.year AND p1.student_name = p_math.student_name
                    WHERE p1.year < 2026
-                     AND p1.univ LIKE %s
-                     AND p1.major IS NOT NULL AND p1.major != '' AND p1.major != '-' AND p1.major != '미기재'
+                     AND p1.univ = %s
+                     AND p1.major IS NOT NULL
+                     AND p1.major != '' AND p1.major != '-' AND p1.major != '미기재'
                    ORDER BY p1.year DESC, p1.total_score DESC;
-                   """, (f"%{clean_univ}%", f"%{clean_univ}%"))
-    past_rows = cursor.fetchall()
+                   """, (univ, univ))
 
-    cursor.close()
-    conn.close()
 
     # 4) 학과별 지원자 리스트 및 과거 합격생 매칭 그룹핑
     result = []
