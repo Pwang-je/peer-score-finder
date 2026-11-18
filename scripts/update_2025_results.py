@@ -13,7 +13,7 @@ DB_CONFIG = {
 }
 
 # 2. 수정된 25년도 파일 불러오기 (경로와 파일명에 맞게 수정)
-csv_file = "C:\\Users\\esang\\Documents\\work\\devel\\peer-score-finder\\data\\raw\\updated_2025_pass.csv"  # 엑셀인 경우 pd.read_excel(...)
+csv_file = "C:\\Users\\esang\\Documents\\work\\devel\\peer-score-finder\\data\\raw\\updated_2025_pass.csv"
 df = pd.read_csv(csv_file)
 
 # 컬럼명 앞뒤 공백 제거 및 결측치 빈 문자열 처리
