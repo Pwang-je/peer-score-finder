@@ -936,6 +936,7 @@ def get_quota_departments(univ: str = "가천대학교"):
     # cursor.close()
     # conn.close()
     # 3) 과거 합격생 조회 (전달받은 대학명 그대로 정확히 일치하는 데이터 조회)
+    # 3) 과거 합격생 조회 쿼리 정돈
     cursor.execute("""
                    SELECT p1.year,
                           p1.student_name,
@@ -954,20 +955,19 @@ def get_quota_departments(univ: str = "가천대학교"):
                                           AND major != ''
                                           AND major != '-'
                                           AND major != '미기재'
-                                        GROUP BY year, student_name) p2
-                                       ON p1.year = p2.year AND p1.student_name = p2.student_name AND
-                                          p1.month = p2.max_month
+                                        GROUP BY year, student_name) p2 ON p1.year = p2.year
+                       AND p1.student_name = p2.student_name
+                       AND p1.month = p2.max_month
                             LEFT JOIN (SELECT pm.year, pm.student_name, pm.math_total AS latest_math
                                        FROM peer_data pm
                                                 INNER JOIN (SELECT year, student_name, MAX (month) AS max_m_month
                                                             FROM peer_data
                                                             WHERE year < 2026 AND math_total IS NOT NULL AND math_total > 0
-                                                            GROUP BY year, student_name) pm2
-                                                           ON pm.year = pm2.year AND
-                                                              pm.student_name = pm2.student_name AND
-                                                              pm.month = pm2.max_m_month
-                                       WHERE pm.year < 2026) p_math
-                                      ON p1.year = p_math.year AND p1.student_name = p_math.student_name
+                                                            GROUP BY year, student_name) pm2 ON pm.year = pm2.year
+                                           AND pm.student_name = pm2.student_name
+                                           AND pm.month = pm2.max_m_month
+                                       WHERE pm.year < 2026) p_math ON p1.year = p_math.year
+                       AND p1.student_name = p_math.student_name
                    WHERE p1.year < 2026
                      AND p1.univ = %s
                      AND p1.major IS NOT NULL
