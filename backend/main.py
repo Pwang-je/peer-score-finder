@@ -808,19 +808,22 @@ def get_quota_univ_list():
 def clean_major_name(s: str) -> str:
     if not s:
         return ""
-    s = re.sub(r'[*()\[\]·/,\s]', '', str(s))
-    s = re.sub(r'(학과|학부|전공|과)$', '', s)
+    # 별표(*), 괄호, 가운뎃점(·ㆍ), 공백 등 특수기호만 통일하여 제거 (학과/공학 등의 핵심 구분자는 유지)
+    s = re.sub(r'[*()\[\]·•ㆍ/,\s]', '', str(s))
     return s.strip()
 
 
 def is_major_matched(target_clean: str, past_clean: str) -> bool:
     if not target_clean or not past_clean:
         return False
+    # 1) 특수문자/공백 제거 후 정확히 일치하는 경우 (예: '간호학과*' == '간호학과')
     if target_clean == past_clean:
         return True
-    if len(target_clean) >= 2 and len(past_clean) >= 2:
-        if target_clean in past_clean or past_clean in target_clean:
-            return True
+    # 2) '학과/학부/전공' 접미사 차이만 있는 경우 허용 (예: '경영학과' vs '경영학부')
+    t_core = re.sub(r'(학과|학부|전공|과)$', '', target_clean)
+    p_core = re.sub(r'(학과|학부|전공|과)$', '', past_clean)
+    if t_core and t_core == p_core:
+        return True
     return False
 
 
