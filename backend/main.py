@@ -575,7 +575,9 @@ def predict_university(
         for m in range(1, 12):
             my_m_df = df_my[df_my['month'] == m]
             if not my_m_df.empty:
-                my_timeline_stats[f"{m}월"] = round(float(my_m_df['total_score'].iloc[0]), 1)
+                raw_eng = my_m_df['total_score'].iloc[0]
+                my_timeline_stats[f"{m}월"] = round(float(raw_eng), 1) if (
+                        raw_eng is not None and str(raw_eng).strip() != '' and float(raw_eng) > 0) else None
                 if is_natural and 'math_total' in my_m_df.columns:
                     raw_m = my_m_df['math_total'].iloc[0]
                     my_math_timeline_stats[f"{m}월"] = round(float(raw_m), 1) if (
@@ -867,35 +869,41 @@ def get_quota_departments(univ: str = "가천대학교"):
     depts = cursor.fetchall()
 
     # 2) 해당 대학에 원서를 넣은 2026 원생들 + 최신 성적 조인 조회
+    # 2) 해당 대학에 원서를 넣은 2026 원생들 + 최신 성적 조인 조회 (영어/수학 각각의 최신 유효 월 반영)
     cursor.execute("""
-                   SELECT a.id          AS app_id,
+                   SELECT a.id                                       AS app_id,
                           a.student_name,
                           a.univ,
                           a.major,
                           a.memo,
-                          p.department  AS student_dept,
-                          p.total_score AS eng_score,
-                          COALESCE(p.math_total, p_math.latest_math)  AS math_score
+                          p.department                               AS student_dept,
+                          COALESCE(p_eng.latest_eng, p.total_score)  AS eng_score,
+                          COALESCE(p_math.latest_math, p.math_total) AS math_score
                    FROM student_applications a
-                            LEFT JOIN (
-                        -- 2026년 각 학생의 가장 최신 응시 월 점수 서브쿼리
-                        SELECT p1.student_name, p1.department, p1.total_score, p1.math_total
-                        FROM peer_data p1
-                                 INNER JOIN (SELECT student_name, MAX(month) AS max_month
-                                             FROM peer_data
-                                             WHERE year = 2026
-                                             GROUP BY student_name) p2
-                                            ON p1.student_name = p2.student_name AND p1.month = p2.max_month
-                        WHERE p1.year = 2026) p ON a.student_name = p.student_name
-                            LEFT JOIN (
-                        SELECT pm.student_name, pm.math_total AS latest_math
-                        FROM peer_data pm
-                                 INNER JOIN (SELECT student_name, MAX(month) AS max_m_month
-                                             FROM peer_data
-                                             WHERE year = 2026 AND math_total IS NOT NULL AND math_total > 0
-                                             GROUP BY student_name) pm2
-                                            ON pm.student_name = pm2.student_name AND pm.month = pm2.max_m_month
-                        WHERE pm.year = 2026) p_math ON a.student_name = p_math.student_name
+                            LEFT JOIN (SELECT p1.student_name, p1.department, p1.total_score, p1.math_total
+                                       FROM peer_data p1
+                                                INNER JOIN (SELECT student_name, MAX(month) AS max_month
+                                                            FROM peer_data
+                                                            WHERE year = 2026
+                                                            GROUP BY student_name) p2
+                                                           ON p1.student_name = p2.student_name AND p1.month = p2.max_month
+                                       WHERE p1.year = 2026) p ON a.student_name = p.student_name
+                            LEFT JOIN (SELECT pe.student_name, pe.total_score AS latest_eng
+                                       FROM peer_data pe
+                                                INNER JOIN (SELECT student_name, MAX(month) AS max_e_month
+                                                            FROM peer_data
+                                                            WHERE year = 2026 AND total_score IS NOT NULL AND total_score > 0
+                                                            GROUP BY student_name) pe2
+                                                           ON pe.student_name = pe2.student_name AND pe.month = pe2.max_e_month
+                                       WHERE pe.year = 2026) p_eng ON a.student_name = p_eng.student_name
+                            LEFT JOIN (SELECT pm.student_name, pm.math_total AS latest_math
+                                       FROM peer_data pm
+                                                INNER JOIN (SELECT student_name, MAX(month) AS max_m_month
+                                                            FROM peer_data
+                                                            WHERE year = 2026 AND math_total IS NOT NULL AND math_total > 0
+                                                            GROUP BY student_name) pm2
+                                                           ON pm.student_name = pm2.student_name AND pm.month = pm2.max_m_month
+                                       WHERE pm.year = 2026) p_math ON a.student_name = p_math.student_name
                    WHERE a.year = 2026
                      AND a.univ = %s;
                    """, (univ,))

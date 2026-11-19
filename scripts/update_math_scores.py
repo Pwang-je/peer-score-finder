@@ -1,82 +1,89 @@
+import warnings
 import pandas as pd
 import pymysql
 
-# 1. TiDB 연결 정보
+warnings.filterwarnings("ignore", category=UserWarning)
+
 DB_CONFIG = {
     'host': 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com',
     'port': 4000,
     'user': '3BAijZ6wxqbmp3n.root',
     'password': 'BDs2xnssZHYNtQS2',
-    'db': 'peer_data',
+    'database': 'peer_data',
     'charset': 'utf8mb4',
     'ssl': {'ca': None}
 }
 
-# 2. 정리하신 엑셀/CSV 파일 경로 (.xlsx 또는 .csv)
-FILE_PATH = "C:\\Users\\esang\\Documents\\work\\devel\\peer-score-finder\\data\\raw\\math\\19-25_수학점수.xlsx"
+FILE_PATH = r"C:\Users\esang\Documents\work\devel\peer-score-finder\data\raw\math\26_수학점수.xlsx"
 
-print("파일 로딩 중...")
-if FILE_PATH.endswith(".csv"):
-    try:
-        df = pd.read_csv(FILE_PATH, encoding="utf-8")
-    except UnicodeDecodeError:
-        df = pd.read_csv(FILE_PATH, encoding="cp949")
-else:
-    df = pd.read_excel(FILE_PATH)
+def main():
+    df = pd.read_csv(FILE_PATH) if FILE_PATH.endswith(".csv") else pd.read_excel(FILE_PATH)
+    df.columns = df.columns.str.strip()
 
-# 컬럼명 앞뒤 공백 제거
-df.columns = df.columns.str.strip()
+    # 1) 2026년 데이터만 필터링
+    df = df[df['year'] == 2026].copy()
 
-conn = pymysql.connect(**DB_CONFIG)
-cursor = conn.cursor()
+    # 2) '분원' 또는 'center' 컬럼이 있으면 '듀이카'만 1차 필터링
+    center_cols = [c for c in df.columns if c.lower() in ['분원', 'center']]
+    if center_cols:
+        c_col = center_cols[0]
+        df = df[df[c_col].astype(str).str.strip() == '듀이카'].copy()
+        print(f"✅ '{c_col}' 컬럼에서 듀이카 학생만 1차 필터링 완료 ({len(df)}건)")
+    else:
+        print("ℹ️ 엑셀에 '분원' 컬럼이 없어 DB의 2026년 듀이카 명단과 대조합니다.")
 
-print("TiDB 데이터에 수학 점수 일괄 UPDATE 준비 중...")
+    # 유효한 수학 점수만 남기기
+    df['student_name'] = df['student_name'].astype(str).str.strip()
+    df['month'] = pd.to_numeric(df['month'], errors='coerce')
+    df['math_num'] = pd.to_numeric(df['math_total'], errors='coerce')
+    df = df.dropna(subset=['month', 'math_num']).copy()
+    df['month'] = df['month'].astype(int)
 
-# year + month + student_name 조건으로 math_total 갱신
-update_query = """
-               UPDATE peer_data
-               SET math_total = %s
-               WHERE year = %s \
-                 AND month = %s \
-                 AND student_name = %s \
-               """
+    # 3) DB에 올라가 있는 2026년 듀이카 학생 목록 조회
+    conn = pymysql.connect(**DB_CONFIG)
+    df_db = pd.read_sql("SELECT DISTINCT month, student_name FROM peer_data WHERE year = 2026", conn)
+    db_students = set(df_db['student_name'].str.strip())
+    db_exact_keys = set(zip(df_db['month'], df_db['student_name'].str.strip()))
 
-update_records = []
-for _, row in df.iterrows():
-    # 필수 식별자 유효성 검사
-    if pd.isna(row.get('student_name')) or pd.isna(row.get('year')) or pd.isna(row.get('month')):
-        continue
+    # DB에 등록된 듀이카 학생 이름과 일치하는 행만 추출
+    df_target = df[df['student_name'].isin(db_students)].copy()
 
-    name = str(row['student_name']).strip()
-    year = int(row['year'])
-    month = int(row['month'])
+    # 4) 같은 월에 동명이인이 2명 이상 겹치는 경우 분리 (타 분원 동명이인 섞임 방지)
+    dup_mask = df_target.duplicated(subset=['month', 'student_name'], keep=False)
+    df_safe = df_target[~dup_mask]
+    df_collision = df_target[dup_mask]
 
-    # math_total 값 확인
-    raw_math = row.get('math_total')
-    if pd.isna(raw_math) or raw_math == '' or raw_math is None:
-        continue
+    updates = []
+    no_eng_month = []
 
-    try:
-        math_score = float(raw_math)
-    except ValueError:
-        continue  # '결시' 등 문자인 경우 제외
+    for _, row in df_safe.iterrows():
+        m = int(row['month'])
+        name = row['student_name']
+        score = float(row['math_num'])
+        if (m, name) in db_exact_keys:
+            updates.append((score, 2026, m, name))
+        else:
+            no_eng_month.append((m, name, score))
 
-    update_records.append((math_score, year, month, name))
-
-print(f"매칭 대상 데이터 총 {len(update_records)}건 준비 완료. DB 전송을 시작합니다...")
-
-# 1000건 단위 배치 업데이트
-batch_size = 1000
-total_updated = 0
-
-for i in range(0, len(update_records), batch_size):
-    batch = update_records[i:i + batch_size]
-    cursor.executemany(update_query, batch)
+    # 5) 안전한 1:1 매칭 건만 DB 일괄 업데이트
+    cursor = conn.cursor()
+    sql = "UPDATE peer_data SET math_total = %s WHERE year = %s AND month = %s AND student_name = %s"
+    if updates:
+        cursor.executemany(sql, updates)
     conn.commit()
-    total_updated += len(batch)
-    print(f"진행 상황: {total_updated} / {len(update_records)} 건 반영 완료...")
+    cursor.close()
+    conn.close()
 
-cursor.close()
-conn.close()
+    print(f"\n🎉 안전한 수학 점수 반영 완료: 총 {len(updates)}건")
 
-print(f"\n🎉 모든 수학 점수가 성공적으로 반영되었습니다! (총 {total_updated}건)")
+    if not df_collision.empty:
+        print(f"\n⚠️ 같은 월에 동명이인이 2명 이상 있어 보류된 건 ({len(df_collision)}건) -> 점수 확인 후 수동 선택 필요:")
+        print(df_collision[['month', 'student_name', 'math_num']].sort_values(['month', 'student_name']).to_string(index=False))
+
+    if no_eng_month:
+        print(f"\nℹ️ 해당 월 영어 성적 행이 없어 미반영된 건 ({len(no_eng_month)}건):")
+        for m, name, sc in no_eng_month:
+            print(f"   - 2026년 {m}월 | {name} (수학: {sc})")
+
+if __name__ == "__main__":
+    main()
