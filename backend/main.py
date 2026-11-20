@@ -1200,6 +1200,9 @@ def save_univ_eligibility(data: EligibilityUpdate):
     conn.close()
     return {"status": "success", "message": f"{data.univ} 지원자격 저장 완료"}
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 
 if __name__ == "__main__":
     import uvicorn
