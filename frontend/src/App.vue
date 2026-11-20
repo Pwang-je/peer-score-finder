@@ -2521,3 +2521,13 @@ export default {
 }
 
 </style>
+<style>
+@import url("https://cdn.jsdelivr.net/gh/sun-typeface/SUIT/fonts/static/woff2/SUIT.css");
+
+html, body, #app,
+.dashboard-root, .strategy-container,
+button, input, select, textarea, table {
+  font-family: "SUIT", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  letter-spacing: -0.015em;
+}
+</style>
