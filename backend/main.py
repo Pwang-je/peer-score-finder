@@ -740,48 +740,30 @@ class ApplicationCreate(BaseModel):
 
 
 # 0. student_applications 테이블 자동 보장 함수
+# 0. student_applications 및 univ_eligibility 테이블 자동 보장 함수
 def ensure_application_tables():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
                    CREATE TABLE IF NOT EXISTS student_applications
                    (
-                       id
-                       INT
-                       AUTO_INCREMENT
-                       PRIMARY
-                       KEY,
-                       year
-                       INT
-                       NOT
-                       NULL
-                       DEFAULT
-                       2026,
-                       student_name
-                       VARCHAR
-                   (
-                       50
-                   ) NOT NULL,
-                       univ VARCHAR
-                   (
-                       50
-                   ) NOT NULL,
-                       major VARCHAR
-                   (
-                       50
-                   ) NOT NULL,
-                       memo VARCHAR
-                   (
-                       50
-                   ) DEFAULT '적정',
+                       id INT AUTO_INCREMENT PRIMARY KEY,
+                       year INT NOT NULL DEFAULT 2026,
+                       student_name VARCHAR(50) NOT NULL,
+                       univ VARCHAR(50) NOT NULL,
+                       major VARCHAR(50) NOT NULL,
+                       memo VARCHAR(50) DEFAULT '적정',
                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                       UNIQUE KEY uq_student_univ
+                       UNIQUE KEY uq_student_univ (year, student_name, univ)
+                   );
+                   """)
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS univ_eligibility
                    (
-                       year,
-                       student_name,
-                       univ
-                   )
-                       );
+                       univ VARCHAR(50) PRIMARY KEY,
+                       eligibility_text TEXT,
+                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                   );
                    """)
     conn.commit()
     cursor.close()
@@ -793,6 +775,9 @@ try:
     ensure_application_tables()
 except Exception as e:
     print(f"테이블 점검 알림: {e}")
+
+# 대학별 모집요강/합격자 조회 서버 메모리 캐시
+DEPT_CACHE = {}
 
 
 # 1. 모집요강 등록 대학 목록
@@ -810,7 +795,6 @@ def get_quota_univ_list():
 def clean_major_name(s: str) -> str:
     if not s:
         return ""
-    # 별표(*), 괄호, 가운뎃점(·ㆍ), 공백 등 특수기호만 통일하여 제거 (학과/공학 등의 핵심 구분자는 유지)
     s = re.sub(r'[*()\[\]·•ㆍ/,\s]', '', str(s))
     return s.strip()
 
@@ -818,10 +802,8 @@ def clean_major_name(s: str) -> str:
 def is_major_matched(target_clean: str, past_clean: str) -> bool:
     if not target_clean or not past_clean:
         return False
-    # 1) 특수문자/공백 제거 후 정확히 일치하는 경우 (예: '간호학과*' == '간호학과')
     if target_clean == past_clean:
         return True
-    # 2) '학과/학부/전공' 접미사 차이만 있는 경우 허용 (예: '경영학과' vs '경영학부')
     t_core = re.sub(r'(학과|학부|전공|과)$', '', target_clean)
     p_core = re.sub(r'(학과|학부|전공|과)$', '', past_clean)
     if t_core and t_core == p_core:
@@ -856,6 +838,10 @@ def format_eng_val(v):
 # 2. 대학별 모집요강 + 해당 학과 지원 원생 명단(최신 성적 매핑) + 과거 합격생 통합 조회
 @app.get("/api/quota/departments")
 def get_quota_departments(univ: str = "가천대학교"):
+    # 캐시에 있으면 DB 조회 없이 즉시 반환
+    if univ in DEPT_CACHE:
+        return DEPT_CACHE[univ]
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -869,48 +855,49 @@ def get_quota_departments(univ: str = "가천대학교"):
     depts = cursor.fetchall()
 
     # 2) 해당 대학에 원서를 넣은 2026 원생들 + 최신 성적 조인 조회
-    # 2) 해당 대학에 원서를 넣은 2026 원생들 + 최신 성적 조인 조회 (영어/수학 각각의 최신 유효 월 반영)
     cursor.execute("""
-                   SELECT a.id                                       AS app_id,
+                   SELECT a.id          AS app_id,
                           a.student_name,
                           a.univ,
                           a.major,
                           a.memo,
-                          p.department                               AS student_dept,
-                          COALESCE(p_eng.latest_eng, p.total_score)  AS eng_score,
-                          COALESCE(p_math.latest_math, p.math_total) AS math_score
+                          p.department  AS student_dept,
+                          COALESCE(p_eng.latest_eng, p.total_score)    AS eng_score,
+                          COALESCE(p_math.latest_math, p.math_total)   AS math_score
                    FROM student_applications a
-                            LEFT JOIN (SELECT p1.student_name, p1.department, p1.total_score, p1.math_total
-                                       FROM peer_data p1
-                                                INNER JOIN (SELECT student_name, MAX(month) AS max_month
-                                                            FROM peer_data
-                                                            WHERE year = 2026
-                                                            GROUP BY student_name) p2
-                                                           ON p1.student_name = p2.student_name AND p1.month = p2.max_month
-                                       WHERE p1.year = 2026) p ON a.student_name = p.student_name
-                            LEFT JOIN (SELECT pe.student_name, pe.total_score AS latest_eng
-                                       FROM peer_data pe
-                                                INNER JOIN (SELECT student_name, MAX(month) AS max_e_month
-                                                            FROM peer_data
-                                                            WHERE year = 2026 AND total_score IS NOT NULL AND total_score > 0
-                                                            GROUP BY student_name) pe2
-                                                           ON pe.student_name = pe2.student_name AND pe.month = pe2.max_e_month
-                                       WHERE pe.year = 2026) p_eng ON a.student_name = p_eng.student_name
-                            LEFT JOIN (SELECT pm.student_name, pm.math_total AS latest_math
-                                       FROM peer_data pm
-                                                INNER JOIN (SELECT student_name, MAX(month) AS max_m_month
-                                                            FROM peer_data
-                                                            WHERE year = 2026 AND math_total IS NOT NULL AND math_total > 0
-                                                            GROUP BY student_name) pm2
-                                                           ON pm.student_name = pm2.student_name AND pm.month = pm2.max_m_month
-                                       WHERE pm.year = 2026) p_math ON a.student_name = p_math.student_name
+                            LEFT JOIN (
+                        SELECT p1.student_name, p1.department, p1.total_score, p1.math_total
+                        FROM peer_data p1
+                                 INNER JOIN (SELECT student_name, MAX(month) AS max_month
+                                             FROM peer_data
+                                             WHERE year = 2026
+                                             GROUP BY student_name) p2
+                                            ON p1.student_name = p2.student_name AND p1.month = p2.max_month
+                        WHERE p1.year = 2026) p ON a.student_name = p.student_name
+                            LEFT JOIN (
+                        SELECT pe.student_name, pe.total_score AS latest_eng
+                        FROM peer_data pe
+                                 INNER JOIN (SELECT student_name, MAX(month) AS max_e_month
+                                             FROM peer_data
+                                             WHERE year = 2026 AND total_score IS NOT NULL AND total_score > 0
+                                             GROUP BY student_name) pe2
+                                            ON pe.student_name = pe2.student_name AND pe.month = pe2.max_e_month
+                        WHERE pe.year = 2026) p_eng ON a.student_name = p_eng.student_name
+                            LEFT JOIN (
+                        SELECT pm.student_name, pm.math_total AS latest_math
+                        FROM peer_data pm
+                                 INNER JOIN (SELECT student_name, MAX(month) AS max_m_month
+                                             FROM peer_data
+                                             WHERE year = 2026 AND math_total IS NOT NULL AND math_total > 0
+                                             GROUP BY student_name) pm2
+                                            ON pm.student_name = pm2.student_name AND pm.month = pm2.max_m_month
+                        WHERE pm.year = 2026) p_math ON a.student_name = p_math.student_name
                    WHERE a.year = 2026
                      AND a.univ = %s;
                    """, (univ,))
     apps = cursor.fetchall()
 
-    # 3) 과거 합격생 조회 (대학명 정규화 매칭: 예 '가천대학교' -> '가천')
-    # clean_univ = univ.replace("대학교", "").replace("대학", "").strip()
+    # 3) 과거 합격생 조회
     cursor.execute("""
                    SELECT p1.year,
                           p1.student_name,
@@ -947,8 +934,6 @@ def get_quota_departments(univ: str = "가천대학교"):
     cursor.close()
     conn.close()
 
-
-
     # 4) 학과별 지원자 리스트 및 과거 합격생 매칭 그룹핑
     result = []
     for d in depts:
@@ -959,7 +944,6 @@ def get_quota_departments(univ: str = "가천대학교"):
         d_gen = d[4] if isinstance(d, tuple) else d["general_quota"]
         d_bac = d[5] if isinstance(d, tuple) else d["bachelor_quota"]
 
-        # 이 학과에 지원한 학생들 필터링
         dept_apps = []
         for app in apps:
             app_major = app[3] if isinstance(app, tuple) else app["major"]
@@ -970,7 +954,6 @@ def get_quota_departments(univ: str = "가천대학교"):
                 eng = app[6] if isinstance(app, tuple) else app["eng_score"]
                 math = app[7] if isinstance(app, tuple) else app["math_score"]
 
-                # '학사인문' -> '학사', '일반자연' -> '일반' 판정
                 apply_type = "학사" if "학사" in s_dept else "일반"
 
                 dept_apps.append({
@@ -983,7 +966,6 @@ def get_quota_departments(univ: str = "가천대학교"):
                     "memo": s_memo
                 })
 
-        # 이 학과에 합격했던 과거 학생들 매칭
         target_clean = clean_major_name(d_major)
         dept_past = []
         seen_past = set()
@@ -1023,10 +1005,11 @@ def get_quota_departments(univ: str = "가천대학교"):
             "past_admissions": dept_past
         })
 
+    DEPT_CACHE[univ] = result
     return result
 
 
-# 모집요강 엑셀 일괄 업로드 API (대학, 계열, 학과명, 일반정원, 학사정원)
+# 모집요강 엑셀 일괄 업로드 API
 @app.post("/api/quota/upload")
 async def upload_quota_excel(file: UploadFile = File(...)):
     filename = file.filename.lower()
@@ -1045,7 +1028,6 @@ async def upload_quota_excel(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"파일 읽기 실패: {str(e)}")
 
-    # 컬럼명 공백 및 BOM 제거
     df.columns = [str(c).strip().replace("\ufeff", "") for c in df.columns]
 
     col_map = {
@@ -1089,7 +1071,6 @@ async def upload_quota_excel(file: UploadFile = File(...)):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        # 컬럼 길이 부족 방지를 위해 major 컬럼 크기 확장 보장
         cursor.execute("ALTER TABLE recruit_quota MODIFY COLUMN major VARCHAR(150) NOT NULL;")
 
         query = """
@@ -1103,6 +1084,7 @@ async def upload_quota_excel(file: UploadFile = File(...)):
         cursor.executemany(query, rows_to_insert)
         conn.commit()
         cursor.close()
+        DEPT_CACHE.clear()
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"DB 적재 오류: {str(e)}")
@@ -1148,18 +1130,17 @@ def get_student_applications(student_name: str):
     return cards
 
 
-# 4. 지원 원서 카드 추가 (한 학교당 1개 과만 지원 가능)
+# 4. 지원 원서 카드 추가
 @app.post("/api/applications")
 def add_application(app_data: ApplicationCreate):
     conn = get_db_connection()
     cursor = conn.cursor()
     query = """
             INSERT INTO student_applications (year, student_name, univ, major, memo)
-            VALUES (2026, %s, %s, %s, %s) ON DUPLICATE KEY \
-            UPDATE \
-                major = \
-            VALUES (major), memo = \
-            VALUES (memo) \
+            VALUES (2026, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                major = VALUES(major),
+                memo = VALUES(memo)
             """
     cursor.execute(query, (
         app_data.student_name,
@@ -1170,6 +1151,7 @@ def add_application(app_data: ApplicationCreate):
     conn.commit()
     cursor.close()
     conn.close()
+    DEPT_CACHE.pop(app_data.univ, None)
     return {"status": "success", "message": f"{app_data.student_name}의 {app_data.univ} {app_data.major} 지원 등록 완료"}
 
 
@@ -1182,7 +1164,41 @@ def delete_application(app_id: int):
     conn.commit()
     cursor.close()
     conn.close()
+    DEPT_CACHE.clear()
     return {"status": "success", "message": "삭제 완료"}
+
+
+# 6. 대학별 학점은행제 지원자격 조회 및 저장 API
+class EligibilityUpdate(BaseModel):
+    univ: str
+    eligibility_text: str
+
+
+@app.get("/api/quota/eligibility")
+def get_univ_eligibility(univ: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT eligibility_text FROM univ_eligibility WHERE univ = %s;", (univ,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    text = (row[0] if isinstance(row, tuple) else row["eligibility_text"]) if row else ""
+    return {"univ": univ, "eligibility_text": text or ""}
+
+
+@app.post("/api/quota/eligibility")
+def save_univ_eligibility(data: EligibilityUpdate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO univ_eligibility (univ, eligibility_text)
+        VALUES (%s, %s)
+        ON DUPLICATE KEY UPDATE eligibility_text = VALUES(eligibility_text)
+    """, (data.univ, data.eligibility_text))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"status": "success", "message": f"{data.univ} 지원자격 저장 완료"}
 
 
 if __name__ == "__main__":

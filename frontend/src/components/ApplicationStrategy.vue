@@ -1,14 +1,19 @@
 <template>
   <div class="strategy-container">
+    <!-- 서버 깨어남(Cold Start) 대기 안내 배너 -->
+    <div v-if="isInitialLoading" class="wakeup-banner">
+      <span class="spinner"></span>
+      <span>서버와 데이터베이스를 연결하고 있습니다. 첫 접속 시 최대 30~40초 정도 소요될 수 있으니 새로고침하지 말고 잠시만 기다려 주세요...</span>
+    </div>
+
     <!-- 상단 헤더 & 모드 전환 탭 -->
     <div class="header-card">
       <div class="header-left">
         <h2>2026학년도 편입학 원서 지원 관리</h2>
-        <p class="sub-desc">학교별 모집요강 전체 현황 및 학생별 빠른 원서 담기</p>
+        <p class="sub-desc">학교별 모집요강·학점은행제 지원자격 및 학생별 빠른 원서 담기</p>
       </div>
 
       <div class="header-right-actions">
-        <!-- 모집요강 엑셀 업로드 버튼 -->
         <button @click="showQuotaModal = true" class="btn-upload-quota">
           📂 모집요강 엑셀 등록
         </button>
@@ -65,39 +70,97 @@
     </div>
 
     <!-- ================================================================= -->
-    <!-- 탭 1: 학교별 모집요강 현황판 (종합 상황판) -->
+    <!-- 탭 1: 학교별 모집요강 현황판 (빠른 대학 칩 + 학점은행제 지원자격) -->
     <!-- ================================================================= -->
     <div v-if="currentTab === 'univ'" class="content-section">
-      <div class="filter-toolbar">
-        <div class="univ-selector">
-          <label>조회 대학:</label>
-          <select v-model="selectedUniv" @change="fetchUnivDepartments" class="select-box">
-            <option v-for="u in univList" :key="u" :value="u">{{ u }}</option>
-          </select>
+      <!-- 1) 빠른 대학 선택 카드 -->
+      <div class="univ-picker-card">
+        <div class="univ-picker-top">
+          <div class="univ-search-wrap">
+            <input
+              v-model="univSearchKeyword"
+              type="text"
+              placeholder="대학명 빠른 검색 (예: 국민, 건국, 한양...)"
+              class="quick-input"
+            />
+            <button v-if="univSearchKeyword" @click="univSearchKeyword = ''" class="input-clear-btn">✕</button>
+          </div>
+
+          <div class="dept-filters">
+            <button
+              :class="['filter-btn', deptFilter === 'ALL' ? 'active' : '']"
+              @click="deptFilter = 'ALL'"
+            >전체</button>
+            <button
+              :class="['filter-btn', deptFilter === '자연' ? 'active' : '']"
+              @click="deptFilter = '자연'"
+            >자연계열</button>
+            <button
+              :class="['filter-btn', deptFilter === '인문' ? 'active' : '']"
+              @click="deptFilter = '인문'"
+            >인문계열</button>
+          </div>
+
+          <div class="legend-box">
+            <span class="legend-item"><span class="badge bac">학사</span> 학사지원</span>
+            <span class="legend-item"><span class="badge gen">일반</span> 일반지원</span>
+          </div>
         </div>
 
-        <div class="dept-filters">
+        <!-- 대학 칩 그리드 -->
+        <div class="univ-chip-box">
           <button
-            :class="['filter-btn', deptFilter === 'ALL' ? 'active' : '']"
-            @click="deptFilter = 'ALL'"
-          >전체</button>
-          <button
-            :class="['filter-btn', deptFilter === '자연' ? 'active' : '']"
-            @click="deptFilter = '자연'"
-          >자연계열</button>
-          <button
-            :class="['filter-btn', deptFilter === '인문' ? 'active' : '']"
-            @click="deptFilter = '인문'"
-          >인문계열</button>
-        </div>
-
-        <div class="legend-box">
-          <span class="legend-item"><span class="badge bac">학사</span> 학사지원</span>
-          <span class="legend-item"><span class="badge gen">일반</span> 일반지원</span>
+            v-for="u in filteredUnivListTab1"
+            :key="u"
+            :class="['univ-chip', { active: selectedUniv === u }]"
+            @click="selectTab1Univ(u)"
+          >
+            {{ u }}
+          </button>
         </div>
       </div>
 
+      <!-- 2) 학점은행제 학생 지원자격 안내/편집 박스 -->
+      <div class="eligibility-card">
+        <div class="eligibility-header">
+          <div class="eligibility-title">
+            <span class="elig-badge">학점은행제 지원자격</span>
+            <strong>{{ selectedUniv }}</strong>
+          </div>
+          <div class="eligibility-actions">
+            <button v-if="!isEditingEligibility" @click="startEditEligibility" class="btn-edit-elig">
+              ✏️ 자격 수정
+            </button>
+            <template v-else>
+              <button @click="cancelEditEligibility" class="btn-cancel-sm">취소</button>
+              <button @click="saveEligibility" :disabled="isSavingElig" class="btn-save-sm">
+                {{ isSavingElig ? '저장 중...' : '저장' }}
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <div v-if="!isEditingEligibility" class="eligibility-body">
+          <p v-if="eligibilityText" class="elig-text">{{ eligibilityText }}</p>
+          <p v-else class="elig-placeholder">
+            등록된 학점은행제 지원자격이 없습니다. 우측 <strong>[자격 수정]</strong> 버튼을 눌러 입력해 주세요. (예: 일반지원 학점 80 이상, 기회균등 가능, 농어촌 12년 이상)
+          </p>
+        </div>
+        <div v-else class="eligibility-edit-box">
+          <textarea
+            v-model="eligibilityDraft"
+            rows="2"
+            placeholder="예) 일반편입: 80학점 이상 / 학사편입: 140학점 / 기회균등 지원 가능 / 농어촌 12년 이상 이수자 가능"
+            class="elig-textarea"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- 3) 모집단위 테이블 -->
       <div class="table-wrapper">
+        <div v-if="isLoadingDepts" class="table-loading-overlay">
+          데이터 불러오는 중...
+        </div>
         <table class="quota-table">
           <thead>
             <tr>
@@ -185,10 +248,9 @@
     </div>
 
     <!-- ================================================================= -->
-    <!-- 탭 2: 학생별 지원 현황 및 빠른 담기 (개선된 1클릭 UI) -->
+    <!-- 탭 2: 학생별 지원 현황 및 빠른 담기 -->
     <!-- ================================================================= -->
     <div v-if="currentTab === 'student'" class="content-section">
-      <!-- 상단 학생 빠른 탐색 & 선택 바 -->
       <div class="student-quick-bar">
         <div class="student-bar-top">
           <div class="student-nav-group">
@@ -212,7 +274,6 @@
           <span class="stat-badge count">담긴 원서: {{ studentApplications.length }}개교</span>
         </div>
 
-        <!-- 가로 스크롤 학생 칩 목록 -->
         <div class="student-chip-strip">
           <button
             v-for="s in filteredStudentList"
@@ -225,16 +286,13 @@
         </div>
       </div>
 
-      <!-- 좌우 2단 빠른 담기 작업대 -->
       <div class="fast-basket-layout">
-        <!-- 좌측: 대학 칩 + 학과 실시간 필터 + 1클릭 토글 -->
         <div class="panel picker-panel">
           <div class="panel-header">
             <h3 class="panel-title">⚡ 빠른 대학 · 학과 선택</h3>
             <span class="guide-hint">학과를 클릭하면 즉시 담기/취소됩니다</span>
           </div>
 
-          <!-- 1. 대학 빠른 선택 칩 그리드 -->
           <div class="univ-chip-box">
             <button
               v-for="u in univList"
@@ -250,7 +308,6 @@
             </button>
           </div>
 
-          <!-- 2. 학과 검색창 & 계열 필터 -->
           <div class="major-filter-row">
             <div class="major-search-wrap">
               <input
@@ -270,7 +327,6 @@
             </div>
           </div>
 
-          <!-- 3. 학과 1클릭 선택 리스트 -->
           <div class="quick-major-list">
             <div
               v-for="d in filteredFormMajors"
@@ -300,7 +356,6 @@
           </div>
         </div>
 
-        <!-- 우측: 담긴 지원 대학 리스트 -->
         <div class="panel list-panel">
           <div class="panel-header">
             <h3 class="panel-title">📋 {{ selectedStudent }} 학생 지원 희망 리스트</h3>
@@ -345,11 +400,25 @@ const API_BASE = (typeof window !== 'undefined' && (window.location.hostname ===
   ? 'http://127.0.0.1:8000'
   : 'https://peer-score-finder.onrender.com'
 
+// 메모리 캐시 (대학 전환 즉시 로딩용)
+const deptCache = {}
+const eligCache = {}
+
+const isInitialLoading = ref(true)
+const isLoadingDepts = ref(false)
+
 // 1. 대학 목록 및 학과 현황 상태
 const univList = ref([])
+const univSearchKeyword = ref('')
 const selectedUniv = ref('가천대학교')
 const deptFilter = ref('ALL')
 const departmentRows = ref([])
+
+// 학점은행제 지원자격 상태
+const eligibilityText = ref('')
+const eligibilityDraft = ref('')
+const isEditingEligibility = ref(false)
+const isSavingElig = ref(false)
 
 // 2. 학생 목록 및 빠른 검색 상태
 const studentList = ref([])
@@ -370,21 +439,24 @@ const showQuotaModal = ref(false)
 const quotaFileInput = ref(null)
 const isUploadingQuota = ref(false)
 
-// 탭 1 필터링된 학과 목록
+const filteredUnivListTab1 = computed(() => {
+  const kw = univSearchKeyword.value.trim().toLowerCase()
+  if (!kw) return univList.value
+  return univList.value.filter(u => u.toLowerCase().includes(kw))
+})
+
 const filteredDepartments = computed(() => {
   return departmentRows.value.filter(d => {
     return deptFilter.value === 'ALL' || d.dept === deptFilter.value
   })
 })
 
-// 탭 2 학생 검색 필터링
 const filteredStudentList = computed(() => {
   const kw = studentSearch.value.trim()
   if (!kw) return studentList.value
   return studentList.value.filter(s => s.includes(kw))
 })
 
-// 탭 2 학과 검색 및 계열 필터링
 const filteredFormMajors = computed(() => {
   const kw = majorKeyword.value.trim().toLowerCase()
   return formMajorList.value.filter(d => {
@@ -394,7 +466,6 @@ const filteredFormMajors = computed(() => {
   })
 })
 
-// 이미 지원한 대학 Set (대학 칩 강조용)
 const appliedUnivSet = computed(() => new Set(studentApplications.value.map(a => a.univ)))
 
 function isMajorApplied(univ, major) {
@@ -411,7 +482,76 @@ function getBacCount(dept) {
   return dept.applicants.filter(a => a.type === '학사').length
 }
 
-// 0. 재원생 명단 불러오기
+// 공통 대학 데이터 로더 (캐시 우선 사용 -> 0ms 전환)
+async function getDepartmentsCached(univ, forceRefresh = false) {
+  if (!forceRefresh && deptCache[univ]) {
+    return deptCache[univ]
+  }
+  const res = await fetch(`${API_BASE}/api/quota/departments?univ=${encodeURIComponent(univ)}`)
+  const data = await res.json()
+  deptCache[univ] = data
+  return data
+}
+
+// 학점은행제 지원자격 조회
+async function loadEligibility(univ) {
+  isEditingEligibility.value = false
+  if (eligCache[univ] !== undefined) {
+    eligibilityText.value = eligCache[univ]
+    return
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/quota/eligibility?univ=${encodeURIComponent(univ)}`)
+    if (res.ok) {
+      const data = await res.json()
+      eligCache[univ] = data.eligibility_text || ''
+      eligibilityText.value = eligCache[univ]
+    }
+  } catch (err) {
+    eligibilityText.value = ''
+  }
+}
+
+function startEditEligibility() {
+  eligibilityDraft.value = eligibilityText.value
+  isEditingEligibility.value = true
+}
+
+function cancelEditEligibility() {
+  isEditingEligibility.value = false
+}
+
+async function saveEligibility() {
+  isSavingElig.value = true
+  try {
+    const res = await fetch(`${API_BASE}/api/quota/eligibility`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        univ: selectedUniv.value,
+        eligibility_text: eligibilityDraft.value.trim()
+      })
+    })
+    if (res.ok) {
+      eligibilityText.value = eligibilityDraft.value.trim()
+      eligCache[selectedUniv.value] = eligibilityText.value
+      isEditingEligibility.value = false
+    }
+  } catch (err) {
+    alert('지원자격 저장 중 오류가 발생했습니다.')
+  } finally {
+    isSavingElig.value = false
+  }
+}
+
+async function selectTab1Univ(univ) {
+  selectedUniv.value = univ
+  await Promise.all([
+    fetchUnivDepartments(),
+    loadEligibility(univ)
+  ])
+}
+
 async function fetchAllowedStudents() {
   try {
     const res = await fetch(`${API_BASE}/all-students-2026`)
@@ -438,7 +578,6 @@ function moveStudent(step) {
   selectStudent(studentList.value[nextIdx])
 }
 
-// 1. 등록된 대학 목록 조회
 async function fetchUnivList() {
   try {
     const res = await fetch(`${API_BASE}/api/quota/univ-list`)
@@ -451,25 +590,30 @@ async function fetchUnivList() {
       if (!data.includes(formUniv.value)) {
         formUniv.value = data[0]
       }
-      await fetchUnivDepartments()
-      await fetchFormMajors()
+      await Promise.all([
+        fetchUnivDepartments(),
+        loadEligibility(selectedUniv.value),
+        fetchFormMajors()
+      ])
     }
   } catch (err) {
     console.error('대학 목록 조회 실패:', err)
   }
 }
 
-// 2. 탭 1 선택 대학의 학과 및 지원자 현황 조회
-async function fetchUnivDepartments() {
+async function fetchUnivDepartments(force = false) {
+  if (!deptCache[selectedUniv.value] || force) {
+    isLoadingDepts.value = true
+  }
   try {
-    const res = await fetch(`${API_BASE}/api/quota/departments?univ=${encodeURIComponent(selectedUniv.value)}`)
-    departmentRows.value = await res.json()
+    departmentRows.value = await getDepartmentsCached(selectedUniv.value, force)
   } catch (err) {
     console.error('학과 정원 조회 실패:', err)
+  } finally {
+    isLoadingDepts.value = false
   }
 }
 
-// 3. 탭 2 대학 선택 및 학과 리스트 조회
 async function selectFormUniv(univ) {
   formUniv.value = univ
   majorKeyword.value = ''
@@ -485,16 +629,14 @@ async function jumpToFormUniv(univ) {
   }
 }
 
-async function fetchFormMajors() {
+async function fetchFormMajors(force = false) {
   try {
-    const res = await fetch(`${API_BASE}/api/quota/departments?univ=${encodeURIComponent(formUniv.value)}`)
-    formMajorList.value = await res.json()
+    formMajorList.value = await getDepartmentsCached(formUniv.value, force)
   } catch (err) {
     console.error('폼 학과 조회 실패:', err)
   }
 }
 
-// 4. 특정 학생의 원서 리스트 조회
 async function fetchStudentApplications() {
   if (!selectedStudent.value) return
   try {
@@ -505,7 +647,6 @@ async function fetchStudentApplications() {
   }
 }
 
-// 5. 1클릭 즉시 담기 / 이미 담긴 학과면 삭제 토글
 async function toggleApplication(deptItem) {
   if (isSavingApp.value || !selectedStudent.value) return
 
@@ -531,8 +672,11 @@ async function toggleApplication(deptItem) {
     })
 
     if (res.ok) {
+      delete deptCache[deptItem.univ]
       await fetchStudentApplications()
-      await fetchUnivDepartments()
+      if (selectedUniv.value === deptItem.univ) {
+        await fetchUnivDepartments(true)
+      }
     }
   } catch (err) {
     console.error('원서 추가 실패:', err)
@@ -541,15 +685,18 @@ async function toggleApplication(deptItem) {
   }
 }
 
-// 6. 원서 삭제
 async function handleRemoveApplication(appId) {
   if (isSavingApp.value) return
+  const targetApp = studentApplications.value.find(a => a.id === appId)
   isSavingApp.value = true
   try {
     const res = await fetch(`${API_BASE}/api/applications/${appId}`, { method: 'DELETE' })
     if (res.ok) {
+      if (targetApp) delete deptCache[targetApp.univ]
       await fetchStudentApplications()
-      await fetchUnivDepartments()
+      if (targetApp && selectedUniv.value === targetApp.univ) {
+        await fetchUnivDepartments(true)
+      }
     }
   } catch (err) {
     console.error('원서 삭제 실패:', err)
@@ -558,7 +705,6 @@ async function handleRemoveApplication(appId) {
   }
 }
 
-// 7. 모집요강 엑셀 업로드 처리
 async function uploadQuotaFile() {
   const fileEl = quotaFileInput.value
   if (!fileEl || !fileEl.files || fileEl.files.length === 0) {
@@ -580,6 +726,7 @@ async function uploadQuotaFile() {
       alert(result.message)
       showQuotaModal.value = false
       fileEl.value = ''
+      Object.keys(deptCache).forEach(k => delete deptCache[k])
       await fetchUnivList()
     } else {
       alert(result.detail || '업로드 중 오류가 발생했습니다.')
@@ -593,8 +740,15 @@ async function uploadQuotaFile() {
 }
 
 onMounted(async () => {
-  await fetchAllowedStudents()
-  await fetchUnivList()
+  isInitialLoading.value = true
+  try {
+    await Promise.all([
+      fetchAllowedStudents(),
+      fetchUnivList()
+    ])
+  } finally {
+    isInitialLoading.value = false
+  }
 })
 </script>
 
@@ -606,12 +760,40 @@ onMounted(async () => {
   color: #1e293b;
 }
 
+.wakeup-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2.5px solid #93c5fd;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .header-card {
   background: #ffffff;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
   padding: 18px 24px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -648,9 +830,7 @@ onMounted(async () => {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s;
 }
-
 .btn-upload-quota:hover {
   background: #eff6ff;
   border-color: #2563eb;
@@ -675,88 +855,33 @@ onMounted(async () => {
   border-radius: 6px;
   cursor: pointer;
 }
-
 .tab-btn.active {
   background: #ffffff;
   color: #2563eb;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
-/* 모달 스타일 */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
-  padding: 16px;
-}
-
-.modal-box {
-  background: #ffffff;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 500px;
-  overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-}
-
-.modal-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
-.close-btn { background: none; border: none; font-size: 22px; color: #94a3b8; cursor: pointer; }
-.modal-body { padding: 20px; }
-.guide-text { font-size: 13px; color: #475569; line-height: 1.5; margin-top: 0; }
-.guide-text code { background: #f1f5f9; padding: 2px 5px; border-radius: 4px; color: #0f172a; }
-
-.sample-table-wrap { margin: 12px 0 16px 0; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
-.sample-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; }
-.sample-table th { background: #f8fafc; padding: 6px; border-bottom: 1px solid #e2e8f0; color: #475569; }
-.sample-table td { padding: 6px; border-bottom: 1px solid #f1f5f9; color: #334155; }
-
-.file-input { width: 100%; padding: 8px; border: 1px dashed #cbd5e1; border-radius: 6px; font-size: 13px; }
-.modal-footer { padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
-.btn-cancel { padding: 7px 14px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; font-size: 13px; cursor: pointer; }
-.btn-submit { padding: 7px 16px; border: none; background: #2563eb; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.btn-submit:disabled { background: #94a3b8; }
-
-.filter-toolbar {
+/* 탭 1: 빠른 대학 선택 카드 */
+.univ-picker-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 12px 18px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+
+.univ-picker-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
 }
 
-.univ-selector {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.select-box {
-  padding: 6px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #1d4ed8;
-  outline: none;
-  background: #f8fafc;
+.univ-search-wrap {
+  position: relative;
+  width: 240px;
 }
 
 .dept-filters { display: flex; gap: 6px; }
@@ -777,11 +902,118 @@ onMounted(async () => {
 .badge.bac { background: #4f46e5; }
 .badge.gen { background: #64748b; }
 
+/* 학점은행제 지원자격 카드 */
+.eligibility-card {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 16px;
+}
+
+.eligibility-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.eligibility-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #92400e;
+}
+
+.elig-badge {
+  background: #f59e0b;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.eligibility-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-edit-elig {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #ffffff;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-edit-elig:hover { background: #fef3c7; }
+
+.btn-cancel-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-save-sm {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #d97706;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.elig-text {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #78350f;
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+.elig-placeholder {
+  margin: 0;
+  font-size: 12.5px;
+  color: #b45309;
+}
+
+.elig-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+  outline: none;
+}
+
+/* 테이블 및 공통 스타일 */
 .table-wrapper {
+  position: relative;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   overflow: hidden;
+}
+
+.table-loading-overlay {
+  padding: 10px;
+  text-align: center;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12.5px;
+  font-weight: 600;
 }
 
 .quota-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -838,12 +1070,7 @@ onMounted(async () => {
   border-radius: 4px;
 }
 
-.count-summary-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
+.count-summary-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .total-app-badge {
   font-size: 12px;
   font-weight: 700;
@@ -855,9 +1082,40 @@ onMounted(async () => {
 .sub-app-detail { font-size: 11px; color: #64748b; }
 .zero-app-text { font-size: 12px; color: #94a3b8; }
 
-/* ================================================================= */
-/* 탭 2: 개선된 빠른 학생별 원서 담기 스타일 */
-/* ================================================================= */
+/* 대학 칩 공통 */
+.univ-chip-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  max-height: 130px;
+  overflow-y: auto;
+}
+
+.univ-chip {
+  padding: 5px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.12s;
+}
+.univ-chip:hover { border-color: #2563eb; color: #2563eb; }
+.univ-chip.applied { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
+.univ-chip.active { background: #0f172a; color: #ffffff; border-color: #0f172a; }
+.univ-chip.active.applied { background: #1d4ed8; border-color: #1d4ed8; color: #ffffff; }
+.applied-dot { font-size: 8px; }
+
+/* 탭 2 및 모달 스타일 */
 .student-quick-bar {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -877,12 +1135,7 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-.student-nav-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
+.student-nav-group { display: flex; align-items: center; gap: 6px; }
 .nav-arrow-btn {
   width: 30px;
   height: 32px;
@@ -893,18 +1146,17 @@ onMounted(async () => {
   font-size: 11px;
   cursor: pointer;
 }
-.nav-arrow-btn:hover { background: #e2e8f0; }
-
-.student-select {
-  min-width: 125px;
-  height: 32px;
+.select-box {
+  padding: 6px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #f8fafc;
 }
-
-.student-search-wrap {
-  position: relative;
-  flex: 1;
-  max-width: 240px;
-}
+.student-select { min-width: 125px; height: 32px; }
+.student-search-wrap { position: relative; flex: 1; max-width: 240px; }
 
 .quick-input {
   width: 100%;
@@ -939,13 +1191,7 @@ onMounted(async () => {
   color: #1d4ed8;
 }
 
-.student-chip-strip {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
+.student-chip-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
 .stu-chip {
   padding: 5px 11px;
   font-size: 12.5px;
@@ -956,16 +1202,9 @@ onMounted(async () => {
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.12s;
 }
-.stu-chip:hover { border-color: #94a3b8; color: #0f172a; }
-.stu-chip.active {
-  background: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
-}
+.stu-chip.active { background: #2563eb; color: #ffffff; border-color: #2563eb; }
 
-/* 좌우 2단 작업 레이아웃 */
 .fast-basket-layout {
   display: grid;
   grid-template-columns: 1.35fr 1fr;
@@ -973,13 +1212,7 @@ onMounted(async () => {
   align-items: start;
 }
 
-.panel {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 18px;
-}
-
+.panel { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; }
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -988,83 +1221,12 @@ onMounted(async () => {
   padding-bottom: 10px;
   margin-bottom: 14px;
 }
+.panel-title { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
+.guide-hint { font-size: 11.5px; color: #64748b; }
+.count-tag { font-size: 12.5px; font-weight: 700; color: #2563eb; }
 
-.panel-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-
-.guide-hint {
-  font-size: 11.5px;
-  color: #64748b;
-}
-
-.count-tag {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #2563eb;
-}
-
-/* 대학 칩 그리드 */
-.univ-chip-box {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  max-height: 130px;
-  overflow-y: auto;
-  margin-bottom: 12px;
-}
-
-.univ-chip {
-  padding: 5px 10px;
-  font-size: 12.5px;
-  font-weight: 600;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
-  border-radius: 6px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  transition: all 0.12s;
-}
-.univ-chip:hover { border-color: #2563eb; color: #2563eb; }
-.univ-chip.applied {
-  border-color: #3b82f6;
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-.univ-chip.active {
-  background: #0f172a;
-  color: #ffffff;
-  border-color: #0f172a;
-}
-.univ-chip.active.applied {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  color: #ffffff;
-}
-.applied-dot { font-size: 8px; }
-
-/* 학과 검색 및 계열 미니 탭 */
-.major-filter-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.major-search-wrap {
-  position: relative;
-  flex: 1;
-}
-
+.major-filter-row { display: flex; gap: 8px; margin: 12px 0 10px; }
+.major-search-wrap { position: relative; flex: 1; }
 .major-search-input {
   width: 100%;
   height: 36px;
@@ -1077,14 +1239,7 @@ onMounted(async () => {
 }
 .major-search-input:focus { border-color: #2563eb; }
 
-.mini-dept-tabs {
-  display: flex;
-  background: #f1f5f9;
-  padding: 3px;
-  border-radius: 8px;
-  gap: 2px;
-}
-
+.mini-dept-tabs { display: flex; background: #f1f5f9; padding: 3px; border-radius: 8px; gap: 2px; }
 .mini-tab {
   padding: 0 10px;
   font-size: 12px;
@@ -1095,22 +1250,9 @@ onMounted(async () => {
   border-radius: 6px;
   cursor: pointer;
 }
-.mini-tab.active {
-  background: #ffffff;
-  color: #0f172a;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-}
+.mini-tab.active { background: #ffffff; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 
-/* 학과 1클릭 선택 리스트 */
-.quick-major-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 500px;
-  overflow-y: auto;
-  padding-right: 2px;
-}
-
+.quick-major-list { display: flex; flex-direction: column; gap: 6px; max-height: 500px; overflow-y: auto; }
 .major-pick-row {
   display: flex;
   justify-content: space-between;
@@ -1120,62 +1262,19 @@ onMounted(async () => {
   border-radius: 8px;
   background: #ffffff;
   cursor: pointer;
-  transition: all 0.12s;
-  gap: 10px;
 }
-.major-pick-row:hover {
-  background: #f8fafc;
-  border-color: #94a3b8;
-}
-.major-pick-row.selected {
-  background: #eff6ff;
-  border-color: #3b82f6;
-}
+.major-pick-row:hover { background: #f8fafc; border-color: #94a3b8; }
+.major-pick-row.selected { background: #eff6ff; border-color: #3b82f6; }
 
-.major-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.dept-pill {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
+.major-left { display: flex; align-items: center; gap: 8px; }
+.dept-pill { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
 .dept-pill.nat { background: #f3e8ff; color: #7e22ce; }
 .dept-pill.hum { background: #fef3c7; color: #92400e; }
+.major-title { font-size: 13.5px; font-weight: 700; color: #0f172a; }
 
-.major-title {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.major-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.quota-mini {
-  font-size: 11.5px;
-  color: #64748b;
-}
-
-.past-mini {
-  font-size: 11px;
-  font-weight: 600;
-  color: #0284c7;
-  background: #e0f2fe;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
+.major-right { display: flex; align-items: center; gap: 8px; }
+.quota-mini { font-size: 11.5px; color: #64748b; }
+.past-mini { font-size: 11px; font-weight: 600; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; }
 .pick-status-btn {
   font-size: 11.5px;
   font-weight: 700;
@@ -1185,29 +1284,10 @@ onMounted(async () => {
   background: #f8fafc;
   color: #334155;
 }
-.pick-status-btn.active {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #ffffff;
-}
+.pick-status-btn.active { background: #2563eb; border-color: #2563eb; color: #ffffff; }
 
-/* 우측 바구니 카드 */
-.empty-list-box {
-  padding: 40px 20px;
-  text-align: center;
-  font-size: 13px;
-  color: #94a3b8;
-  line-height: 1.6;
-}
-
-.application-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 640px;
-  overflow-y: auto;
-}
-
+.empty-list-box { padding: 40px 20px; text-align: center; font-size: 13px; color: #94a3b8; line-height: 1.6; }
+.application-cards { display: flex; flex-direction: column; gap: 8px; max-height: 640px; overflow-y: auto; }
 .app-card {
   display: flex;
   align-items: center;
@@ -1216,41 +1296,12 @@ onMounted(async () => {
   border-radius: 8px;
   background: #f8fafc;
   gap: 12px;
-  transition: border-color 0.12s;
 }
-.app-card:hover { border-color: #2563eb; }
-
-.card-num {
-  font-size: 14px;
-  font-weight: 800;
-  color: #2563eb;
-  width: 20px;
-  text-align: center;
-}
-
-.card-content {
-  flex: 1;
-  cursor: pointer;
-}
-
-.card-univ {
-  font-size: 12px;
-  font-weight: 700;
-  color: #2563eb;
-}
-
-.card-major {
-  font-size: 14.5px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 2px 0;
-}
-
-.card-meta {
-  font-size: 11.5px;
-  color: #64748b;
-}
-
+.card-num { font-size: 14px; font-weight: 800; color: #2563eb; width: 20px; text-align: center; }
+.card-content { flex: 1; cursor: pointer; }
+.card-univ { font-size: 12px; font-weight: 700; color: #2563eb; }
+.card-major { font-size: 14.5px; font-weight: 700; color: #0f172a; margin: 2px 0; }
+.card-meta { font-size: 11.5px; color: #64748b; }
 .btn-remove {
   width: 28px;
   height: 28px;
@@ -1262,11 +1313,34 @@ onMounted(async () => {
   font-weight: 700;
   cursor: pointer;
 }
-.btn-remove:hover { background: #fecaca; }
+
+/* 모달 */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 16px;
+}
+.modal-box { background: #ffffff; border-radius: 12px; width: 100%; max-width: 500px; overflow: hidden; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.close-btn { background: none; border: none; font-size: 22px; color: #94a3b8; cursor: pointer; }
+.modal-body { padding: 20px; }
+.guide-text { font-size: 13px; color: #475569; line-height: 1.5; margin-top: 0; }
+.sample-table-wrap { margin: 12px 0 16px 0; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+.sample-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; }
+.sample-table th { background: #f8fafc; padding: 6px; border-bottom: 1px solid #e2e8f0; }
+.sample-table td { padding: 6px; border-bottom: 1px solid #f1f5f9; }
+.file-input { width: 100%; padding: 8px; border: 1px dashed #cbd5e1; border-radius: 6px; font-size: 13px; }
+.modal-footer { padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
+.btn-cancel { padding: 7px 14px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.btn-submit { padding: 7px 16px; border: none; background: #2563eb; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
 
 @media (max-width: 900px) {
-  .fast-basket-layout {
-    grid-template-columns: 1fr;
-  }
+  .fast-basket-layout { grid-template-columns: 1fr; }
 }
 </style>
