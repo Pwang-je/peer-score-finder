@@ -4,7 +4,7 @@
     <div class="header-card">
       <div class="header-left">
         <h2>2026학년도 편입학 원서 지원 관리</h2>
-        <p class="sub-desc">학교별 모집요강 전체 현황</p>
+        <p class="sub-desc">학교별 모집요강 전체 현황 및 학생별 빠른 원서 담기</p>
       </div>
 
       <div class="header-right-actions">
@@ -18,13 +18,13 @@
             :class="['tab-btn', currentTab === 'univ' ? 'active' : '']"
             @click="currentTab = 'univ'"
           >
-            🏫 학교별 모집요강 현황판
+            🏫 학교별 모집요강
           </button>
           <button
             :class="['tab-btn', currentTab === 'student' ? 'active' : '']"
             @click="currentTab = 'student'"
           >
-            👤 학생별 지원 현황 및 담기
+            👤 학생별 지원 현황
           </button>
         </div>
       </div>
@@ -105,7 +105,7 @@
               <th style="width: 180px;">모집단위 (학과명)</th>
               <th style="width: 75px;" class="text-center">일반 정원</th>
               <th style="width: 75px;" class="text-center">학사 정원</th>
-              <th style="min-width: 220px;">원내 지원 희망자 명단 (모의고사 성적)</th>
+              <th style="min-width: 220px;">지원 명단 (모의고사 성적)</th>
               <th style="width: 140px;" class="text-center">지원 인원</th>
               <th style="min-width: 260px;">지난 합격생 이력 (합격년도 / 성적)</th>
             </tr>
@@ -145,7 +145,6 @@
                   </div>
                 </div>
               </td>
-              <!-- 지원 인원수 표시 컬럼 -->
               <td class="text-center">
                 <div v-if="dept.applicants && dept.applicants.length > 0" class="count-summary-cell">
                   <span class="total-app-badge">총 {{ dept.applicants.length }}명</span>
@@ -155,7 +154,6 @@
                 </div>
                 <span v-else class="zero-app-text">0명</span>
               </td>
-              <!-- 지난 합격생 이력 컬럼 -->
               <td>
                 <div v-if="!dept.past_admissions || dept.past_admissions.length === 0" class="empty-applicant">
                   -
@@ -187,77 +185,130 @@
     </div>
 
     <!-- ================================================================= -->
-    <!-- 탭 2: 학생별 지원 현황 및 담기 (1:1 상담용) -->
+    <!-- 탭 2: 학생별 지원 현황 및 빠른 담기 (개선된 1클릭 UI) -->
     <!-- ================================================================= -->
     <div v-if="currentTab === 'student'" class="content-section">
-      <div class="student-select-card">
-        <div class="input-inline">
-          <label>상담 학생 선택 (2026 재원생):</label>
-          <select v-model="selectedStudent" @change="fetchStudentApplications" class="select-box student-select">
-            <option v-for="s in studentList" :key="s" :value="s">{{ s }}</option>
-          </select>
+      <!-- 상단 학생 빠른 탐색 & 선택 바 -->
+      <div class="student-quick-bar">
+        <div class="student-bar-top">
+          <div class="student-nav-group">
+            <button @click="moveStudent(-1)" class="nav-arrow-btn" title="이전 학생">◀</button>
+            <select v-model="selectedStudent" @change="fetchStudentApplications" class="select-box student-select">
+              <option v-for="s in studentList" :key="s" :value="s">{{ s }}</option>
+            </select>
+            <button @click="moveStudent(1)" class="nav-arrow-btn" title="다음 학생">▶</button>
+          </div>
+
+          <div class="student-search-wrap">
+            <input
+              v-model="studentSearch"
+              type="text"
+              placeholder="학생 이름 빠른 검색..."
+              class="quick-input"
+            />
+            <button v-if="studentSearch" @click="studentSearch = ''" class="input-clear-btn">✕</button>
+          </div>
+
+          <span class="stat-badge count">담긴 원서: {{ studentApplications.length }}개교</span>
         </div>
 
-        <div class="student-stat-badges">
-          <span class="stat-badge count">담긴 원서: {{ studentApplications.length }}개교</span>
+        <!-- 가로 스크롤 학생 칩 목록 -->
+        <div class="student-chip-strip">
+          <button
+            v-for="s in filteredStudentList"
+            :key="s"
+            :class="['stu-chip', { active: selectedStudent === s }]"
+            @click="selectStudent(s)"
+          >
+            {{ s }}
+          </button>
         </div>
       </div>
 
-      <div class="basket-layout">
-        <!-- 좌측: 원서 추가 폼 -->
-        <div class="panel add-form-panel">
-          <h3 class="panel-title">➕ 새 지원 카드 추가</h3>
-
-          <div class="form-group">
-            <label>1. 목표 대학</label>
-            <select v-model="formUniv" @change="onFormUnivChange" class="form-control">
-              <option v-for="u in univList" :key="u" :value="u">{{ u }}</option>
-            </select>
+      <!-- 좌우 2단 빠른 담기 작업대 -->
+      <div class="fast-basket-layout">
+        <!-- 좌측: 대학 칩 + 학과 실시간 필터 + 1클릭 토글 -->
+        <div class="panel picker-panel">
+          <div class="panel-header">
+            <h3 class="panel-title">⚡ 빠른 대학 · 학과 선택</h3>
+            <span class="guide-hint">학과를 클릭하면 즉시 담기/취소됩니다</span>
           </div>
 
-          <div class="form-group">
-            <label>2. 지원 희망 학과</label>
-            <select v-model="formMajor" class="form-control">
-              <option disabled value="">학과를 선택하세요</option>
-              <option
-                v-for="d in formMajorList"
-                :key="d.id"
-                :value="d.major"
-              >
-                {{ d.major }}
-              </option>
-            </select>
+          <!-- 1. 대학 빠른 선택 칩 그리드 -->
+          <div class="univ-chip-box">
+            <button
+              v-for="u in univList"
+              :key="u"
+              :class="[
+                'univ-chip',
+                { active: formUniv === u, applied: appliedUnivSet.has(u) }
+              ]"
+              @click="selectFormUniv(u)"
+            >
+              <span>{{ u }}</span>
+              <span v-if="appliedUnivSet.has(u)" class="applied-dot">●</span>
+            </button>
           </div>
 
-          <div class="form-group">
-            <label>3. 지원 성향 메모</label>
-            <div class="radio-chips">
-              <label :class="['chip', formStrategy === '안정' ? 'selected' : '']">
-                <input type="radio" value="안정" v-model="formStrategy" /> 안정
-              </label>
-              <label :class="['chip', formStrategy === '적정' ? 'selected' : '']">
-                <input type="radio" value="적정" v-model="formStrategy" /> 적정
-              </label>
-              <label :class="['chip', formStrategy === '상향' ? 'selected' : '']">
-                <input type="radio" value="상향" v-model="formStrategy" /> 상향
-              </label>
+          <!-- 2. 학과 검색창 & 계열 필터 -->
+          <div class="major-filter-row">
+            <div class="major-search-wrap">
+              <input
+                ref="majorSearchInput"
+                v-model="majorKeyword"
+                type="text"
+                :placeholder="`${formUniv} 학과 검색 (예: 컴, 전자, 경영...)`"
+                class="major-search-input"
+              />
+              <button v-if="majorKeyword" @click="majorKeyword = ''" class="input-clear-btn">✕</button>
+            </div>
+
+            <div class="mini-dept-tabs">
+              <button :class="['mini-tab', { active: formDeptFilter === 'ALL' }]" @click="formDeptFilter = 'ALL'">전체</button>
+              <button :class="['mini-tab', { active: formDeptFilter === '자연' }]" @click="formDeptFilter = '자연'">자연</button>
+              <button :class="['mini-tab', { active: formDeptFilter === '인문' }]" @click="formDeptFilter = '인문'">인문</button>
             </div>
           </div>
 
-          <button @click="handleAddApplication" class="btn-primary-add">
-            원서 목록에 추가
-          </button>
+          <!-- 3. 학과 1클릭 선택 리스트 -->
+          <div class="quick-major-list">
+            <div
+              v-for="d in filteredFormMajors"
+              :key="d.id"
+              :class="['major-pick-row', { selected: isMajorApplied(d.univ, d.major) }]"
+              @click="toggleApplication(d)"
+            >
+              <div class="major-left">
+                <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
+                <span class="major-title">{{ d.major }}</span>
+              </div>
+
+              <div class="major-right">
+                <span class="quota-mini">일반 {{ d.gen }} / 학사 {{ d.bac }}</span>
+                <span v-if="d.past_admissions && d.past_admissions.length > 0" class="past-mini">
+                  합격 {{ d.past_admissions.length }}
+                </span>
+                <span :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]">
+                  {{ isMajorApplied(d.univ, d.major) ? '담김 ✓' : '+ 담기' }}
+                </span>
+              </div>
+            </div>
+
+            <div v-if="filteredFormMajors.length === 0" class="empty-list-box">
+              조건에 맞는 학과가 없습니다.
+            </div>
+          </div>
         </div>
 
         <!-- 우측: 담긴 지원 대학 리스트 -->
         <div class="panel list-panel">
           <div class="panel-header">
             <h3 class="panel-title">📋 {{ selectedStudent }} 학생 지원 희망 리스트</h3>
-            <span class="count-tag">총 {{ studentApplications.length }}장</span>
+            <span class="count-tag">총 {{ studentApplications.length }}개교</span>
           </div>
 
           <div v-if="studentApplications.length === 0" class="empty-list-box">
-            아직 추가된 지원 대학이 없습니다. 좌측에서 대학과 학과를 선택해 담아주세요.
+            아직 추가된 지원 대학이 없습니다.<br>좌측에서 대학과 학과를 클릭해 바로 담아보세요.
           </div>
 
           <div v-else class="application-cards">
@@ -267,12 +318,11 @@
               class="app-card"
             >
               <div class="card-num">{{ idx + 1 }}</div>
-              <div class="card-content">
+              <div class="card-content" @click="jumpToFormUniv(app.univ)" title="클릭하면 좌측에서 해당 대학 열기">
                 <div class="card-univ">{{ app.univ }}</div>
                 <div class="card-major">{{ app.major }}</div>
                 <div class="card-meta">
                   <span>선발정원: 일반 {{ app.gen_quota }}명 / 학사 {{ app.bac_quota }}명</span>
-                  <span :class="['strategy-badge', getStrategyClass(app.memo)]">{{ app.memo }}</span>
                 </div>
               </div>
               <button @click="handleRemoveApplication(app.id)" class="btn-remove" title="삭제">
@@ -287,11 +337,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 
 const currentTab = ref('univ')
 
-// 로컬 테스트 및 배포 주소 자동 대응 (로컬 실행 시 8000번 포트 자동 감지)
 const API_BASE = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
   ? 'http://127.0.0.1:8000'
   : 'https://peer-score-finder.onrender.com'
@@ -302,30 +351,56 @@ const selectedUniv = ref('가천대학교')
 const deptFilter = ref('ALL')
 const departmentRows = ref([])
 
-// 2. 학생 목록 (백엔드 ALLOWED_STUDENTS에서 자동 로드)
+// 2. 학생 목록 및 빠른 검색 상태
 const studentList = ref([])
+const studentSearch = ref('')
 const selectedStudent = ref('')
 const studentApplications = ref([])
 
-// 3. 입력 폼 상태
+// 3. 빠른 담기 패널 상태
 const formUniv = ref('가천대학교')
 const formMajorList = ref([])
-const formMajor = ref('')
-const formStrategy = ref('적정')
+const majorKeyword = ref('')
+const formDeptFilter = ref('ALL')
+const majorSearchInput = ref(null)
+const isSavingApp = ref(false)
 
 // 4. 모집요강 엑셀 업로드 모달 상태
 const showQuotaModal = ref(false)
 const quotaFileInput = ref(null)
 const isUploadingQuota = ref(false)
 
-// 필터링된 학과 목록
+// 탭 1 필터링된 학과 목록
 const filteredDepartments = computed(() => {
   return departmentRows.value.filter(d => {
     return deptFilter.value === 'ALL' || d.dept === deptFilter.value
   })
 })
 
-// 일반 / 학사 지원 인원 카운트 헬퍼
+// 탭 2 학생 검색 필터링
+const filteredStudentList = computed(() => {
+  const kw = studentSearch.value.trim()
+  if (!kw) return studentList.value
+  return studentList.value.filter(s => s.includes(kw))
+})
+
+// 탭 2 학과 검색 및 계열 필터링
+const filteredFormMajors = computed(() => {
+  const kw = majorKeyword.value.trim().toLowerCase()
+  return formMajorList.value.filter(d => {
+    const matchDept = formDeptFilter.value === 'ALL' || d.dept === formDeptFilter.value
+    const matchKw = !kw || d.major.toLowerCase().includes(kw)
+    return matchDept && matchKw
+  })
+})
+
+// 이미 지원한 대학 Set (대학 칩 강조용)
+const appliedUnivSet = computed(() => new Set(studentApplications.value.map(a => a.univ)))
+
+function isMajorApplied(univ, major) {
+  return studentApplications.value.some(a => a.univ === univ && a.major === major)
+}
+
 function getGenCount(dept) {
   if (!dept.applicants) return 0
   return dept.applicants.filter(a => a.type === '일반').length
@@ -336,7 +411,7 @@ function getBacCount(dept) {
   return dept.applicants.filter(a => a.type === '학사').length
 }
 
-// 0. ALLOWED_STUDENTS 기반 학생 명단 불러오기
+// 0. 재원생 명단 불러오기
 async function fetchAllowedStudents() {
   try {
     const res = await fetch(`${API_BASE}/all-students-2026`)
@@ -349,6 +424,18 @@ async function fetchAllowedStudents() {
   } catch (err) {
     console.error('학생 명단 로드 실패:', err)
   }
+}
+
+async function selectStudent(name) {
+  selectedStudent.value = name
+  await fetchStudentApplications()
+}
+
+function moveStudent(step) {
+  if (!studentList.value.length) return
+  const idx = studentList.value.indexOf(selectedStudent.value)
+  const nextIdx = (idx + step + studentList.value.length) % studentList.value.length
+  selectStudent(studentList.value[nextIdx])
 }
 
 // 1. 등록된 대학 목록 조회
@@ -372,7 +459,7 @@ async function fetchUnivList() {
   }
 }
 
-// 2. 선택 대학의 학과 및 지원자 현황 조회
+// 2. 탭 1 선택 대학의 학과 및 지원자 현황 조회
 async function fetchUnivDepartments() {
   try {
     const res = await fetch(`${API_BASE}/api/quota/departments?univ=${encodeURIComponent(selectedUniv.value)}`)
@@ -382,19 +469,29 @@ async function fetchUnivDepartments() {
   }
 }
 
-// 3. 폼용 특정 대학 학과 리스트 조회
+// 3. 탭 2 대학 선택 및 학과 리스트 조회
+async function selectFormUniv(univ) {
+  formUniv.value = univ
+  majorKeyword.value = ''
+  await fetchFormMajors()
+  nextTick(() => {
+    if (majorSearchInput.value) majorSearchInput.value.focus()
+  })
+}
+
+async function jumpToFormUniv(univ) {
+  if (formUniv.value !== univ) {
+    await selectFormUniv(univ)
+  }
+}
+
 async function fetchFormMajors() {
   try {
     const res = await fetch(`${API_BASE}/api/quota/departments?univ=${encodeURIComponent(formUniv.value)}`)
     formMajorList.value = await res.json()
-    formMajor.value = ''
   } catch (err) {
     console.error('폼 학과 조회 실패:', err)
   }
-}
-
-function onFormUnivChange() {
-  fetchFormMajors()
 }
 
 // 4. 특정 학생의 원서 리스트 조회
@@ -408,37 +505,46 @@ async function fetchStudentApplications() {
   }
 }
 
-// 5. 원서 추가
-async function handleAddApplication() {
-  if (!formMajor.value) {
-    alert('지원 학과를 선택해 주세요.')
+// 5. 1클릭 즉시 담기 / 이미 담긴 학과면 삭제 토글
+async function toggleApplication(deptItem) {
+  if (isSavingApp.value || !selectedStudent.value) return
+
+  const existing = studentApplications.value.find(
+    a => a.univ === deptItem.univ && a.major === deptItem.major
+  )
+
+  if (existing) {
+    await handleRemoveApplication(existing.id)
     return
   }
 
+  isSavingApp.value = true
   try {
     const res = await fetch(`${API_BASE}/api/applications`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         student_name: selectedStudent.value,
-        univ: formUniv.value,
-        major: formMajor.value,
-        memo: formStrategy.value
+        univ: deptItem.univ,
+        major: deptItem.major
       })
     })
 
     if (res.ok) {
-      formMajor.value = ''
       await fetchStudentApplications()
       await fetchUnivDepartments()
     }
   } catch (err) {
     console.error('원서 추가 실패:', err)
+  } finally {
+    isSavingApp.value = false
   }
 }
 
 // 6. 원서 삭제
 async function handleRemoveApplication(appId) {
+  if (isSavingApp.value) return
+  isSavingApp.value = true
   try {
     const res = await fetch(`${API_BASE}/api/applications/${appId}`, { method: 'DELETE' })
     if (res.ok) {
@@ -447,6 +553,8 @@ async function handleRemoveApplication(appId) {
     }
   } catch (err) {
     console.error('원서 삭제 실패:', err)
+  } finally {
+    isSavingApp.value = false
   }
 }
 
@@ -482,12 +590,6 @@ async function uploadQuotaFile() {
   } finally {
     isUploadingQuota.value = false
   }
-}
-
-function getStrategyClass(memo) {
-  if (memo === '안정') return 'strategy-safe'
-  if (memo === '적정') return 'strategy-fit'
-  return 'strategy-high'
 }
 
 onMounted(async () => {
@@ -717,7 +819,6 @@ onMounted(async () => {
 .tag-name { font-weight: 700; color: #1e293b; }
 .tag-score { font-size: 11px; color: #0284c7; font-family: monospace; font-weight: 600; }
 
-/* 지난 합격생 태그 스타일 */
 .past-tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .past-student-tag {
   display: inline-flex;
@@ -737,7 +838,6 @@ onMounted(async () => {
   border-radius: 4px;
 }
 
-/* 지원 인원수 셀 스타일 */
 .count-summary-cell {
   display: flex;
   flex-direction: column;
@@ -752,106 +852,421 @@ onMounted(async () => {
   padding: 2px 8px;
   border-radius: 999px;
 }
-.sub-app-detail {
-  font-size: 11px;
-  color: #64748b;
-}
-.zero-app-text {
-  font-size: 12px;
-  color: #94a3b8;
-}
+.sub-app-detail { font-size: 11px; color: #64748b; }
+.zero-app-text { font-size: 12px; color: #94a3b8; }
 
-/* 탭 2 스타일 */
-.student-select-card {
+/* ================================================================= */
+/* 탭 2: 개선된 빠른 학생별 원서 담기 스타일 */
+/* ================================================================= */
+.student-quick-bar {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  border-radius: 12px;
+  padding: 14px 18px;
   margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.student-bar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.student-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-arrow-btn {
+  width: 30px;
+  height: 32px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.nav-arrow-btn:hover { background: #e2e8f0; }
+
+.student-select {
+  min-width: 125px;
+  height: 32px;
+}
+
+.student-search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 240px;
+}
+
+.quick-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  box-sizing: border-box;
+  outline: none;
+}
+.quick-input:focus { border-color: #2563eb; }
+
+.input-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .stat-badge {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-weight: 600;
-  background: #f1f5f9;
-  color: #334155;
+  font-size: 12.5px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
-.basket-layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
-.panel { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; }
-.panel-title { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0; }
+.student-chip-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.stu-chip {
+  padding: 5px 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+}
+.stu-chip:hover { border-color: #94a3b8; color: #0f172a; }
+.stu-chip.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+/* 좌우 2단 작업 레이아웃 */
+.fast-basket-layout {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px;
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 12px;
-  margin-bottom: 16px;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
 }
-.count-tag { font-size: 12px; font-weight: bold; color: #2563eb; }
-.form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; }
-.form-control {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 13px;
-  outline: none;
+
+.panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.guide-hint {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.count-tag {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+/* 대학 칩 그리드 */
+.univ-chip-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
   background: #f8fafc;
-  box-sizing: border-box;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  max-height: 130px;
+  overflow-y: auto;
+  margin-bottom: 12px;
 }
-.radio-chips { display: flex; gap: 8px; }
-.chip {
+
+.univ-chip {
+  padding: 5px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.12s;
+}
+.univ-chip:hover { border-color: #2563eb; color: #2563eb; }
+.univ-chip.applied {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.univ-chip.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+.univ-chip.active.applied {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+.applied-dot { font-size: 8px; }
+
+/* 학과 검색 및 계열 미니 탭 */
+.major-filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.major-search-wrap {
+  position: relative;
   flex: 1;
-  text-align: center;
-  padding: 7px;
+}
+
+.major-search-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 30px 0 12px;
+  border: 1.5px solid #94a3b8;
+  border-radius: 8px;
+  font-size: 13.5px;
+  box-sizing: border-box;
+  outline: none;
+}
+.major-search-input:focus { border-color: #2563eb; }
+
+.mini-dept-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.mini-tab {
+  padding: 0 10px;
   font-size: 12px;
   font-weight: 600;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.chip input { display: none; }
-.chip.selected { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
-.btn-primary-add {
-  width: 100%;
-  padding: 9px;
-  background: #2563eb;
-  color: #ffffff;
   border: none;
+  background: transparent;
+  color: #64748b;
   border-radius: 6px;
-  font-weight: 700;
-  font-size: 13px;
   cursor: pointer;
-  margin-top: 6px;
 }
-.btn-primary-add:hover { background: #1d4ed8; }
-.empty-list-box { padding: 40px; text-align: center; font-size: 13px; color: #94a3b8; }
-.application-cards { display: flex; flex-direction: column; gap: 10px; }
+.mini-tab.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+/* 학과 1클릭 선택 리스트 */
+.quick-major-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.major-pick-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.12s;
+  gap: 10px;
+}
+.major-pick-row:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+.major-pick-row.selected {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.major-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dept-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.dept-pill.nat { background: #f3e8ff; color: #7e22ce; }
+.dept-pill.hum { background: #fef3c7; color: #92400e; }
+
+.major-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.major-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.quota-mini {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.past-mini {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.pick-status-btn {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+}
+.pick-status-btn.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+/* 우측 바구니 카드 */
+.empty-list-box {
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.application-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 640px;
+  overflow-y: auto;
+}
+
 .app-card {
   display: flex;
   align-items: center;
   padding: 12px 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #f8fafc;
   gap: 12px;
+  transition: border-color 0.12s;
 }
-.card-num { font-size: 14px; font-weight: 700; color: #2563eb; width: 20px; }
-.card-content { flex: 1; }
-.card-univ { font-size: 12px; font-weight: 600; color: #64748b; }
-.card-major { font-size: 14px; font-weight: 700; color: #0f172a; }
-.card-meta { font-size: 11px; color: #64748b; display: flex; align-items: center; gap: 8px; margin-top: 2px; }
-.strategy-badge { font-size: 10px; font-weight: bold; padding: 1px 6px; border-radius: 4px; }
-.strategy-safe { background: #dcfce7; color: #166534; }
-.strategy-fit { background: #e0f2fe; color: #075985; }
-.strategy-high { background: #f3e8ff; color: #6b21a8; }
-.btn-remove { border: none; background: transparent; color: #94a3b8; font-size: 14px; cursor: pointer; }
-.btn-remove:hover { color: #ef4444; }
+.app-card:hover { border-color: #2563eb; }
+
+.card-num {
+  font-size: 14px;
+  font-weight: 800;
+  color: #2563eb;
+  width: 20px;
+  text-align: center;
+}
+
+.card-content {
+  flex: 1;
+  cursor: pointer;
+}
+
+.card-univ {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.card-major {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 2px 0;
+}
+
+.card-meta {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.btn-remove {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-remove:hover { background: #fecaca; }
+
+@media (max-width: 900px) {
+  .fast-basket-layout {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
