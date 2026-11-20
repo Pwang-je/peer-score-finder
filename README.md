@@ -24,6 +24,7 @@
 │     Vue.js Frontend (SPA)     │  <-- Vercel 글로벌 CDN 호스팅
 └───────────────────────────────┘
                │
+               │ cron-job.org 로 Backend 꺼지지 않게 유지
                │ REST API (/api/predict)
                ▼
 ┌───────────────────────────────┐
