@@ -255,8 +255,8 @@
         <div class="student-bar-top">
           <div class="student-nav-group">
             <button @click="moveStudent(-1)" class="nav-arrow-btn" title="이전 학생">◀</button>
-            <select v-model="selectedStudent" @change="fetchStudentApplications" class="select-box student-select">
-              <option v-for="s in studentList" :key="s" :value="s">{{ s }}</option>
+            <select v-model="selectedStudent" @change="onSelectStudentChange" class="select-box student-select">
+              <option v-for="s in (filteredStudentList.length ? filteredStudentList : studentList)" :key="s" :value="s">{{ s }}</option>
             </select>
             <button @click="moveStudent(1)" class="nav-arrow-btn" title="다음 학생">▶</button>
           </div>
@@ -267,6 +267,7 @@
               type="text"
               placeholder="학생 이름 빠른 검색..."
               class="quick-input"
+              @keydown.enter="selectFirstMatchingStudent"
             />
             <button v-if="studentSearch" @click="studentSearch = ''" class="input-clear-btn">✕</button>
           </div>
@@ -274,15 +275,58 @@
           <span class="stat-badge count">담긴 원서: {{ studentApplications.length }}개교</span>
         </div>
 
-        <div class="student-chip-strip">
-          <button
-            v-for="s in filteredStudentList"
-            :key="s"
-            :class="['stu-chip', { active: selectedStudent === s }]"
-            @click="selectStudent(s)"
-          >
-            {{ s }}
-          </button>
+        <!-- 🌟 선택된 학생 1월~10월 컴팩트 인라인 스코어보드 -->
+        <div v-if="studentScoreData" class="student-score-strip">
+          <div class="score-summary-col">
+            <div class="summary-top">
+              <span :class="['dept-badge-pill', studentScoreData.is_natural ? 'natural' : 'humanities']">
+                {{ studentScoreData.is_natural ? '자연계열 (영+수)' : '인문계열 (영어)' }}
+              </span>
+              <span class="test-cnt-badge">응시 {{ studentScoreData.summary.test_count }}회</span>
+            </div>
+            <div class="summary-values">
+              <div class="val-item">
+                <span class="val-label">평균</span>
+                <span class="val-score eng">영 {{ studentScoreData.summary.avg_eng !== null ? studentScoreData.summary.avg_eng : '-' }}</span>
+                <span v-if="studentScoreData.is_natural" class="val-score math">수 {{ studentScoreData.summary.avg_math !== null ? studentScoreData.summary.avg_math : '-' }}</span>
+              </div>
+              <div class="val-item">
+                <span class="val-label">최고</span>
+                <span class="val-score max-eng">영 {{ studentScoreData.summary.max_eng !== null ? studentScoreData.summary.max_eng : '-' }}</span>
+                <span v-if="studentScoreData.is_natural" class="val-score max-math">수 {{ studentScoreData.summary.max_math !== null ? studentScoreData.summary.max_math : '-' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="monthly-grid-wrapper">
+            <div class="monthly-grid">
+              <div
+                v-for="item in studentScoreData.monthly_scores"
+                :key="item.month"
+                :class="['month-col', {
+                  'has-score': item.eng !== null || item.math !== null,
+                  'is-latest': item.month === studentScoreData.summary.latest_month
+                }]"
+              >
+                <div class="month-header">
+                  <span>{{ item.month }}월</span>
+                  <span v-if="item.month === studentScoreData.summary.latest_month" class="latest-dot" title="최근 응시">●</span>
+                </div>
+                <div class="score-cell eng-cell" :title="`영어 ${item.eng !== null ? item.eng : '미응시'}`">
+                  <span class="subj-sub">영</span>
+                  <span class="score-num">{{ item.eng !== null ? item.eng : '-' }}</span>
+                </div>
+                <div
+                  v-if="studentScoreData.is_natural"
+                  class="score-cell math-cell"
+                  :title="`수학 ${item.math !== null ? item.math : '미응시'}`"
+                >
+                  <span class="subj-sub">수</span>
+                  <span class="score-num">{{ item.math !== null ? item.math : '-' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -425,6 +469,8 @@ const studentList = ref([])
 const studentSearch = ref('')
 const selectedStudent = ref('')
 const studentApplications = ref([])
+const studentScoreData = ref(null)
+const isLoadingScore = ref(false)
 
 // 3. 빠른 담기 패널 상태
 const formUniv = ref('가천대학교')
@@ -552,6 +598,28 @@ async function selectTab1Univ(univ) {
   ])
 }
 
+async function fetchStudentMonthlyScores() {
+  if (!selectedStudent.value) {
+    studentScoreData.value = null
+    return
+  }
+  isLoadingScore.value = true
+  try {
+    const res = await fetch(`${API_BASE}/api/student-monthly-scores?student_name=${encodeURIComponent(selectedStudent.value)}`)
+    const data = await res.json()
+    if (data && data.status === 'success') {
+      studentScoreData.value = data
+    } else {
+      studentScoreData.value = null
+    }
+  } catch (err) {
+    console.error('학생 월별 성적 조회 실패:', err)
+    studentScoreData.value = null
+  } finally {
+    isLoadingScore.value = false
+  }
+}
+
 async function fetchAllowedStudents() {
   try {
     const res = await fetch(`${API_BASE}/all-students-2026`)
@@ -559,7 +627,10 @@ async function fetchAllowedStudents() {
     if (Array.isArray(data) && data.length > 0) {
       studentList.value = data
       selectedStudent.value = data[0]
-      await fetchStudentApplications()
+      await Promise.all([
+        fetchStudentApplications(),
+        fetchStudentMonthlyScores()
+      ])
     }
   } catch (err) {
     console.error('학생 명단 로드 실패:', err)
@@ -567,15 +638,31 @@ async function fetchAllowedStudents() {
 }
 
 async function selectStudent(name) {
+  if (!name) return
   selectedStudent.value = name
-  await fetchStudentApplications()
+  await Promise.all([
+    fetchStudentApplications(),
+    fetchStudentMonthlyScores()
+  ])
+}
+
+function onSelectStudentChange() {
+  selectStudent(selectedStudent.value)
+}
+
+function selectFirstMatchingStudent() {
+  if (filteredStudentList.value.length > 0) {
+    selectStudent(filteredStudentList.value[0])
+    studentSearch.value = ''
+  }
 }
 
 function moveStudent(step) {
   if (!studentList.value.length) return
-  const idx = studentList.value.indexOf(selectedStudent.value)
-  const nextIdx = (idx + step + studentList.value.length) % studentList.value.length
-  selectStudent(studentList.value[nextIdx])
+  const currentList = filteredStudentList.value.length > 0 ? filteredStudentList.value : studentList.value
+  const idx = currentList.indexOf(selectedStudent.value)
+  const nextIdx = (idx + step + currentList.length) % currentList.length
+  selectStudent(currentList[nextIdx])
 }
 
 async function fetchUnivList() {
@@ -1191,19 +1278,177 @@ onMounted(async () => {
   color: #1d4ed8;
 }
 
-.student-chip-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
-.stu-chip {
-  padding: 5px 11px;
-  font-size: 12.5px;
-  font-weight: 600;
-  border: 1px solid #e2e8f0;
+/* =====================================================================
+   선택 학생 1월~10월 컴팩트 인라인 스코어보드
+   ===================================================================== */
+.student-score-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
   background: #f8fafc;
-  color: #475569;
-  border-radius: 999px;
-  cursor: pointer;
-  white-space: nowrap;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
-.stu-chip.active { background: #2563eb; color: #ffffff; border-color: #2563eb; }
+
+.score-summary-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding-right: 12px;
+  border-right: 1px solid #e2e8f0;
+  min-width: 145px;
+  flex-shrink: 0;
+}
+
+.summary-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dept-badge-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: -0.3px;
+}
+.dept-badge-pill.natural {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+.dept-badge-pill.humanities {
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.test-cnt-badge {
+  font-size: 11px;
+  color: #64748b;
+  background: #edf2f7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.summary-values {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.val-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.val-label {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  width: 26px;
+}
+
+.val-score {
+  font-weight: 700;
+  font-size: 12px;
+}
+.val-score.eng, .val-score.max-eng {
+  color: #2563eb;
+}
+.val-score.math, .val-score.max-math {
+  color: #0d9488;
+}
+
+.monthly-grid-wrapper {
+  flex: 1;
+  overflow-x: auto;
+  display: flex;
+  align-items: center;
+}
+
+.monthly-grid {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(54px, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.month-col {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 5px 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.month-col.is-latest {
+  border-color: #3b82f6;
+  background: #f0f7ff;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.month-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 3px;
+}
+
+.latest-dot {
+  font-size: 8px;
+  color: #2563eb;
+}
+
+.score-cell {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  font-size: 11.5px;
+  padding: 1px 0;
+  border-radius: 3px;
+}
+
+.score-cell.eng-cell {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.score-cell.math-cell {
+  color: #0f766e;
+  font-weight: 700;
+  border-top: 1px dashed #e2e8f0;
+  margin-top: 2px;
+  padding-top: 2px;
+}
+
+.subj-sub {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.month-col:not(.has-score) .score-num {
+  color: #cbd5e1;
+  font-weight: 500;
+}
 
 .fast-basket-layout {
   display: grid;

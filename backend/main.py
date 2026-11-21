@@ -453,6 +453,120 @@ def get_student_score(student_name: str, month: int):
         conn.close()
 
 
+# 2026 재원생 1월~10월 월별 성적 및 요약 조회 API
+@app.get("/api/student-monthly-scores")
+def get_student_monthly_scores(student_name: str):
+    conn = pymysql.connect(**DB_CONFIG)
+    try:
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+        query = """
+            SELECT month, total_score, math_total, department
+            FROM peer_data
+            WHERE year = 2026 AND student_name = %s
+            ORDER BY month ASC, (CASE WHEN total_score IS NOT NULL AND total_score > 0 THEN 1 ELSE 0 END) DESC
+        """
+        cursor.execute(query, (student_name,))
+        rows = cursor.fetchall()
+
+        month_map = {}
+        has_math_history = False
+        is_dept_natural = False
+
+        for r in rows:
+            m = r.get("month")
+            if not m or m in month_map:
+                continue
+
+            dept = str(r.get("department") or "")
+            if "자연" in dept:
+                is_dept_natural = True
+
+            raw_eng = r.get("total_score")
+            eng_val = None
+            if raw_eng is not None and str(raw_eng).strip() not in ['', 'None', 'nan', 'null', '-']:
+                try:
+                    num = float(raw_eng)
+                    if num > 0:
+                        eng_val = num
+                except ValueError:
+                    pass
+
+            raw_math = r.get("math_total")
+            math_val = None
+            if raw_math is not None and str(raw_math).strip() not in ['', 'None', 'nan', 'null', '-']:
+                try:
+                    num = float(raw_math)
+                    if num > 0:
+                        math_val = num
+                        has_math_history = True
+                except ValueError:
+                    pass
+
+            month_map[int(m)] = {
+                "eng": eng_val,
+                "math": math_val
+            }
+
+        is_natural = has_math_history or is_dept_natural
+
+        # 1월부터 10월까지 점수 리스트 구성
+        monthly_scores = []
+        eng_scores_list = []
+        math_scores_list = []
+        latest_month = None
+        latest_eng = None
+        latest_math = None
+
+        for m in range(1, 11):
+            data = month_map.get(m, {"eng": None, "math": None})
+            eng = data["eng"]
+            math = data["math"]
+
+            if eng is not None:
+                eng_scores_list.append(eng)
+                latest_month = m
+                latest_eng = eng
+            if math is not None:
+                math_scores_list.append(math)
+                if eng is None:
+                    latest_month = m
+                latest_math = math
+
+            monthly_scores.append({
+                "month": m,
+                "eng": eng,
+                "math": math
+            })
+
+        avg_eng = round(sum(eng_scores_list) / len(eng_scores_list), 1) if eng_scores_list else None
+        avg_math = round(sum(math_scores_list) / len(math_scores_list), 1) if math_scores_list else None
+        max_eng = max(eng_scores_list) if eng_scores_list else None
+        max_math = max(math_scores_list) if math_scores_list else None
+
+        return {
+            "status": "success",
+            "student_name": student_name,
+            "is_natural": is_natural,
+            "monthly_scores": monthly_scores,
+            "summary": {
+                "avg_eng": avg_eng,
+                "avg_math": avg_math,
+                "max_eng": max_eng,
+                "max_math": max_math,
+                "latest_month": latest_month,
+                "latest_eng": latest_eng,
+                "latest_math": latest_math,
+                "test_count": len(eng_scores_list)
+            }
+        }
+    except Exception as e:
+        print("get_student_monthly_scores 에러:", e)
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
+
+
 # KNN 종합 분석 API
 @app.get("/predict")
 def predict_university(
