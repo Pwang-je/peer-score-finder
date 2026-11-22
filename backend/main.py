@@ -1360,30 +1360,76 @@ def save_student_note(data: StudentNoteUpdate):
     return {"status": "success", "message": f"{data.student_name} 학생 비고 메모 저장 완료"}
 
 
-# 8. 지원 현황: 응시 횟수 및 평균 점수가 가장 비슷한 선배 진학 대학 추천 API
-PAST_SENIORS_CACHE = []
+# 8. 지원 현황: 실제 응시한 월들의 성적 기반 지난 합격생 진학 대학 매칭 API
+PAST_ADMISSIONS_CACHE = None
 
-def get_cached_past_seniors():
-    global PAST_SENIORS_CACHE
-    if PAST_SENIORS_CACHE:
-        return PAST_SENIORS_CACHE
+def get_cached_past_admissions():
+    global PAST_ADMISSIONS_CACHE
+    if PAST_ADMISSIONS_CACHE is not None:
+        return PAST_ADMISSIONS_CACHE
 
     conn = pymysql.connect(**DB_CONFIG)
     try:
         cursor = conn.cursor(pymysql.cursors.DictCursor)
         cursor.execute("""
-            SELECT student_name, year, univ, major,
-                   COUNT(DISTINCT month) as past_cnt,
-                   AVG(CASE WHEN total_score > 0 THEN total_score ELSE NULL END) as past_eng,
-                   AVG(CASE WHEN math_total > 0 THEN math_total ELSE NULL END) as past_math,
-                   MAX(department) as department
+            SELECT year, student_name, month, total_score, math_total, department, univ, major
             FROM peer_data
-            WHERE year < 2026 AND univ != '' AND univ IS NOT NULL
-            GROUP BY year, student_name, univ, major
+            WHERE year < 2026 
+              AND univ != '' AND univ IS NOT NULL AND univ NOT IN ('학교모름', '미기재', '기타')
+              AND major != '' AND major IS NOT NULL AND major NOT IN ('None', 'nan', '미기재')
+            ORDER BY year DESC, student_name ASC, month ASC
         """)
         rows = cursor.fetchall()
-        PAST_SENIORS_CACHE = rows
-        return rows
+
+        # 학생별 구조화
+        from collections import defaultdict
+        students_map = defaultdict(lambda: {
+            'univ': '',
+            'major': '',
+            'is_natural': False,
+            'scores': {}
+        })
+
+        for r in rows:
+            key = (r['year'], r['student_name'])
+            stu = students_map[key]
+            stu['univ'] = r['univ']
+            stu['major'] = r['major']
+
+            dept = str(r.get('department') or '')
+            if '자연' in dept:
+                stu['is_natural'] = True
+
+            m = r.get('month')
+            if not m:
+                continue
+
+            raw_e = r.get('total_score')
+            e_val = None
+            if raw_e is not None and str(raw_e).strip() not in ['', 'None', 'nan', 'null', '-']:
+                try:
+                    num = float(raw_e)
+                    if num > 0:
+                        e_val = num
+                except ValueError:
+                    pass
+
+            raw_m = r.get('math_total')
+            m_val = None
+            if raw_m is not None and str(raw_m).strip() not in ['', 'None', 'nan', 'null', '-']:
+                try:
+                    num = float(raw_m)
+                    if num > 0:
+                        m_val = num
+                        stu['is_natural'] = True
+                except ValueError:
+                    pass
+
+            if e_val is not None or m_val is not None:
+                stu['scores'][int(m)] = {'eng': e_val, 'math': m_val}
+
+        PAST_ADMISSIONS_CACHE = students_map
+        return students_map
     finally:
         conn.close()
 
@@ -1394,88 +1440,131 @@ def get_similar_senior_destinations(student_name: str):
     try:
         cursor = conn.cursor(pymysql.cursors.DictCursor)
 
-        # 1. 대상 2026 학생의 응시 횟수 및 평균값 조회
+        # 1. 대상 2026 학생의 월별 성적 및 계열 판정
         cursor.execute("""
-            SELECT COUNT(DISTINCT month) as cnt,
-                   AVG(CASE WHEN total_score > 0 THEN total_score ELSE NULL END) as avg_eng,
-                   AVG(CASE WHEN math_total > 0 THEN math_total ELSE NULL END) as avg_math,
-                   MAX(department) as department
+            SELECT month, total_score, math_total, department
             FROM peer_data
             WHERE year = 2026 AND student_name = %s
+            ORDER BY month ASC
         """, (student_name,))
-        target = cursor.fetchone()
+        rows = cursor.fetchall()
 
-        # 수학 응시 이력 또는 자연계열 여부 확인
-        cursor.execute("""
-            SELECT math_total, department FROM peer_data
-            WHERE year = 2026 AND student_name = %s
-        """, (student_name,))
-        records = cursor.fetchall()
-
+        target_month_scores = {}
         has_math = False
-        is_natural = False
-        for r in records:
-            m = r.get("math_total")
-            if m is not None and str(m).strip() not in ['', 'None', 'nan', 'null', '-']:
+        is_dept_natural = False
+
+        for r in rows:
+            m = r.get("month")
+            dept = str(r.get("department") or "")
+            if "자연" in dept:
+                is_dept_natural = True
+
+            raw_e = r.get("total_score")
+            e_val = None
+            if raw_e is not None and str(raw_e).strip() not in ['', 'None', 'nan', 'null', '-']:
                 try:
-                    if float(m) > 0:
+                    num = float(raw_e)
+                    if num > 0:
+                        e_val = num
+                except ValueError:
+                    pass
+
+            raw_m = r.get("math_total")
+            m_val = None
+            if raw_m is not None and str(raw_m).strip() not in ['', 'None', 'nan', 'null', '-']:
+                try:
+                    num = float(raw_m)
+                    if num > 0:
+                        m_val = num
                         has_math = True
                 except ValueError:
                     pass
-            d = str(r.get("department") or "")
-            if "자연" in d:
-                is_natural = True
 
-        is_natural = is_natural or has_math
+            if m and (e_val is not None or m_val is not None):
+                target_month_scores[int(m)] = {"eng": e_val, "math": m_val}
 
-        target_cnt = target["cnt"] or 0
-        target_eng = float(target["avg_eng"]) if target and target["avg_eng"] is not None else None
-        target_math = float(target["avg_math"]) if target and target["avg_math"] is not None else None
+        is_natural = is_dept_natural or has_math
+        target_months = set(target_month_scores.keys())
 
-        if target_cnt == 0 or target_eng is None:
+        if not target_months:
             return {
                 "status": "empty",
-                "message": f"{student_name} 학생의 모의고사 성적 데이터가 부족합니다.",
+                "message": f"{student_name} 학생의 모의고사 성적 데이터가 없습니다.",
                 "similar_seniors": []
             }
 
-        # 2. 과거 선배 데이터와 거리 비교 (응시 횟수 + 평균 점수)
-        past_list = get_cached_past_seniors()
+        # 대상 학생 평균 점수 집계
+        t_eng_list = [v["eng"] for v in target_month_scores.values() if v["eng"] is not None]
+        t_math_list = [v["math"] for v in target_month_scores.values() if v["math"] is not None]
+        avg_target_eng = round(sum(t_eng_list) / len(t_eng_list), 1) if t_eng_list else None
+        avg_target_math = round(sum(t_math_list) / len(t_math_list), 1) if t_math_list else None
+
+        # 2. 과거 합격생 캐시 로드 & 계열 100% 일치 필터링
+        past_students = get_cached_past_admissions()
         matched = []
 
-        for s in past_list:
-            p_cnt = s["past_cnt"] or 0
-            p_eng = s["past_eng"]
-            p_math = s["past_math"]
-            if p_eng is None:
+        for (year, name), info in past_students.items():
+            # 학생이 자연계열이면 자연계열 지난 합격생만, 인문계열이면 인문계열 지난 합격생만!
+            if info["is_natural"] != is_natural:
                 continue
 
-            cnt_diff = abs(p_cnt - target_cnt)
-            eng_diff = abs(float(p_eng) - target_eng)
+            p_scores = info["scores"]
+            p_months = set(p_scores.keys())
+            if not p_months:
+                continue
 
-            if is_natural:
-                if p_math is not None and float(p_math) > 0:
-                    math_diff = abs(float(p_math) - (target_math or 0.0))
-                    dist = (cnt_diff * 3.0) + (eng_diff * 1.0) + (math_diff * 1.0)
-                else:
-                    dist = (cnt_diff * 3.0) + (eng_diff * 1.0) + 40.0
-            else:
-                dist = (cnt_diff * 3.0) + (eng_diff * 1.2)
+            overlap_months = target_months.intersection(p_months)
+            if not overlap_months:
+                continue
+
+            # 응시한 월별 1:1 점수 차이 계산
+            sum_diff = 0.0
+            for m in overlap_months:
+                t_score = target_month_scores[m]
+                p_score = p_scores[m]
+
+                # 영어 점수 차이
+                if t_score["eng"] is not None and p_score["eng"] is not None:
+                    sum_diff += abs(t_score["eng"] - p_score["eng"]) * 1.0
+                elif t_score["eng"] is not None or p_score["eng"] is not None:
+                    sum_diff += 15.0
+
+                # 수학 점수 차이 (자연계열인 경우)
+                if is_natural:
+                    if t_score["math"] is not None and p_score["math"] is not None:
+                        sum_diff += abs(t_score["math"] - p_score["math"]) * 1.0
+                    elif t_score["math"] is not None or p_score["math"] is not None:
+                        sum_diff += 20.0
+
+            # 결시 월 페널티 (대상 학생이 응시했으나 과거 합격생이 미응시한 월)
+            missing_months = len(target_months - overlap_months)
+            cnt_diff = abs(len(p_months) - len(target_months))
+
+            avg_overlap_diff = sum_diff / len(overlap_months)
+            total_dist = avg_overlap_diff + (missing_months * 5.0) + (cnt_diff * 1.2)
+
+            # 해당 과거 합격생의 전체 평균 점수
+            p_eng_list = [v["eng"] for v in p_scores.values() if v["eng"] is not None]
+            p_math_list = [v["math"] for v in p_scores.values() if v["math"] is not None]
+            avg_p_eng = round(sum(p_eng_list) / len(p_eng_list), 1) if p_eng_list else None
+            avg_p_math = round(sum(p_math_list) / len(p_math_list), 1) if p_math_list else None
 
             matched.append({
-                "senior_name": s["student_name"],
-                "year": s["year"],
-                "univ": s["univ"],
-                "major": s["major"],
-                "test_count": p_cnt,
-                "avg_eng": round(float(p_eng), 1) if p_eng is not None else None,
-                "avg_math": round(float(p_math), 1) if p_math is not None else None,
-                "distance": round(dist, 2)
+                "student_name": name,
+                "senior_name": name,  # 호환성 유지
+                "year": year,
+                "univ": info["univ"],
+                "major": info["major"],
+                "test_count": len(p_months),
+                "overlap_count": len(overlap_months),
+                "avg_eng": avg_p_eng,
+                "avg_math": avg_p_math,
+                "distance": round(total_dist, 2)
             })
 
         matched.sort(key=lambda x: x["distance"])
 
-        # 중복 대학·학과를 최소화하면서 상위 6개 선발
+        # 중복 대학·학과 방지하며 상위 6개 선발
         unique_destinations = []
         seen = set()
         for item in matched:
@@ -1490,9 +1579,10 @@ def get_similar_senior_destinations(student_name: str):
             "status": "success",
             "student_name": student_name,
             "target": {
-                "test_count": target_cnt,
-                "avg_eng": round(target_eng, 1) if target_eng else None,
-                "avg_math": round(target_math, 1) if target_math else None,
+                "test_count": len(target_months),
+                "tested_months": sorted(list(target_months)),
+                "avg_eng": avg_target_eng,
+                "avg_math": avg_target_math,
                 "is_natural": is_natural
             },
             "similar_seniors": unique_destinations

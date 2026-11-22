@@ -254,11 +254,9 @@
       <div class="student-quick-bar">
         <div class="student-bar-top">
           <div class="student-nav-group">
-            <button @click="moveStudent(-1)" class="nav-arrow-btn" title="이전 학생">◀</button>
             <select v-model="selectedStudent" @change="onSelectStudentChange" class="select-box student-select">
               <option v-for="s in (filteredStudentList.length ? filteredStudentList : studentList)" :key="s" :value="s">{{ s }}</option>
             </select>
-            <button @click="moveStudent(1)" class="nav-arrow-btn" title="다음 학생">▶</button>
           </div>
 
           <div class="student-search-wrap">
@@ -471,22 +469,31 @@
             </div>
           </div>
 
-          <!-- 💡 응시 횟수와 평균값이 가장 비슷한 선배가 갔던 학교 추천 섹션 -->
+          <!-- 💡 응시한 월별 성적 기반 지난 합격생 진학 대학 추천 섹션 -->
           <div class="similar-seniors-section">
             <div class="similar-header">
               <div class="similar-title-wrap">
                 <span class="similar-icon">💡</span>
-                <h4 class="similar-title">성적 유사 선배 합격 대학</h4>
-                <span class="similar-badge">응시횟수 · 평균성적 매칭</span>
+                <h4 class="similar-title">성적 유사 지난 합격생 진학 대학</h4>
+                <span class="similar-badge">
+                  {{ similarSeniorsTarget?.is_natural ? '자연계열 지난 합격생' : '인문계열 지난 합격생' }} 매칭
+                </span>
               </div>
             </div>
 
             <div v-if="similarSeniorsTarget" class="similar-target-bar">
-              <span>기준: 모의고사 <strong>{{ similarSeniorsTarget.test_count }}회</strong> 응시 · 평균 영 <strong>{{ similarSeniorsTarget.avg_eng }}점</strong><span v-if="similarSeniorsTarget.is_natural"> / 수 <strong>{{ similarSeniorsTarget.avg_math }}점</strong></span></span>
+              <span>
+                기준: <strong>{{ similarSeniorsTarget.test_count }}회</strong> 응시
+                <template v-if="similarSeniorsTarget.tested_months && similarSeniorsTarget.tested_months.length">
+                  ({{ similarSeniorsTarget.tested_months.join(', ') }}월 시험 기준)
+                </template>
+                · 평균 영 <strong>{{ similarSeniorsTarget.avg_eng }}점</strong>
+                <span v-if="similarSeniorsTarget.is_natural && similarSeniorsTarget.avg_math"> / 수 <strong>{{ similarSeniorsTarget.avg_math }}점</strong></span>
+              </span>
             </div>
 
             <div v-if="isLoadingSimilar" class="similar-loading">
-              유사 성적 선배 진학 데이터를 분석 중입니다...
+              유사 성적 지난 합격생 진학 데이터를 분석 중입니다...
             </div>
             <div v-else-if="similarSeniorsList.length === 0" class="similar-empty">
               비교할 수 있는 모의고사 성적 데이터가 아직 없습니다.
@@ -500,10 +507,10 @@
                 <div class="similar-card-top">
                   <div class="senior-info-pill">
                     <span class="senior-yr">{{ s.year }}'</span>
-                    <span class="senior-nm">{{ s.senior_name }} 선배</span>
+                    <span class="senior-nm">{{ s.student_name || s.senior_name }}</span>
                   </div>
                   <span class="senior-spec">
-                    {{ s.test_count }}회 · 영 {{ s.avg_eng }}<span v-if="s.avg_math"> / 수 {{ s.avg_math }}</span>
+                    {{ s.test_count }}회 응시 · 영 {{ s.avg_eng }}<span v-if="s.avg_math"> / 수 {{ s.avg_math }}</span>
                   </span>
                 </div>
 
@@ -788,7 +795,7 @@ async function fetchSimilarSeniors() {
       similarSeniorsTarget.value = null
     }
   } catch (err) {
-    console.error('유사 선배 조회 실패:', err)
+    console.error('유사 지난 합격생 조회 실패:', err)
     similarSeniorsList.value = []
     similarSeniorsTarget.value = null
   } finally {
