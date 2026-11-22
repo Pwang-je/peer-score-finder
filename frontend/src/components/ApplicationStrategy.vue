@@ -69,6 +69,82 @@
       </div>
     </div>
 
+    <!-- 기출문제 성적 엑셀 일괄 업로드 모달 -->
+    <div v-if="showPastExamExcelModal" class="modal-backdrop" @click.self="showPastExamExcelModal = false">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>📊 기출문제 성적 엑셀 일괄 업로드</h3>
+          <button @click="showPastExamExcelModal = false" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="guide-text">
+            엑셀(.xlsx) 파일의 첫 행에 아래 4개 컬럼을 필수로 입력해 주세요.<br>
+            <strong>필수 컬럼:</strong> <code>학생 이름</code>, <code>기출 년도</code>, <code>내 총점</code>, <code>평균</code><br>
+            <strong>선택 컬럼:</strong> <code>구분</code>(영어 / 수학 / 영+수), <code>대학명</code> (미입력 시 현재 선택된 <strong>{{ formUniv || '대학' }}</strong> 자동 적용), <code>메모</code>
+          </p>
+          <div class="sample-table-wrap">
+            <table class="sample-table">
+              <thead>
+                <tr>
+                  <th>학생 이름</th>
+                  <th>대학명</th>
+                  <th>기출 년도</th>
+                  <th>구분</th>
+                  <th>내 총점</th>
+                  <th>평균</th>
+                  <th>메모</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{{ selectedStudent || '김도현' }}</td>
+                  <td>{{ formUniv || '건국대학교' }}</td>
+                  <td>2024</td>
+                  <td>영어</td>
+                  <td>72.5</td>
+                  <td>58.0</td>
+                  <td>인문 영어 기출</td>
+                </tr>
+                <tr>
+                  <td>{{ selectedStudent || '김도현' }}</td>
+                  <td>{{ formUniv || '건국대학교' }}</td>
+                  <td>2024</td>
+                  <td>수학</td>
+                  <td>68.0</td>
+                  <td>55.0</td>
+                  <td>자연 수학 기출</td>
+                </tr>
+                <tr>
+                  <td>{{ selectedStudent || '김도현' }}</td>
+                  <td>{{ formUniv || '아주대학교' }}</td>
+                  <td>2023</td>
+                  <td>영+수</td>
+                  <td>145.0</td>
+                  <td>130.0</td>
+                  <td>영수 통합 기출</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="template-download-row">
+            <button @click="downloadPastExamTemplate" type="button" class="btn-template-dl">
+              📥 양식 엑셀 파일 다운로드 (.xlsx)
+            </button>
+          </div>
+          <div class="file-upload-row">
+            <label class="file-input-label">업로드할 엑셀 파일 선택</label>
+            <input type="file" ref="pastExamFileInput" accept=".xlsx, .xls, .csv" class="file-input" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="showPastExamExcelModal = false" class="btn-cancel">닫기</button>
+          <button @click="uploadPastExamExcelFile" :disabled="isUploadingPastExam" class="btn-submit">
+            {{ isUploadingPastExam ? '업로드 및 DB 저장 중...' : '기출점수 일괄 등록' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ================================================================= -->
     <!-- 탭 1: 학교별 모집요강 현황판 (빠른 대학 칩 + 학점은행제 지원자격) -->
     <!-- ================================================================= -->
@@ -339,10 +415,10 @@
             </div>
           </div>
 
-          <!-- 3. 새로운 대학 선택 UI -->
+          <!-- 3. 대학 선택 UI (깔끔한 드롭다운 및 지원 대학 퀵 뱃지) -->
           <div class="univ-selector-section">
             <div class="univ-selector-row">
-              <div class="univ-dropdown-wrap">
+              <div class="univ-dropdown-wrap full-width">
                 <label class="univ-select-label">탐색 대학 선택</label>
                 <select
                   v-model="formUniv"
@@ -354,33 +430,6 @@
                   </option>
                 </select>
               </div>
-
-              <div class="univ-quick-filter-wrap">
-                <label class="univ-select-label">대학 빠른 검색</label>
-                <div class="quick-filter-input-box">
-                  <input
-                    v-model="formUnivFilterKeyword"
-                    type="text"
-                    placeholder="대학명 검색 (예: 건국, 외대, 단국...)"
-                    class="univ-quick-filter-input"
-                  />
-                  <button v-if="formUnivFilterKeyword" @click="formUnivFilterKeyword = ''" class="input-clear-btn">✕</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 검색 필터링된 결과 칩 (검색어 입력 시 바로 선택 가능) -->
-            <div v-if="formUnivFilterKeyword.trim()" class="univ-filter-results">
-              <button
-                v-for="u in matchedFormUnivList"
-                :key="u"
-                :class="['univ-result-chip', { active: formUniv === u, applied: appliedUnivSet.has(u) }]"
-                @click="selectFormUniv(u); formUnivFilterKeyword = ''"
-              >
-                {{ u }}
-                <span v-if="appliedUnivSet.has(u)" class="applied-star">★</span>
-              </button>
-              <span v-if="matchedFormUnivList.length === 0" class="no-univ-match">검색된 대학이 없습니다.</span>
             </div>
 
             <!-- 지원 중인 대학 바로가기 뱃지 (있을 때만 표시) -->
@@ -401,7 +450,7 @@
             </div>
           </div>
 
-          <!-- 2 & 4. 선택된 대학의 기출문제 성적 카드 및 18~26년도 직접 입력 -->
+          <!-- 2 & 4. 선택된 대학의 기출문제 성적 카드 및 18~26년도 직접 입력 / 엑셀 일괄 등록 -->
           <div class="past-exam-box">
             <div class="past-exam-box-header">
               <div class="past-exam-title-group">
@@ -411,21 +460,55 @@
                   ({{ currentUnivPastExams.length }}건)
                 </span>
               </div>
-              <button
-                @click="showAddPastExamModal = !showAddPastExamModal"
-                class="btn-toggle-add-exam"
-              >
-                {{ showAddPastExamModal ? '입력 닫기 ✕' : '+ 18~26년도 기출점수 입력' }}
-              </button>
+              <div class="past-exam-header-btns">
+                <button
+                  @click="showPastExamExcelModal = true"
+                  class="btn-excel-upload-exam"
+                  title="엑셀로 기출 성적 일괄 등록"
+                >
+                  📥 엑셀 일괄 업로드
+                </button>
+                <button
+                  @click="showAddPastExamModal = !showAddPastExamModal"
+                  class="btn-toggle-add-exam"
+                >
+                  {{ showAddPastExamModal ? '입력 닫기 ✕' : '+ 점수 직접 입력' }}
+                </button>
+              </div>
             </div>
 
-            <!-- 18~26년도 점수 직접 입력 폼 (Unofficial 자체풀이 포함) -->
+            <!-- 18~26년도 점수 직접 입력 폼 (영어 / 수학 / 영+수 구분) -->
             <div v-if="showAddPastExamModal" class="past-exam-form-card">
               <div class="exam-form-header-line">
                 <span class="exam-form-title">{{ formUniv }} 기출 점수 등록 (18~26년도)</span>
-                <span class="exam-form-hint">직접 채점한 점수도 Unofficial로 자유롭게 등록 가능합니다.</span>
+                <!-- 과목 구분 토글 (영어 / 수학 / 영+수) -->
+                <div class="subject-toggle-group">
+                  <button
+                    type="button"
+                    :class="['subject-btn', { active: newPastExam.subject_type === '영어' }]"
+                    @click="newPastExam.subject_type = '영어'"
+                  >
+                    영어만
+                  </button>
+                  <button
+                    type="button"
+                    :class="['subject-btn', { active: newPastExam.subject_type === '수학' }]"
+                    @click="newPastExam.subject_type = '수학'"
+                  >
+                    수학만
+                  </button>
+                  <button
+                    type="button"
+                    :class="['subject-btn', { active: newPastExam.subject_type === '영+수' }]"
+                    @click="newPastExam.subject_type = '영+수'"
+                  >
+                    영+수 (통합)
+                  </button>
+                </div>
               </div>
+
               <div class="exam-form-inputs">
+                <!-- 연도 선택 -->
                 <div class="exam-input-group year-group">
                   <label>기출 연도</label>
                   <select v-model.number="newPastExam.exam_year" class="exam-form-select">
@@ -435,42 +518,106 @@
                   </select>
                 </div>
 
-                <div class="exam-input-group">
-                  <label>내 총점 (필수)</label>
-                  <input
-                    v-model.number="newPastExam.my_score"
-                    type="number"
-                    step="0.1"
-                    placeholder="예: 68.5"
-                    class="exam-form-input"
-                  />
-                </div>
+                <!-- 영+수 선택 시: 영어점수, 수학점수, 총점, 평균 -->
+                <template v-if="newPastExam.subject_type === '영+수'">
+                  <div class="exam-input-group">
+                    <label>내 영어 점수 (선택)</label>
+                    <input
+                      v-model.number="newPastExam.eng_score"
+                      @input="onSubScoreChange"
+                      type="number"
+                      step="0.1"
+                      placeholder="예: 70.0"
+                      class="exam-form-input"
+                    />
+                  </div>
+                  <div class="exam-input-group">
+                    <label>내 수학 점수 (선택)</label>
+                    <input
+                      v-model.number="newPastExam.math_score"
+                      @input="onSubScoreChange"
+                      type="number"
+                      step="0.1"
+                      placeholder="예: 75.0"
+                      class="exam-form-input"
+                    />
+                  </div>
+                  <div class="exam-input-group">
+                    <label>영+수 총점 (필수)</label>
+                    <input
+                      v-model.number="newPastExam.my_score"
+                      type="number"
+                      step="0.1"
+                      placeholder="예: 145.0"
+                      class="exam-form-input highlight"
+                    />
+                  </div>
+                  <div class="exam-input-group">
+                    <label>영+수 총점 평균 (선택)</label>
+                    <input
+                      v-model.number="newPastExam.avg_score"
+                      type="number"
+                      step="0.1"
+                      placeholder="예: 125.0"
+                      class="exam-form-input"
+                    />
+                  </div>
+                </template>
 
-                <div class="exam-input-group">
-                  <label>학원 평균 (선택)</label>
-                  <input
-                    v-model.number="newPastExam.avg_score"
-                    type="number"
-                    step="0.1"
-                    placeholder="예: 55.0"
-                    class="exam-form-input"
-                  />
-                </div>
+                <!-- 영어만 선택 시 -->
+                <template v-else-if="newPastExam.subject_type === '영어'">
+                  <div class="exam-input-group">
+                    <label>내 영어 총점 (필수)</label>
+                    <input
+                      v-model.number="newPastExam.my_score"
+                      type="number"
+                      step="0.1"
+                      placeholder="예: 68.5"
+                      class="exam-form-input"
+                    />
+                  </div>
+                  <div class="exam-input-group">
+                    <label>영어 평균 (선택)</label>
+                    <input
+                      v-model.number="newPastExam.avg_score"
+                      type="number"
+                      step="0.1"
+                      placeholder="예: 55.0"
+                      class="exam-form-input"
+                    />
+                  </div>
+                </template>
 
-                <div class="exam-input-group unofficial-group">
-                  <label>구분</label>
-                  <label class="unofficial-check-label">
-                    <input type="checkbox" v-model="newPastExam.is_unofficial" />
-                    <span>자체 채점 (Unofficial)</span>
-                  </label>
-                </div>
+                <!-- 수학만 선택 시 -->
+                <template v-else-if="newPastExam.subject_type === '수학'">
+                  <div class="exam-input-group">
+                    <label>내 수학 총점 (필수)</label>
+                    <input
+                      v-model.number="newPastExam.my_score"
+                      type="number"
+                      step="0.1"
+                      placeholder="예: 72.0"
+                      class="exam-form-input"
+                    />
+                  </div>
+                  <div class="exam-input-group">
+                    <label>수학 평균 (선택)</label>
+                    <input
+                      v-model.number="newPastExam.avg_score"
+                      type="number"
+                      step="0.1"
+                      placeholder="예: 60.0"
+                      class="exam-form-input"
+                    />
+                  </div>
+                </template>
               </div>
 
               <div class="exam-form-footer-row">
                 <input
                   v-model="newPastExam.memo"
                   type="text"
-                  placeholder="메모 (예: 60분 시간 재고 풀이, 백분위 등 - 선택)"
+                  placeholder="메모 (예: 60분 시간 재고 풀이 등 - 선택)"
                   class="exam-form-memo"
                 />
                 <button
@@ -490,46 +637,50 @@
                 :key="sc.id"
                 class="past-exam-tile"
               >
-                <div class="tile-left">
+                <div class="tile-top-row">
                   <span class="exam-year-tag">{{ String(sc.exam_year).slice(-2) }}' 기출</span>
-                  <span :class="['exam-kind-pill', sc.is_unofficial ? 'unofficial' : 'official']">
-                    {{ sc.is_unofficial ? '자체풀이' : '공식모의' }}
+                  <span :class="['exam-subj-badge', getSubjClass(sc.subject_type)]">
+                    {{ sc.subject_type || '영어' }}
                   </span>
+                  <button
+                    @click="deletePastExamScore(sc.id)"
+                    class="btn-del-exam-score"
+                    title="기출 점수 삭제"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div class="tile-body">
                   <div class="exam-score-display">
                     <span class="lbl">내점수</span>
                     <strong class="val">{{ sc.my_score }}점</strong>
                   </div>
-                  <div v-if="sc.avg_score" class="exam-avg-display">
-                    (평균 {{ sc.avg_score }}점)
+
+                  <!-- 영+수 세부 점수 표시 -->
+                  <div v-if="sc.subject_type === '영+수' && (sc.eng_score !== null || sc.math_score !== null)" class="subscore-breakdown">
+                    (영 {{ sc.eng_score ?? '-' }} / 수 {{ sc.math_score ?? '-' }})
                   </div>
+
+                  <div v-if="sc.avg_score" class="exam-avg-display">
+                    평균 {{ sc.avg_score }}점
+                  </div>
+
                   <div
                     v-if="sc.score_gap !== null && sc.score_gap !== undefined"
                     :class="['exam-gap-pill', sc.score_gap >= 0 ? 'plus' : 'minus']"
                   >
                     {{ sc.score_gap >= 0 ? '+' + sc.score_gap : sc.score_gap }}점
                   </div>
-                  <div v-if="sc.percentile" class="exam-pct-pill">
-                    {{ sc.percentile }}
-                  </div>
+
                   <span v-if="sc.memo" class="exam-memo-chip" :title="sc.memo">
                     💬 {{ sc.memo }}
                   </span>
                 </div>
-                <button
-                  @click="deletePastExamScore(sc.id)"
-                  class="btn-del-exam-score"
-                  title="이 점수 삭제"
-                >
-                  ✕
-                </button>
               </div>
             </div>
-
-            <div v-else-if="!showAddPastExamModal" class="past-exam-empty-banner">
-              <span>{{ selectedStudent }} 학생의 <strong>{{ formUniv }}</strong> 기출 성적이 아직 없습니다.</span>
-              <button @click="showAddPastExamModal = true" class="btn-open-exam-input">
-                + 점수 등록하기
-              </button>
+            <div v-else-if="!isLoadingPastExams" class="no-past-exam">
+              <span>{{ selectedStudent ? `${selectedStudent} 학생의 ${formUniv} 기출 점수 기록이 없습니다.` : '학생을 선택하면 기출 점수가 표시됩니다.' }}</span>
             </div>
           </div>
 
@@ -886,13 +1037,18 @@ const studentPastExams = ref([])
 const isLoadingPastExams = ref(false)
 const showAddPastExamModal = ref(false)
 const isSavingExam = ref(false)
-const formUnivFilterKeyword = ref('')
+
+const showPastExamExcelModal = ref(false)
+const pastExamFileInput = ref(null)
+const isUploadingPastExam = ref(false)
 
 const newPastExam = ref({
   exam_year: 2024,
+  subject_type: '영어', // '영어' | '수학' | '영+수'
   my_score: '',
   avg_score: '',
-  is_unofficial: true,
+  eng_score: '',
+  math_score: '',
   memo: ''
 })
 
@@ -957,12 +1113,6 @@ const appliedUnivSet = computed(() => new Set(studentApplications.value.map(a =>
 
 const sortedUnivList = computed(() => {
   return [...univList.value].sort((a, b) => a.localeCompare(b, 'ko'))
-})
-
-const matchedFormUnivList = computed(() => {
-  const kw = formUnivFilterKeyword.value.trim().toLowerCase()
-  if (!kw) return []
-  return univList.value.filter(u => u.toLowerCase().includes(kw))
 })
 
 const appliedUnivList = computed(() => {
@@ -1528,6 +1678,16 @@ async function fetchStudentPastExams() {
   }
 }
 
+function onSubScoreChange() {
+  if (newPastExam.value.subject_type === '영+수') {
+    const e = parseFloat(newPastExam.value.eng_score) || 0
+    const m = parseFloat(newPastExam.value.math_score) || 0
+    if (newPastExam.value.eng_score !== '' || newPastExam.value.math_score !== '') {
+      newPastExam.value.my_score = Math.round((e + m) * 10) / 10
+    }
+  }
+}
+
 async function savePastExamScore() {
   if (!selectedStudent.value) {
     alert('학생을 먼저 선택해 주세요.')
@@ -1537,8 +1697,18 @@ async function savePastExamScore() {
     alert('대학을 선택해 주세요.')
     return
   }
+
+  // 영+수일 때 총점 미입력 시 영어+수학 자동 합산
+  if (newPastExam.value.subject_type === '영+수') {
+    if (newPastExam.value.my_score === '' && (newPastExam.value.eng_score !== '' || newPastExam.value.math_score !== '')) {
+      const e = parseFloat(newPastExam.value.eng_score) || 0
+      const m = parseFloat(newPastExam.value.math_score) || 0
+      newPastExam.value.my_score = e + m
+    }
+  }
+
   if (newPastExam.value.my_score === '' || newPastExam.value.my_score === null || isNaN(Number(newPastExam.value.my_score))) {
-    alert('내 점수를 올바르게 입력해 주세요.')
+    alert('내 총점을 올바르게 입력해 주세요.')
     return
   }
   isSavingExam.value = true
@@ -1550,9 +1720,11 @@ async function savePastExamScore() {
         student_name: selectedStudent.value,
         univ: formUniv.value,
         exam_year: Number(newPastExam.value.exam_year),
+        subject_type: newPastExam.value.subject_type || '영어',
         my_score: Number(newPastExam.value.my_score),
         avg_score: newPastExam.value.avg_score !== '' && newPastExam.value.avg_score !== null ? Number(newPastExam.value.avg_score) : null,
-        is_unofficial: newPastExam.value.is_unofficial,
+        eng_score: newPastExam.value.eng_score !== '' && newPastExam.value.eng_score !== null ? Number(newPastExam.value.eng_score) : null,
+        math_score: newPastExam.value.math_score !== '' && newPastExam.value.math_score !== null ? Number(newPastExam.value.math_score) : null,
         memo: newPastExam.value.memo || ''
       })
     })
@@ -1560,6 +1732,8 @@ async function savePastExamScore() {
       await fetchStudentPastExams()
       newPastExam.value.my_score = ''
       newPastExam.value.avg_score = ''
+      newPastExam.value.eng_score = ''
+      newPastExam.value.math_score = ''
       newPastExam.value.memo = ''
       showAddPastExamModal.value = false
     } else {
@@ -1586,6 +1760,54 @@ async function deletePastExamScore(id) {
   }
 }
 
+function downloadPastExamTemplate() {
+  window.open(`${API_BASE}/api/student-past-exams/sample-template`, '_blank')
+}
+
+async function uploadPastExamExcelFile() {
+  const fileEl = pastExamFileInput.value
+  if (!fileEl || !fileEl.files || fileEl.files.length === 0) {
+    alert('업로드할 엑셀 파일을 선택해 주세요.')
+    return
+  }
+  const formData = new FormData()
+  formData.append('file', fileEl.files[0])
+  if (selectedStudent.value) {
+    formData.append('default_student', selectedStudent.value)
+  }
+  if (formUniv.value) {
+    formData.append('default_univ', formUniv.value)
+  }
+
+  isUploadingPastExam.value = true
+  try {
+    const res = await fetch(`${API_BASE}/api/student-past-exams/upload-excel`, {
+      method: 'POST',
+      body: formData
+    })
+    const result = await res.json()
+    if (res.ok) {
+      alert(result.message)
+      showPastExamExcelModal.value = false
+      fileEl.value = ''
+      await fetchStudentPastExams()
+    } else {
+      alert(result.detail || '기출 엑셀 업로드 중 오류가 발생했습니다.')
+    }
+  } catch (err) {
+    console.error('기출 엑셀 업로드 에러:', err)
+    alert('서버 통신 중 오류가 발생했습니다.')
+  } finally {
+    isUploadingPastExam.value = false
+  }
+}
+
+function getSubjClass(subj) {
+  if (subj === '수학') return 'subj-math'
+  if (subj === '영+수') return 'subj-both'
+  return 'subj-eng'
+}
+
 function getUnivExamSummary(univ) {
   if (!univ) return ''
   const uClean = univ.replace(/대학교|대학/g, '').split('(')[0].trim()
@@ -1597,12 +1819,10 @@ function getUnivExamSummary(univ) {
   if (matches.length === 0) return ''
   return matches.map(m => {
     const yr = String(m.exam_year).slice(-2) + "'"
-    let str = `${yr} ${m.my_score}점`
+    const subj = m.subject_type ? `[${m.subject_type}] ` : ''
+    let str = `${yr} ${subj}${m.my_score}점`
     if (m.score_gap !== null && m.score_gap !== undefined) {
       str += `(${m.score_gap >= 0 ? '+' : ''}${m.score_gap})`
-    }
-    if (m.is_unofficial) {
-      str += '[자체]'
     }
     return str
   }).slice(0, 2).join(' / ')
@@ -2484,6 +2704,27 @@ onMounted(async () => {
   border-color: #2563eb;
 }
 
+.past-exam-header-btns {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.btn-excel-upload-exam {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.btn-excel-upload-exam:hover {
+  background: #dcfce7;
+}
+
 /* 직접 입력 폼 */
 .past-exam-form-card {
   margin-top: 10px;
@@ -2499,7 +2740,7 @@ onMounted(async () => {
   align-items: center;
   margin-bottom: 8px;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
 }
 
 .exam-form-title {
@@ -2508,14 +2749,35 @@ onMounted(async () => {
   color: #1e293b;
 }
 
-.exam-form-hint {
+.subject-toggle-group {
+  display: inline-flex;
+  background: #e2e8f0;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.subject-btn {
   font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
   color: #64748b;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.subject-btn.active {
+  background: #ffffff;
+  color: #1e293b;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .exam-form-inputs {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1.2fr;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -2548,25 +2810,10 @@ onMounted(async () => {
 .exam-form-input:focus {
   border-color: #2563eb;
 }
-
-.unofficial-group {
-  justify-content: flex-end;
-}
-
-.unofficial-check-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #92400e;
-  background: #fef3c7;
-  padding: 5px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  border: 1px solid #fde68a;
-  height: 32px;
-  box-sizing: border-box;
+.exam-form-input.highlight {
+  border-color: #2563eb;
+  background: #eff6ff;
+  font-weight: 700;
 }
 
 .exam-form-footer-row {
@@ -2612,9 +2859,9 @@ onMounted(async () => {
 
 .past-exam-tile {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 7px 10px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 7px;
@@ -2625,7 +2872,13 @@ onMounted(async () => {
   border-color: #bfdbfe;
 }
 
-.tile-left {
+.tile-top-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tile-body {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2641,21 +2894,32 @@ onMounted(async () => {
   border-radius: 4px;
 }
 
-.exam-kind-pill {
+.exam-subj-badge {
   font-size: 10px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 3px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
-.exam-kind-pill.unofficial {
-  background: #fef3c7;
-  color: #b45309;
-  border: 1px solid #fde68a;
-}
-.exam-kind-pill.official {
+.exam-subj-badge.subj-eng {
   background: #eff6ff;
   color: #1d4ed8;
   border: 1px solid #bfdbfe;
+}
+.exam-subj-badge.subj-math {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+.exam-subj-badge.subj-both {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.subscore-breakdown {
+  font-size: 11.5px;
+  color: #475569;
+  font-weight: 600;
 }
 
 .exam-score-display {
@@ -2668,7 +2932,7 @@ onMounted(async () => {
   color: #64748b;
   font-size: 11px;
 }
-.exam-score-display .score-strong {
+.exam-score-display strong {
   font-weight: 900;
   color: #0f172a;
 }
@@ -2695,15 +2959,6 @@ onMounted(async () => {
   border: 1px solid #fecaca;
 }
 
-.exam-pct-pill {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: #4338ca;
-  background: #e0e7ff;
-  padding: 1px 5px;
-  border-radius: 4px;
-}
-
 .exam-memo-chip {
   font-size: 11px;
   color: #64748b;
@@ -2718,6 +2973,7 @@ onMounted(async () => {
 }
 
 .btn-del-exam-score {
+  margin-left: auto;
   width: 20px;
   height: 20px;
   font-size: 10px;
@@ -2729,6 +2985,39 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.template-download-row {
+  margin: 10px 0 6px 0;
+}
+.btn-template-dl {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.btn-template-dl:hover {
+  background: #e2e8f0;
+}
+.file-upload-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.file-input-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+}
+.univ-dropdown-wrap.full-width {
+  flex: 1;
+  width: 100%;
 }
 .btn-del-exam-score:hover {
   background: #dc2626;
@@ -3686,13 +3975,17 @@ onMounted(async () => {
     gap: 4px;
   }
 
-  .past-exam-header {
+  .past-exam-box-header {
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
+  }
+
+  .past-exam-header-btns {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .past-exam-tiles {
-    grid-template-columns: repeat(2, 1fr);
     gap: 6px;
   }
 

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import io
 import pandas as pd
@@ -1111,15 +1112,18 @@ def ensure_application_tables():
                        student_name VARCHAR(50) NOT NULL,
                        univ VARCHAR(50) NOT NULL,
                        exam_year INT NOT NULL,
+                       subject_type VARCHAR(20) DEFAULT '영어',
                        my_score FLOAT NOT NULL,
                        avg_score FLOAT NULL,
                        score_gap FLOAT NULL,
+                       eng_score FLOAT NULL,
+                       math_score FLOAT NULL,
                        percentile VARCHAR(30) DEFAULT '',
                        is_unofficial BOOLEAN DEFAULT TRUE,
                        memo VARCHAR(100) DEFAULT '',
                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                       UNIQUE KEY uq_student_univ_year (student_name, univ, exam_year)
+                       UNIQUE KEY uq_student_univ_year_subj (student_name, univ, exam_year, subject_type)
                    );
                    """)
     # 기존 테이블이 이미 있을 경우 대비 컬럼 추가
@@ -1133,6 +1137,18 @@ def ensure_application_tables():
     for col_name, col_type in cols_to_add:
         try:
             cursor.execute(f"ALTER TABLE student_notes ADD COLUMN {col_name} {col_type};")
+            conn.commit()
+        except Exception:
+            pass
+
+    past_cols = [
+        ("subject_type", "VARCHAR(20) DEFAULT '영어'"),
+        ("eng_score", "FLOAT NULL"),
+        ("math_score", "FLOAT NULL"),
+    ]
+    for col_name, col_type in past_cols:
+        try:
+            cursor.execute(f"ALTER TABLE student_past_exam_scores ADD COLUMN {col_name} {col_type};")
             conn.commit()
         except Exception:
             pass
@@ -1661,10 +1677,12 @@ class PastExamScoreCreate(BaseModel):
     student_name: str
     univ: str
     exam_year: int
+    subject_type: Optional[str] = "영어"  # '영어' | '수학' | '영+수'
     my_score: float
     avg_score: Optional[float] = None
+    eng_score: Optional[float] = None
+    math_score: Optional[float] = None
     percentile: Optional[str] = ""
-    is_unofficial: Optional[bool] = True
     memo: Optional[str] = ""
 
 
@@ -1675,18 +1693,18 @@ def get_student_past_exams(student_name: str, univ: Optional[str] = None):
     if univ:
         univ_clean = univ.replace("대학교", "").replace("대학", "").split("(")[0].strip()
         cursor.execute("""
-            SELECT id, student_name, univ, exam_year, my_score, avg_score, score_gap, percentile, is_unofficial, memo, updated_at
+            SELECT id, student_name, univ, exam_year, subject_type, my_score, avg_score, score_gap, eng_score, math_score, percentile, memo, updated_at
             FROM student_past_exam_scores
             WHERE student_name = %s 
               AND (univ = %s OR univ LIKE %s OR %s LIKE CONCAT(univ, '%%'))
-            ORDER BY exam_year DESC;
+            ORDER BY exam_year DESC, subject_type ASC;
         """, (student_name, univ, f"%{univ_clean}%", univ))
     else:
         cursor.execute("""
-            SELECT id, student_name, univ, exam_year, my_score, avg_score, score_gap, percentile, is_unofficial, memo, updated_at
+            SELECT id, student_name, univ, exam_year, subject_type, my_score, avg_score, score_gap, eng_score, math_score, percentile, memo, updated_at
             FROM student_past_exam_scores
             WHERE student_name = %s
-            ORDER BY univ ASC, exam_year DESC;
+            ORDER BY univ ASC, exam_year DESC, subject_type ASC;
         """, (student_name,))
     
     rows = cursor.fetchall()
@@ -1701,11 +1719,13 @@ def get_student_past_exams(student_name: str, univ: Optional[str] = None):
             "univ": r["univ"],
             "exam_year": r["exam_year"],
             "year_short": f"{str(r['exam_year'])[-2:]}'",
+            "subject_type": r.get("subject_type") or "영어",
             "my_score": float(r["my_score"]) if r["my_score"] is not None else 0.0,
             "avg_score": float(r["avg_score"]) if r["avg_score"] is not None else None,
             "score_gap": float(r["score_gap"]) if r["score_gap"] is not None else None,
+            "eng_score": float(r["eng_score"]) if r.get("eng_score") is not None else None,
+            "math_score": float(r["math_score"]) if r.get("math_score") is not None else None,
             "percentile": r.get("percentile") or "",
-            "is_unofficial": bool(r.get("is_unofficial")),
             "memo": r.get("memo") or "",
             "updated_at": str(r["updated_at"]) if r.get("updated_at") else None
         })
@@ -1718,37 +1738,46 @@ def save_student_past_exam(data: PastExamScoreCreate):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    subject_type = data.subject_type or "영어"
+    my_score = float(data.my_score)
+    # 영+수 선택 시 my_score가 0이고 eng_score 또는 math_score가 있으면 합산
+    if subject_type == "영+수" and (my_score == 0 or my_score is None) and (data.eng_score or data.math_score):
+        my_score = (data.eng_score or 0) + (data.math_score or 0)
+
     score_gap = None
     if data.avg_score is not None and data.avg_score > 0:
-        score_gap = round(float(data.my_score) - float(data.avg_score), 2)
+        score_gap = round(my_score - float(data.avg_score), 2)
 
     cursor.execute("""
         INSERT INTO student_past_exam_scores 
-        (student_name, univ, exam_year, my_score, avg_score, score_gap, percentile, is_unofficial, memo)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (student_name, univ, exam_year, subject_type, my_score, avg_score, score_gap, eng_score, math_score, percentile, memo)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
             my_score = VALUES(my_score),
             avg_score = VALUES(avg_score),
             score_gap = VALUES(score_gap),
+            eng_score = VALUES(eng_score),
+            math_score = VALUES(math_score),
             percentile = VALUES(percentile),
-            is_unofficial = VALUES(is_unofficial),
             memo = VALUES(memo),
             updated_at = CURRENT_TIMESTAMP;
     """, (
         data.student_name,
         data.univ,
         data.exam_year,
-        data.my_score,
+        subject_type,
+        my_score,
         data.avg_score,
         score_gap,
+        data.eng_score,
+        data.math_score,
         data.percentile or "",
-        data.is_unofficial if data.is_unofficial is not None else True,
         data.memo or ""
     ))
     conn.commit()
     cursor.close()
     conn.close()
-    return {"status": "success", "message": f"{data.student_name} 학생 {data.univ} {data.exam_year}년도 기출 점수 저장 완료"}
+    return {"status": "success", "message": f"{data.student_name} 학생 {data.univ} {data.exam_year}년도 [{subject_type}] 기출 점수 저장 완료"}
 
 
 @app.delete("/api/student-past-exams/{score_id}")
@@ -1760,6 +1789,192 @@ def delete_student_past_exam(score_id: int):
     cursor.close()
     conn.close()
     return {"status": "success", "message": "기출 점수 삭제 완료"}
+
+
+@app.post("/api/student-past-exams/upload-excel")
+async def upload_past_exam_excel(
+    file: UploadFile = File(...),
+    default_student: Optional[str] = Form(None),
+    default_univ: Optional[str] = Form(None)
+):
+    try:
+        content = await file.read()
+        filename = file.filename.lower()
+        if filename.endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(content))
+        else:
+            df = pd.read_excel(io.BytesIO(content))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"엑셀 파일 읽기 실패: {str(e)}")
+
+    if df.empty:
+        raise HTTPException(status_code=400, detail="업로드한 파일에 데이터가 없습니다.")
+
+    # 컬럼 헤더 정규화
+    df.columns = [str(c).strip() for c in df.columns]
+
+    def find_col(candidates):
+        for c in df.columns:
+            for cand in candidates:
+                if cand.lower() == c.lower() or cand in c:
+                    return c
+        return None
+
+    student_col = find_col(['학생 이름', '학생이름', '학생', '이름', 'student_name'])
+    univ_col = find_col(['대학명', '대학', '학교명', '학교', '대학교', 'univ'])
+    year_col = find_col(['기출 년도', '기출년도', '년도', '연도', '기출연도', 'exam_year', 'year'])
+    subj_col = find_col(['구분', '과목', '과목구분', '과목명', 'subject', 'subject_type'])
+    score_col = find_col(['내 총점', '내총점', '총점', '내점수', '내 점수', '점수', 'score', 'my_score'])
+    avg_col = find_col(['평균', '평균점수', 'avg', 'avg_score'])
+    eng_col = find_col(['영어점수', '영어 점수', '영어', 'eng_score'])
+    math_col = find_col(['수학점수', '수학 점수', '수학', 'math_score'])
+    memo_col = find_col(['메모', '비고', 'memo'])
+
+    inserted_count = 0
+    skipped_count = 0
+    records = []
+
+    for _, row in df.iterrows():
+        # 1. 학생 이름
+        s_name = str(row[student_col]).strip() if student_col and pd.notna(row[student_col]) else ""
+        if not s_name or s_name in ['nan', 'None']:
+            s_name = (default_student or "").strip()
+        if not s_name:
+            skipped_count += 1
+            continue
+
+        # 2. 대학명 및 년도 파싱 (예: "22 건국대" 처리 포함)
+        u_name = str(row[univ_col]).strip() if univ_col and pd.notna(row[univ_col]) else ""
+        y_val = row[year_col] if year_col and pd.notna(row[year_col]) else None
+
+        # 대학명 컬럼에 "22 건국대", "2023 단국대" 처럼 연도가 포함되어 있는 경우 자동 분리
+        if u_name:
+            m_year_univ = re.match(r"^(\d{2,4})\s*(.+)$", u_name)
+            if m_year_univ:
+                if not y_val or pd.isna(y_val):
+                    y_val = m_year_univ.group(1)
+                u_name = m_year_univ.group(2).strip()
+
+        if not u_name or u_name in ['nan', 'None']:
+            u_name = (default_univ or "").strip()
+        if not u_name:
+            skipped_count += 1
+            continue
+
+        # 3. 년도 파싱
+        exam_year = None
+        if y_val is not None and not pd.isna(y_val):
+            try:
+                y_num = int(float(re.sub(r"[^\d.]", "", str(y_val))))
+                if y_num < 100:
+                    exam_year = 2000 + y_num
+                else:
+                    exam_year = y_num
+            except Exception:
+                pass
+        if not exam_year:
+            skipped_count += 1
+            continue
+
+        # 4. 과목 구분 (영어 / 수학 / 영+수)
+        raw_subj = str(row[subj_col]).strip() if subj_col and pd.notna(row[subj_col]) else ""
+        if ("영" in raw_subj and "수" in raw_subj) or "영수" in raw_subj:
+            subj_type = "영+수"
+        elif "수" in raw_subj or "자연" in raw_subj or "math" in raw_subj.lower():
+            subj_type = "수학"
+        else:
+            subj_type = "영어"
+
+        # 5. 점수
+        eng_score = None
+        math_score = None
+        if eng_col and pd.notna(row[eng_col]):
+            try: eng_score = float(re.sub(r"[^\d.]", "", str(row[eng_col])))
+            except Exception: pass
+        if math_col and pd.notna(row[math_col]):
+            try: math_score = float(re.sub(r"[^\d.]", "", str(row[math_col])))
+            except Exception: pass
+
+        my_score = None
+        if score_col and pd.notna(row[score_col]):
+            try: my_score = float(re.sub(r"[^\d.]", "", str(row[score_col])))
+            except Exception: pass
+        
+        if my_score is None:
+            if eng_score is not None and math_score is not None:
+                my_score = eng_score + math_score
+            elif eng_score is not None:
+                my_score = eng_score
+            elif math_score is not None:
+                my_score = math_score
+        
+        if my_score is None:
+            skipped_count += 1
+            continue
+
+        # 6. 평균 점수 & 차이
+        avg_score = None
+        if avg_col and pd.notna(row[avg_col]):
+            try: avg_score = float(re.sub(r"[^\d.]", "", str(row[avg_col])))
+            except Exception: pass
+        
+        score_gap = None
+        if avg_score is not None and avg_score > 0:
+            score_gap = round(my_score - avg_score, 2)
+
+        # 7. 메모
+        memo = str(row[memo_col]).strip() if memo_col and pd.notna(row[memo_col]) else ""
+        if memo in ['nan', 'None']: memo = ""
+
+        records.append((s_name, u_name, exam_year, subj_type, my_score, avg_score, score_gap, eng_score, math_score, memo))
+
+    if not records:
+        raise HTTPException(status_code=400, detail="유효한 기출 성적 행을 찾을 수 없습니다. (학생이름, 기출년도, 점수 확인 필요)")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    for r in records:
+        cursor.execute("""
+            INSERT INTO student_past_exam_scores
+            (student_name, univ, exam_year, subject_type, my_score, avg_score, score_gap, eng_score, math_score, memo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                my_score = VALUES(my_score),
+                avg_score = VALUES(avg_score),
+                score_gap = VALUES(score_gap),
+                eng_score = VALUES(eng_score),
+                math_score = VALUES(math_score),
+                memo = VALUES(memo),
+                updated_at = CURRENT_TIMESTAMP;
+        """, r)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return {
+        "status": "success",
+        "message": f"총 {len(records)}건의 기출 성적이 성공적으로 저장되었습니다." + (f" (제외/누락: {skipped_count}건)" if skipped_count > 0 else "")
+    }
+
+
+@app.get("/api/student-past-exams/sample-template")
+def download_past_exam_template():
+    sample_data = [
+        {"학생 이름": "김도현", "대학명": "건국대학교", "기출 년도": 2024, "구분(영어/수학/영+수)": "영어", "내 총점": 72.5, "평균": 58.0, "메모": "인문 영어 기출"},
+        {"학생 이름": "김도현", "대학명": "건국대학교", "기출 년도": 2024, "구분(영어/수학/영+수)": "수학", "내 총점": 68.0, "평균": 55.0, "메모": "자연 수학 기출"},
+        {"학생 이름": "김도현", "대학명": "아주대학교", "기출 년도": 2023, "구분(영어/수학/영+수)": "영+수", "내 총점": 145.0, "평균": 130.0, "메모": "영수 통합 기출"},
+        {"학생 이름": "김도현", "대학명": "세종대학교", "기출 년도": 2022, "구분(영어/수학/영+수)": "수학", "내 총점": 85.0, "평균": 70.0, "메모": "수학 100% 전형"}
+    ]
+    df = pd.DataFrame(sample_data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='기출성적양식')
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=past_exam_template.xlsx"}
+    )
 
 
 # 8. 지원 현황: 실제 응시한 월들의 성적 기반 지난 합격생 진학 대학 매칭 API
