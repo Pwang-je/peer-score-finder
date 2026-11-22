@@ -567,7 +567,77 @@ def get_student_monthly_scores(student_name: str):
 
 
 
-# KNN 종합 분석 API
+# 과거 전체 합격생 세부 성적 캐시 (월별 1:1 다차원 매칭용)
+PAST_FULL_RECORDS_CACHE = None
+
+def get_cached_past_full_records():
+    global PAST_FULL_RECORDS_CACHE
+    if PAST_FULL_RECORDS_CACHE is not None:
+        return PAST_FULL_RECORDS_CACHE
+
+    conn = pymysql.connect(**DB_CONFIG)
+    try:
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+        cursor.execute("""
+            SELECT year, student_name, month, grammar, vocabulary, logic, reading, total_score, math_total, department, univ, major
+            FROM peer_data
+            WHERE year < 2026 
+              AND univ != '' AND univ IS NOT NULL AND univ NOT IN ('학교모름', '미기재', '기타')
+              AND major != '' AND major IS NOT NULL AND major NOT IN ('None', 'nan', '미기재')
+            ORDER BY year DESC, student_name ASC, month ASC
+        """)
+        rows = cursor.fetchall()
+        from collections import defaultdict
+        students = defaultdict(lambda: {
+            'year': None,
+            'student_name': '',
+            'univ': '',
+            'major': '',
+            'department': '',
+            'is_natural': False,
+            'months': {}
+        })
+        for r in rows:
+            key = (r['year'], r['student_name'])
+            s = students[key]
+            s['year'] = r['year']
+            s['student_name'] = r['student_name']
+            s['univ'] = r['univ']
+            s['major'] = r['major']
+            s['department'] = r.get('department') or ''
+
+            dept = str(r.get('department') or '')
+            if '자연' in dept:
+                s['is_natural'] = True
+            m_val = r.get('math_total')
+            if m_val is not None and str(m_val).strip() not in ['', 'None', 'nan', 'null', '-']:
+                try:
+                    if float(m_val) > 0:
+                        s['is_natural'] = True
+                except ValueError:
+                    pass
+
+            m = r.get('month')
+            if m:
+                month_data = {}
+                for k in ['grammar', 'vocabulary', 'logic', 'reading', 'total_score', 'math_total']:
+                    val = r.get(k)
+                    if val is not None and str(val).strip() not in ['', 'None', 'nan', 'null', '-']:
+                        try:
+                            month_data[k] = float(val)
+                        except ValueError:
+                            month_data[k] = None
+                    else:
+                        month_data[k] = None
+                s['months'][int(m)] = month_data
+
+        PAST_FULL_RECORDS_CACHE = students
+        return students
+    finally:
+        conn.close()
+
+
+# KNN 및 실제 응시 월 기반 종합 합격 예측 API
 @app.get("/predict")
 def predict_university(
         month: int,
@@ -589,63 +659,195 @@ def predict_university(
         track_name = "자연계열" if is_natural else "인문계열"
         return {"status": "error", "message": f"{month}월의 {track_name} 합격생 데이터가 없습니다."}
 
-    month_averages = {
-        "grammar": round(float(pd.to_numeric(df_raw['grammar'], errors='coerce').mean()), 1),
-        "vocabulary": round(float(pd.to_numeric(df_raw['vocabulary'], errors='coerce').mean()), 1),
-        "logic": round(float(pd.to_numeric(df_raw['logic'], errors='coerce').mean()), 1),
-        "reading": round(float(pd.to_numeric(df_raw['reading'], errors='coerce').mean()), 1),
-        "total": round(float(pd.to_numeric(df_raw['total_score'], errors='coerce').mean()), 1)
-    }
-    if is_natural:
-        math_series = pd.to_numeric(df_raw['math_total'], errors='coerce').dropna()
-        month_averages["math"] = round(float(math_series.mean()), 1) if not math_series.empty else 0.0
+    # 1. 2026 재원생인 경우, 실제 응시한 모든 월(month)의 세부 성적 조회
+    is_existing_student = (student_name and student_name != "직접입력수험생")
+    my_all_records = {}
 
-    df_past = df_raw.copy()
+    if is_existing_student:
+        conn = pymysql.connect(**DB_CONFIG)
+        try:
+            cursor = conn.cursor(pymysql.cursors.DictCursor)
+            cursor.execute("""
+                SELECT month, grammar, vocabulary, logic, reading, total_score, math_total, department
+                FROM peer_data
+                WHERE year = 2026 AND student_name = %s
+                ORDER BY month ASC
+            """, (student_name,))
+            s_rows = cursor.fetchall()
+            for r in s_rows:
+                m = r.get('month')
+                m_dict = {}
+                has_any = False
+                for k in ['grammar', 'vocabulary', 'logic', 'reading', 'total_score', 'math_total']:
+                    val = r.get(k)
+                    if val is not None and str(val).strip() not in ['', 'None', 'nan', 'null', '-']:
+                        try:
+                            m_dict[k] = float(val)
+                            has_any = True
+                        except ValueError:
+                            m_dict[k] = None
+                    else:
+                        m_dict[k] = None
+                if m and has_any:
+                    my_all_records[int(m)] = m_dict
+        finally:
+            conn.close()
 
-    # 가중치 벡터 곱셈 (원본 df_past의 math_total을 보존)
-    if is_natural:
-        features = ['grammar', 'vocabulary', 'logic', 'reading', 'math_total']
-        # 계산용 임시 행렬 생성
-        X_mat = df_past[features].fillna(0.0).values
-        weights = np.array([w_grammar, w_vocabulary, w_logic, w_reading, w_math])
-        X_past_weighted = X_mat * weights
-        current_student_weighted = np.array([[grammar, vocabulary, logic, reading, math_total]]) * weights
+    target_tested_months = sorted(list(my_all_records.keys()))
+    match_mode = "multi_month" if (is_existing_student and len(target_tested_months) >= 2) else "single_month"
+
+    # 2. 매칭 실행: 다중 응시 월 매칭 vs 단일 월 KNN 매칭
+    if match_mode == "multi_month":
+        # 🌟 실제 응시한 모든 월 성적 기반 다차원 매칭
+        past_students = get_cached_past_full_records()
+        target_months_set = set(target_tested_months)
+        matched_candidates = []
+
+        for (p_year, p_name), p_info in past_students.items():
+            # 계열 필터링 (자연계열이면 자연계열만, 인문계열이면 인문계열만)
+            if p_info['is_natural'] != is_natural:
+                continue
+
+            p_months_dict = p_info['months']
+            p_months_set = set(p_months_dict.keys())
+            overlap_months = target_months_set.intersection(p_months_set)
+            if not overlap_months:
+                continue
+
+            sum_diff = 0.0
+            for m in overlap_months:
+                t_m = my_all_records[m]
+                p_m = p_months_dict[m]
+
+                # 세부 영역별 가중치 적용 오차
+                # 문법
+                if t_m['grammar'] is not None and p_m['grammar'] is not None:
+                    sum_diff += abs(t_m['grammar'] - p_m['grammar']) * w_grammar
+                # 어휘
+                if t_m['vocabulary'] is not None and p_m['vocabulary'] is not None:
+                    sum_diff += abs(t_m['vocabulary'] - p_m['vocabulary']) * w_vocabulary
+                # 논리
+                if t_m['logic'] is not None and p_m['logic'] is not None:
+                    sum_diff += abs(t_m['logic'] - p_m['logic']) * w_logic
+                # 독해
+                if t_m['reading'] is not None and p_m['reading'] is not None:
+                    sum_diff += abs(t_m['reading'] - p_m['reading']) * w_reading
+                # 총점 보정
+                if t_m['total_score'] is not None and p_m['total_score'] is not None:
+                    sum_diff += abs(t_m['total_score'] - p_m['total_score']) * 0.3
+
+                # 수학 (자연계열)
+                if is_natural:
+                    if t_m['math_total'] is not None and p_m['math_total'] is not None:
+                        sum_diff += abs(t_m['math_total'] - p_m['math_total']) * w_math
+                    elif t_m['math_total'] is not None or p_m['math_total'] is not None:
+                        sum_diff += 20.0 * w_math
+
+            missing_months = len(target_months_set - overlap_months)
+            cnt_diff = abs(len(p_months_set) - len(target_months_set))
+            avg_overlap_diff = sum_diff / len(overlap_months)
+            total_dist = avg_overlap_diff + (missing_months * 8.0) + (cnt_diff * 1.2)
+
+            # 대표 기준 월(month) 점수 (없으면 가장 가까운 월 점수)
+            rep_score = p_months_dict.get(month)
+            if not rep_score:
+                closest_m = min(p_months_dict.keys(), key=lambda x: abs(x - month))
+                rep_score = p_months_dict[closest_m]
+
+            matched_candidates.append({
+                'year': p_year,
+                'student_name': p_name,
+                'univ': p_info['univ'],
+                'major': p_info['major'],
+                'department': p_info['department'],
+                'grammar': rep_score.get('grammar') or 0.0,
+                'vocabulary': rep_score.get('vocabulary') or 0.0,
+                'logic': rep_score.get('logic') or 0.0,
+                'reading': rep_score.get('reading') or 0.0,
+                'total_score': rep_score.get('total_score') or 0.0,
+                'math_total': rep_score.get('math_total'),
+                'distance': round(total_dist, 2),
+                'overlap_count': len(overlap_months)
+            })
+
+        matched_candidates.sort(key=lambda x: x['distance'])
+
+        # 연도별 균등 쿼터 배분
+        df_candidates = pd.DataFrame(matched_candidates)
+        balanced_seniors_list = []
+        if not df_candidates.empty:
+            valid_years = [int(y) for y in df_candidates['year'].dropna().unique() if str(y).isdigit()]
+            for y in sorted(valid_years, reverse=True):
+                y_df = df_candidates[df_candidates['year'] == y].sort_values(by='distance')
+                if not y_df.empty:
+                    balanced_seniors_list.append(y_df.head(15))
+
+        if balanced_seniors_list:
+            matched_seniors = pd.concat(balanced_seniors_list).reset_index(drop=True)
+        elif not df_candidates.empty:
+            matched_seniors = df_candidates.head(50).reset_index(drop=True)
+        else:
+            matched_seniors = pd.DataFrame()
+
     else:
-        features = ['grammar', 'vocabulary', 'logic', 'reading']
-        X_mat = df_past[features].fillna(0.0).values
-        weights = np.array([w_grammar, w_vocabulary, w_logic, w_reading])
-        X_past_weighted = X_mat * weights
-        current_student_weighted = np.array([[grammar, vocabulary, logic, reading]]) * weights
+        # 단일 월 KNN 매칭 (기존 방식 개선)
+        df_past = df_raw.copy()
+        if is_natural:
+            features = ['grammar', 'vocabulary', 'logic', 'reading', 'math_total']
+            X_mat = df_past[features].fillna(0.0).values
+            weights = np.array([w_grammar, w_vocabulary, w_logic, w_reading, w_math])
+            X_past_weighted = X_mat * weights
+            current_student_weighted = np.array([[grammar, vocabulary, logic, reading, math_total]]) * weights
+        else:
+            features = ['grammar', 'vocabulary', 'logic', 'reading']
+            X_mat = df_past[features].fillna(0.0).values
+            weights = np.array([w_grammar, w_vocabulary, w_logic, w_reading])
+            X_past_weighted = X_mat * weights
+            current_student_weighted = np.array([[grammar, vocabulary, logic, reading]]) * weights
 
-    # 1. KNN 거리 계산
-    n_neighbors = min(500, len(df_past))
-    knn = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean')
-    knn.fit(X_past_weighted)
+        n_neighbors = min(500, len(df_past))
+        knn = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean')
+        knn.fit(X_past_weighted)
+        distances, indices = knn.kneighbors(current_student_weighted)
+        all_matched = df_past.iloc[indices[0]].copy()
+        all_matched['distance'] = distances[0]
+        all_matched = all_matched.drop_duplicates(subset=['student_name', 'total_score', 'year'])
 
-    distances, indices = knn.kneighbors(current_student_weighted)
-    all_matched = df_past.iloc[indices[0]].copy()
-    all_matched['distance'] = distances[0]
-    all_matched = all_matched.drop_duplicates(subset=['student_name', 'total_score', 'year'])
+        balanced_seniors_list = []
+        valid_years = [int(y) for y in all_matched['year'].dropna().unique() if str(y).isdigit()]
+        for y in sorted(valid_years):
+            year_df = all_matched[all_matched['year'] == y].sort_values(by='distance')
+            if not year_df.empty:
+                balanced_seniors_list.append(year_df.head(12))
 
-    # 2. 연도별 균등 쿼터 배분
-    balanced_seniors_list = []
-    valid_years = [int(y) for y in all_matched['year'].dropna().unique() if str(y).isdigit()]
+        if balanced_seniors_list:
+            matched_seniors = pd.concat(balanced_seniors_list).reset_index(drop=True)
+        else:
+            matched_seniors = all_matched.head(50).reset_index(drop=True)
 
-    for y in sorted(valid_years):
-        year_df = all_matched[all_matched['year'] == y].sort_values(by='distance')
-        if not year_df.empty:
-            balanced_seniors_list.append(year_df.head(12))
-
-    if balanced_seniors_list:
-        matched_seniors = pd.concat(balanced_seniors_list).reset_index(drop=True)
-    else:
-        matched_seniors = all_matched.head(50).reset_index(drop=True)
+    if matched_seniors.empty:
+        return {"status": "error", "message": "조건에 맞는 합격생 데이터를 찾을 수 없습니다."}
 
     matched_names = matched_seniors['student_name'].tolist()
     df_all_months = get_all_months_data(is_natural=is_natural)
     df_matched_timeline = df_all_months[df_all_months['student_name'].isin(matched_names)]
 
-    # 1) 선배들의 1월 ~ 11월 추이선
+    # 3. 기준 월(month) 과목별 평균 (매칭된 학생들의 해당 월 실제 평균 우선 산출)
+    month_match_df = df_matched_timeline[df_matched_timeline['month'] == month]
+    base_df = df_raw  # 기본 백업
+
+    month_averages = {
+        "grammar": round(float(pd.to_numeric(base_df['grammar'], errors='coerce').mean()), 1),
+        "vocabulary": round(float(pd.to_numeric(base_df['vocabulary'], errors='coerce').mean()), 1),
+        "logic": round(float(pd.to_numeric(base_df['logic'], errors='coerce').mean()), 1),
+        "reading": round(float(pd.to_numeric(base_df['reading'], errors='coerce').mean()), 1),
+        "total": round(float(pd.to_numeric(base_df['total_score'], errors='coerce').mean()), 1)
+    }
+    if is_natural:
+        math_series = pd.to_numeric(base_df['math_total'], errors='coerce').dropna()
+        month_averages["math"] = round(float(math_series.mean()), 1) if not math_series.empty else 0.0
+
+    # 4. 1월 ~ 11월 추이선 생성 (전체 평균 오염 버그 수정: 매칭된 그룹의 실제 응시 점수만 반영)
     timeline_stats = {}
     math_timeline_stats = {}
     last_valid_senior_score = None
@@ -654,26 +856,34 @@ def predict_university(
     for m in range(1, 12):
         m_df = df_matched_timeline[df_matched_timeline['month'] == m]
 
-        avg_score = m_df['total_score'].mean() if not m_df.empty else None
-        if avg_score is None or pd.isna(avg_score) or np.isnan(avg_score):
-            if last_valid_senior_score is not None:
-                avg_score = last_valid_senior_score
+        # 영어 점수
+        if not m_df.empty:
+            m_valid_eng = pd.to_numeric(m_df['total_score'], errors='coerce').dropna()
+            m_valid_eng = m_valid_eng[m_valid_eng > 0]
+            if not m_valid_eng.empty:
+                avg_score = round(float(m_valid_eng.mean()), 1)
+                last_valid_senior_score = avg_score
             else:
-                global_m_df = df_all_months[df_all_months['month'] == m]
-                avg_score = global_m_df['total_score'].mean() if not global_m_df.empty else 0.0
-        final_score = round(float(avg_score), 1) if not pd.isna(avg_score) else 0.0
-        timeline_stats[f"{m}월"] = final_score
-        last_valid_senior_score = final_score
+                avg_score = last_valid_senior_score
+        else:
+            avg_score = last_valid_senior_score
 
-        if is_natural and 'math_total' in m_df.columns:
-            m_valid = pd.to_numeric(m_df['math_total'], errors='coerce').dropna()
-            m_valid = m_valid[m_valid > 0]
-            avg_math = m_valid.mean() if not m_valid.empty else None
-            if avg_math is None or pd.isna(avg_math) or np.isnan(avg_math):
-                avg_math = last_valid_senior_math if last_valid_senior_math is not None else 0.0
-            final_math = round(float(avg_math), 1)
-            math_timeline_stats[f"{m}월"] = final_math
-            last_valid_senior_math = final_math
+        timeline_stats[f"{m}월"] = avg_score
+
+        # 수학 점수 (자연계열)
+        if is_natural:
+            if not m_df.empty and 'math_total' in m_df.columns:
+                m_valid_math = pd.to_numeric(m_df['math_total'], errors='coerce').dropna()
+                m_valid_math = m_valid_math[m_valid_math > 0]
+                if not m_valid_math.empty:
+                    avg_math = round(float(m_valid_math.mean()), 1)
+                    last_valid_senior_math = avg_math
+                else:
+                    avg_math = last_valid_senior_math
+            else:
+                avg_math = last_valid_senior_math
+
+            math_timeline_stats[f"{m}월"] = avg_math
 
     # 2) 나의 1월 ~ 11월 추이선
     my_timeline_stats = {}
@@ -834,6 +1044,8 @@ def predict_university(
     return {
         "status": "success",
         "is_natural": is_natural,
+        "match_mode": match_mode,
+        "tested_months": target_tested_months,
         "month_averages": month_averages,
         "timeline_stats": timeline_stats,
         "math_timeline_stats": math_timeline_stats,

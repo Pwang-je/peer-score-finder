@@ -386,6 +386,24 @@
         <!-- 3. 결과 시각화 섹션 -->
         <section v-if="result" class="results-container">
 
+          <!-- 🌟 실제 응시 월 다차원 매칭 안내 배너 -->
+          <div v-if="result.match_mode === 'multi_month'" class="matching-mode-banner">
+            <div class="mode-badge-wrap">
+              <span class="mode-icon">📊</span>
+              <span class="mode-title">실제 응시 월 종합 매칭 분석</span>
+              <span class="mode-desc">
+                단일 월 평균이 아닌 <strong>실제 응시한 {{ result.tested_months.join(', ') }}월</strong> 전체 성적 추이(문법/어휘/논리/독해<template v-if="result.is_natural">/수학</template>)를 1:1로 종합 매칭한 결과입니다.
+              </span>
+            </div>
+          </div>
+          <div v-else-if="result.match_mode === 'single_month'" class="matching-mode-banner single">
+            <div class="mode-badge-wrap">
+              <span class="mode-icon">📌</span>
+              <span class="mode-title">{{ currentMonth }}월 단일 시험 매칭</span>
+              <span class="mode-desc">선택된 {{ currentMonth }}월 시험 성적을 기준으로 매칭된 결과입니다.</span>
+            </div>
+          </div>
+
           <!-- 🌟 [신규] 취약/강점 파트 자동 진단 배지 바 -->
           <div v-if="result.diagnostic_tags && result.diagnostic_tags.length" class="diagnostic-banner">
             <div class="diag-label">
@@ -2341,7 +2359,63 @@ export default {
 }
 
 /* ========================================================
-   1. 합격 선배 대비 영역 진단 배너 (하단 카드 고유색 적용)
+   0. 실제 응시 월 매칭 모드 안내 배너
+   ======================================================== */
+.matching-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%);
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.matching-mode-banner.single {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.mode-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+}
+
+.mode-icon {
+  font-size: 16px;
+}
+
+.mode-title {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: -0.2px;
+}
+
+.matching-mode-banner.single .mode-title {
+  background: #64748b;
+}
+
+.mode-desc {
+  color: #334155;
+  font-size: 13px;
+}
+
+.mode-desc strong {
+  color: #0369a1;
+  font-weight: 700;
+}
+
+/* ========================================================
+   1. 합격생 대비 영역 진단 배너 (하단 카드 고유색 적용)
    ======================================================== */
 .diagnostic-banner {
   display: flex;
