@@ -1956,7 +1956,13 @@ onMounted(async () => {
 }
 .mini-tab.active { background: #ffffff; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 
-.quick-major-list { display: flex; flex-direction: column; gap: 6px; max-height: 500px; overflow-y: auto; }
+.quick-major-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 850px;
+  overflow-y: auto;
+}
 .major-pick-row {
   display: flex;
   justify-content: space-between;

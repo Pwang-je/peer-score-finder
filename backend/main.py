@@ -1820,12 +1820,12 @@ def get_similar_senior_destinations(student_name: str):
                     elif t_score["math"] is not None or p_score["math"] is not None:
                         sum_diff += 20.0
 
-            # 결시 월 페널티 (대상 학생이 응시했으나 과거 합격생이 미응시한 월)
+            # 결시 월 페널티 완화 (2020~2023년도는 연간 모의고사 시행 횟수가 적어 과도한 페널티로 배제되던 현상 방지)
             missing_months = len(target_months - overlap_months)
             cnt_diff = abs(len(p_months) - len(target_months))
 
             avg_overlap_diff = sum_diff / len(overlap_months)
-            total_dist = avg_overlap_diff + (missing_months * 5.0) + (cnt_diff * 1.2)
+            total_dist = avg_overlap_diff + (missing_months * 1.5) + (cnt_diff * 0.4)
 
             # 해당 과거 합격생의 전체 평균 점수
             p_eng_list = [v["eng"] for v in p_scores.values() if v["eng"] is not None]
@@ -1849,16 +1849,42 @@ def get_similar_senior_destinations(student_name: str):
 
         matched.sort(key=lambda x: x["distance"])
 
-        # 중복 대학·학과 방지하며 상위 최대 10개 선발
+        # 🌟 특정 연도(24~25년도) 쏠림 방지: 연도별 라운드로빈 균등 배분 (2020~2025 전 연도 골고루 반영)
+        from collections import defaultdict
+        by_year = defaultdict(list)
+        for item in matched:
+            by_year[item["year"]].append(item)
+
         unique_destinations = []
         seen = set()
-        for item in matched:
-            key = f"{item['univ']}_{item['major']}"
-            if key not in seen:
-                seen.add(key)
-                unique_destinations.append(item)
+
+        # 라운드로빈 방식으로 2025부터 2020까지 연도별 최유사 합격생 순차 선발
+        available_years = sorted(by_year.keys(), reverse=True)
+        for _ in range(3):
+            for y in available_years:
+                for cand in by_year[y]:
+                    key = f"{cand['univ']}_{cand['major']}"
+                    if key not in seen:
+                        seen.add(key)
+                        unique_destinations.append(cand)
+                        break
+                if len(unique_destinations) >= 10:
+                    break
             if len(unique_destinations) >= 10:
                 break
+
+        # 혹시 10개가 안 채워졌을 경우 전체 거리 순으로 보충
+        if len(unique_destinations) < 10:
+            for item in matched:
+                key = f"{item['univ']}_{item['major']}"
+                if key not in seen:
+                    seen.add(key)
+                    unique_destinations.append(item)
+                if len(unique_destinations) >= 10:
+                    break
+
+        # 최종 가독성을 위해 유사도(distance) 순으로 정렬
+        unique_destinations.sort(key=lambda x: x["distance"])
 
         return {
             "status": "success",
