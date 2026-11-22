@@ -415,7 +415,94 @@
             <span class="count-tag">총 {{ studentApplications.length }}개교</span>
           </div>
 
-          <!-- 📝 학생별 특이사항 및 상담 비고 카드 (사용자 선호 위치) -->
+          <!-- 🎯 [요청 2] 가고싶은 학과 1/2순위, 기피 학과, 토익 점수, 학점(4.5) 입력 카드 -->
+          <div class="student-pref-card">
+            <div class="pref-card-header">
+              <div class="pref-title-wrap">
+                <span class="pref-icon">🎯</span>
+                <span class="pref-title">{{ selectedStudent }} 학생 희망 학과 & 스펙</span>
+              </div>
+              <div class="pref-actions">
+                <span v-if="profileSaveMsg" class="pref-save-status">{{ profileSaveMsg }}</span>
+                <button
+                  @click="saveStudentProfile"
+                  :disabled="isSavingProfile"
+                  class="btn-save-pref"
+                >
+                  {{ isSavingProfile ? '저장 중...' : '희망/스펙 저장' }}
+                </button>
+              </div>
+            </div>
+            <div class="pref-card-body">
+              <div class="pref-grid-row">
+                <div class="pref-field-group">
+                  <label class="pref-label">
+                    <span class="rank-badge r1">1순위</span>
+                    가고싶은 학과 1순위
+                  </label>
+                  <input
+                    v-model="studentProfile.pref_major_1"
+                    @blur="autoSaveStudentProfile"
+                    placeholder="예: 컴퓨터공학과, 경영학과"
+                    class="pref-input"
+                  />
+                </div>
+                <div class="pref-field-group">
+                  <label class="pref-label">
+                    <span class="rank-badge r2">2순위</span>
+                    가고싶은 학과 2순위
+                  </label>
+                  <input
+                    v-model="studentProfile.pref_major_2"
+                    @blur="autoSaveStudentProfile"
+                    placeholder="예: 인공지능학과, 경제학과"
+                    class="pref-input"
+                  />
+                </div>
+              </div>
+
+              <div class="pref-grid-row three-cols">
+                <div class="pref-field-group">
+                  <label class="pref-label">
+                    <span class="rank-badge dislike">기피</span>
+                    정말 가고싶지 않은 학과
+                  </label>
+                  <input
+                    v-model="studentProfile.dislike_major"
+                    @blur="autoSaveStudentProfile"
+                    placeholder="예: 토목공학, 신소재, 야간"
+                    class="pref-input dislike-input"
+                  />
+                </div>
+                <div class="pref-field-group">
+                  <label class="pref-label">
+                    <span class="rank-badge spec">영어</span>
+                    토익 점수
+                  </label>
+                  <input
+                    v-model="studentProfile.toeic_score"
+                    @blur="autoSaveStudentProfile"
+                    placeholder="예: 850점 (미응시)"
+                    class="pref-input"
+                  />
+                </div>
+                <div class="pref-field-group">
+                  <label class="pref-label">
+                    <span class="rank-badge spec">학점</span>
+                    4.5만점 성적
+                  </label>
+                  <input
+                    v-model="studentProfile.gpa_score"
+                    @blur="autoSaveStudentProfile"
+                    placeholder="예: 3.85 / 4.5"
+                    class="pref-input"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 📝 학생별 특이사항 및 상담 비고 카드 -->
           <div class="student-note-card">
             <div class="note-card-header">
               <div class="note-title-wrap">
@@ -437,10 +524,29 @@
               <textarea
                 v-model="studentNoteText"
                 @blur="autoSaveStudentNote"
-                placeholder="학생 특이사항을 기록하세요 (예: 학점은행제 70학점 완료, 토익 850점, 건국대/한양대 최우선 희망 등) - 포커스 해제 시 자동 저장"
+                placeholder="학생 특이사항을 기록하세요 (예: 학점은행제 70학점 완료, 건국대/한양대 최우선 희망 등) - 포커스 해제 시 자동 저장"
                 rows="2"
                 class="student-note-textarea"
               ></textarea>
+            </div>
+          </div>
+
+          <!-- 📌 [요청 1] 저장된 메모를 비고 밑에 따로 띄움 -->
+          <div class="saved-memo-card">
+            <div class="saved-memo-header">
+              <div class="saved-memo-title-wrap">
+                <span class="saved-icon">📌</span>
+                <span class="saved-title">저장된 메모</span>
+                <span v-if="savedNoteUpdatedAt" class="saved-date">({{ savedNoteUpdatedAt }} 기준)</span>
+              </div>
+            </div>
+            <div class="saved-memo-body">
+              <div v-if="savedStudentNote && savedStudentNote.trim()" class="saved-memo-text">
+                {{ savedStudentNote }}
+              </div>
+              <div v-else class="saved-memo-empty">
+                저장된 메모가 없습니다. 위의 비고란에 메모를 작성하고 저장해보세요.
+              </div>
             </div>
           </div>
 
@@ -586,11 +692,24 @@ const showQuotaModal = ref(false)
 const quotaFileInput = ref(null)
 const isUploadingQuota = ref(false)
 
-// 5. 학생별 특이사항 비고 상태
+// 5. 학생별 특이사항 비고 및 희망/스펙 상태
 const studentNoteText = ref('')
+const savedStudentNote = ref('')
+const savedNoteUpdatedAt = ref('')
 const isSavingNote = ref(false)
 const noteSaveMsg = ref('')
 let noteSaveTimer = null
+
+const studentProfile = ref({
+  pref_major_1: '',
+  pref_major_2: '',
+  dislike_major: '',
+  toeic_score: '',
+  gpa_score: ''
+})
+const isSavingProfile = ref(false)
+const profileSaveMsg = ref('')
+let profileSaveTimer = null
 
 // 6. 유사 성적 선배 합격 대학 상태
 const similarSeniorsList = ref([])
@@ -735,14 +854,32 @@ async function fetchStudentMonthlyScores() {
 async function fetchStudentNote() {
   if (!selectedStudent.value) {
     studentNoteText.value = ''
+    savedStudentNote.value = ''
+    savedNoteUpdatedAt.value = ''
+    studentProfile.value = {
+      pref_major_1: '',
+      pref_major_2: '',
+      dislike_major: '',
+      toeic_score: '',
+      gpa_score: ''
+    }
     return
   }
   try {
     const res = await fetch(`${API_BASE}/api/student-notes?student_name=${encodeURIComponent(selectedStudent.value)}`)
     const data = await res.json()
     studentNoteText.value = data.memo || ''
+    savedStudentNote.value = data.memo || ''
+    savedNoteUpdatedAt.value = data.updated_at || ''
+    studentProfile.value = {
+      pref_major_1: data.pref_major_1 || '',
+      pref_major_2: data.pref_major_2 || '',
+      dislike_major: data.dislike_major || '',
+      toeic_score: data.toeic_score || '',
+      gpa_score: data.gpa_score || ''
+    }
   } catch (err) {
-    console.error('학생 비고 메모 조회 실패:', err)
+    console.error('학생 비고 및 정보 조회 실패:', err)
   }
 }
 
@@ -756,10 +893,18 @@ async function saveStudentNote() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         student_name: selectedStudent.value,
-        memo: studentNoteText.value
+        memo: studentNoteText.value,
+        pref_major_1: studentProfile.value.pref_major_1,
+        pref_major_2: studentProfile.value.pref_major_2,
+        dislike_major: studentProfile.value.dislike_major,
+        toeic_score: studentProfile.value.toeic_score,
+        gpa_score: studentProfile.value.gpa_score
       })
     })
     if (res.ok) {
+      savedStudentNote.value = studentNoteText.value
+      const now = new Date()
+      savedNoteUpdatedAt.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
       noteSaveMsg.value = '저장됨 ✓'
       if (noteSaveTimer) clearTimeout(noteSaveTimer)
       noteSaveTimer = setTimeout(() => {
@@ -775,6 +920,42 @@ async function saveStudentNote() {
 
 function autoSaveStudentNote() {
   saveStudentNote()
+}
+
+async function saveStudentProfile() {
+  if (!selectedStudent.value || isSavingProfile.value) return
+  isSavingProfile.value = true
+  profileSaveMsg.value = ''
+  try {
+    const res = await fetch(`${API_BASE}/api/student-notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_name: selectedStudent.value,
+        memo: studentNoteText.value,
+        pref_major_1: studentProfile.value.pref_major_1,
+        pref_major_2: studentProfile.value.pref_major_2,
+        dislike_major: studentProfile.value.dislike_major,
+        toeic_score: studentProfile.value.toeic_score,
+        gpa_score: studentProfile.value.gpa_score
+      })
+    })
+    if (res.ok) {
+      profileSaveMsg.value = '저장됨 ✓'
+      if (profileSaveTimer) clearTimeout(profileSaveTimer)
+      profileSaveTimer = setTimeout(() => {
+        profileSaveMsg.value = ''
+      }, 2500)
+    }
+  } catch (err) {
+    console.error('학생 희망/스펙 정보 저장 실패:', err)
+  } finally {
+    isSavingProfile.value = false
+  }
+}
+
+function autoSaveStudentProfile() {
+  saveStudentProfile()
 }
 
 async function fetchSimilarSeniors() {
@@ -1805,6 +1986,139 @@ onMounted(async () => {
 }
 
 /* =====================================================================
+   🎯 학생 희망 학과 및 스펙 입력 카드
+   ===================================================================== */
+.student-pref-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 11px 13px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+.pref-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.pref-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.pref-icon {
+  font-size: 13.5px;
+}
+.pref-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.pref-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pref-save-status {
+  font-size: 11px;
+  font-weight: 700;
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.btn-save-pref {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 5px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-save-pref:hover:not(:disabled) {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+.pref-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.pref-grid-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.pref-grid-row.three-cols {
+  grid-template-columns: 1.2fr 0.9fr 0.9fr;
+}
+.pref-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pref-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+.rank-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+.rank-badge.r1 {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+.rank-badge.r2 {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+.rank-badge.dislike {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+.rank-badge.spec {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.pref-input {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  box-sizing: border-box;
+  background: #f8fafc;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.pref-input:focus {
+  background: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+.pref-input.dislike-input {
+  color: #991b1b;
+}
+
+/* =====================================================================
    학생별 특이사항 및 상담 비고 카드
    ===================================================================== */
 .student-note-card {
@@ -1812,7 +2126,7 @@ onMounted(async () => {
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   padding: 10px 12px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 .note-card-header {
   display: flex;
@@ -1878,6 +2192,61 @@ onMounted(async () => {
 .student-note-textarea:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* =====================================================================
+   📌 저장된 메모 카드 (비고 밑에 따로 띄움)
+   ===================================================================== */
+.saved-memo-card {
+  background: #fffdf5;
+  border: 1px solid #fef08a;
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 2px rgba(234, 179, 8, 0.05);
+}
+.saved-memo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.saved-memo-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.saved-icon {
+  font-size: 12px;
+}
+.saved-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #854d0e;
+}
+.saved-date {
+  font-size: 10.5px;
+  color: #a16207;
+}
+.saved-memo-body {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #334155;
+  word-break: break-word;
+}
+.saved-memo-text {
+  white-space: pre-wrap;
+  color: #1e293b;
+  background: rgba(254, 240, 138, 0.3);
+  padding: 6px 9px;
+  border-radius: 6px;
+  border-left: 3px solid #eab308;
+}
+.saved-memo-empty {
+  font-size: 11px;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 2px 0;
 }
 
 .empty-list-box { padding: 40px 20px; text-align: center; font-size: 13px; color: #94a3b8; line-height: 1.6; }

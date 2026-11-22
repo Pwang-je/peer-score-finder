@@ -1096,9 +1096,28 @@ def ensure_application_tables():
                    (
                        student_name VARCHAR(50) PRIMARY KEY,
                        memo TEXT,
+                       pref_major_1 VARCHAR(100) DEFAULT '',
+                       pref_major_2 VARCHAR(100) DEFAULT '',
+                       dislike_major VARCHAR(100) DEFAULT '',
+                       toeic_score VARCHAR(50) DEFAULT '',
+                       gpa_score VARCHAR(50) DEFAULT '',
                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                    );
                    """)
+    # 기존 테이블이 이미 있을 경우 대비 컬럼 추가
+    cols_to_add = [
+        ("pref_major_1", "VARCHAR(100) DEFAULT ''"),
+        ("pref_major_2", "VARCHAR(100) DEFAULT ''"),
+        ("dislike_major", "VARCHAR(100) DEFAULT ''"),
+        ("toeic_score", "VARCHAR(50) DEFAULT ''"),
+        ("gpa_score", "VARCHAR(50) DEFAULT ''"),
+    ]
+    for col_name, col_type in cols_to_add:
+        try:
+            cursor.execute(f"ALTER TABLE student_notes ADD COLUMN {col_name} {col_type};")
+            conn.commit()
+        except Exception:
+            pass
     conn.commit()
     cursor.close()
     conn.close()
@@ -1529,31 +1548,65 @@ def save_univ_eligibility(data: EligibilityUpdate):
         VALUES (%s, %s)
         ON DUPLICATE KEY UPDATE eligibility_text = VALUES(eligibility_text)
     """, (data.univ, data.eligibility_text))
-# 7. 학생별 비고(상담 및 특이사항 메모) 조회 및 저장 API
+# 7. 학생별 비고(상담 및 특이사항 메모) 및 희망학과/스펙 조회 및 저장 API
 class StudentNoteUpdate(BaseModel):
     student_name: str
-    memo: str
+    memo: Optional[str] = ""
+    pref_major_1: Optional[str] = ""
+    pref_major_2: Optional[str] = ""
+    dislike_major: Optional[str] = ""
+    toeic_score: Optional[str] = ""
+    gpa_score: Optional[str] = ""
 
 
 @app.get("/api/student-notes")
 def get_student_note(student_name: str):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT memo, updated_at FROM student_notes WHERE student_name = %s;", (student_name,))
+    cursor.execute("""
+        SELECT memo, updated_at, pref_major_1, pref_major_2, dislike_major, toeic_score, gpa_score 
+        FROM student_notes 
+        WHERE student_name = %s;
+    """, (student_name,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
 
     memo = ""
     updated_at = None
+    pref_major_1 = ""
+    pref_major_2 = ""
+    dislike_major = ""
+    toeic_score = ""
+    gpa_score = ""
+
     if row:
-        memo = row[0] if isinstance(row, tuple) else row["memo"]
-        updated_at = row[1] if isinstance(row, tuple) else row["updated_at"]
+        if isinstance(row, tuple):
+            memo = row[0] or ""
+            updated_at = row[1]
+            pref_major_1 = row[2] or "" if len(row) > 2 else ""
+            pref_major_2 = row[3] or "" if len(row) > 3 else ""
+            dislike_major = row[4] or "" if len(row) > 4 else ""
+            toeic_score = row[5] or "" if len(row) > 5 else ""
+            gpa_score = row[6] or "" if len(row) > 6 else ""
+        elif isinstance(row, dict):
+            memo = row.get("memo") or ""
+            updated_at = row.get("updated_at")
+            pref_major_1 = row.get("pref_major_1") or ""
+            pref_major_2 = row.get("pref_major_2") or ""
+            dislike_major = row.get("dislike_major") or ""
+            toeic_score = row.get("toeic_score") or ""
+            gpa_score = row.get("gpa_score") or ""
 
     return {
         "student_name": student_name,
         "memo": memo or "",
-        "updated_at": str(updated_at) if updated_at else None
+        "updated_at": str(updated_at) if updated_at else None,
+        "pref_major_1": pref_major_1 or "",
+        "pref_major_2": pref_major_2 or "",
+        "dislike_major": dislike_major or "",
+        "toeic_score": toeic_score or "",
+        "gpa_score": gpa_score or ""
     }
 
 
@@ -1562,14 +1615,28 @@ def save_student_note(data: StudentNoteUpdate):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO student_notes (student_name, memo)
-        VALUES (%s, %s)
-        ON DUPLICATE KEY UPDATE memo = VALUES(memo)
-    """, (data.student_name, data.memo))
+        INSERT INTO student_notes (student_name, memo, pref_major_1, pref_major_2, dislike_major, toeic_score, gpa_score)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE 
+            memo = VALUES(memo),
+            pref_major_1 = VALUES(pref_major_1),
+            pref_major_2 = VALUES(pref_major_2),
+            dislike_major = VALUES(dislike_major),
+            toeic_score = VALUES(toeic_score),
+            gpa_score = VALUES(gpa_score)
+    """, (
+        data.student_name,
+        data.memo or "",
+        data.pref_major_1 or "",
+        data.pref_major_2 or "",
+        data.dislike_major or "",
+        data.toeic_score or "",
+        data.gpa_score or ""
+    ))
     conn.commit()
     cursor.close()
     conn.close()
-    return {"status": "success", "message": f"{data.student_name} 학생 비고 메모 저장 완료"}
+    return {"status": "success", "message": f"{data.student_name} 학생 정보 및 비고 메모 저장 완료"}
 
 
 # 8. 지원 현황: 실제 응시한 월들의 성적 기반 지난 합격생 진학 대학 매칭 API
