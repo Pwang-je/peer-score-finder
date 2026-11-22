@@ -879,6 +879,14 @@ def ensure_application_tables():
                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                    );
                    """)
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS student_notes
+                   (
+                       student_name VARCHAR(50) PRIMARY KEY,
+                       memo TEXT,
+                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                   );
+                   """)
     conn.commit()
     cursor.close()
     conn.close()
@@ -1309,10 +1317,192 @@ def save_univ_eligibility(data: EligibilityUpdate):
         VALUES (%s, %s)
         ON DUPLICATE KEY UPDATE eligibility_text = VALUES(eligibility_text)
     """, (data.univ, data.eligibility_text))
+# 7. 학생별 비고(상담 및 특이사항 메모) 조회 및 저장 API
+class StudentNoteUpdate(BaseModel):
+    student_name: str
+    memo: str
+
+
+@app.get("/api/student-notes")
+def get_student_note(student_name: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT memo, updated_at FROM student_notes WHERE student_name = %s;", (student_name,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    memo = ""
+    updated_at = None
+    if row:
+        memo = row[0] if isinstance(row, tuple) else row["memo"]
+        updated_at = row[1] if isinstance(row, tuple) else row["updated_at"]
+
+    return {
+        "student_name": student_name,
+        "memo": memo or "",
+        "updated_at": str(updated_at) if updated_at else None
+    }
+
+
+@app.post("/api/student-notes")
+def save_student_note(data: StudentNoteUpdate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO student_notes (student_name, memo)
+        VALUES (%s, %s)
+        ON DUPLICATE KEY UPDATE memo = VALUES(memo)
+    """, (data.student_name, data.memo))
     conn.commit()
     cursor.close()
     conn.close()
-    return {"status": "success", "message": f"{data.univ} 지원자격 저장 완료"}
+    return {"status": "success", "message": f"{data.student_name} 학생 비고 메모 저장 완료"}
+
+
+# 8. 지원 현황: 응시 횟수 및 평균 점수가 가장 비슷한 선배 진학 대학 추천 API
+PAST_SENIORS_CACHE = []
+
+def get_cached_past_seniors():
+    global PAST_SENIORS_CACHE
+    if PAST_SENIORS_CACHE:
+        return PAST_SENIORS_CACHE
+
+    conn = pymysql.connect(**DB_CONFIG)
+    try:
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+        cursor.execute("""
+            SELECT student_name, year, univ, major,
+                   COUNT(DISTINCT month) as past_cnt,
+                   AVG(CASE WHEN total_score > 0 THEN total_score ELSE NULL END) as past_eng,
+                   AVG(CASE WHEN math_total > 0 THEN math_total ELSE NULL END) as past_math,
+                   MAX(department) as department
+            FROM peer_data
+            WHERE year < 2026 AND univ != '' AND univ IS NOT NULL
+            GROUP BY year, student_name, univ, major
+        """)
+        rows = cursor.fetchall()
+        PAST_SENIORS_CACHE = rows
+        return rows
+    finally:
+        conn.close()
+
+
+@app.get("/api/similar-senior-destinations")
+def get_similar_senior_destinations(student_name: str):
+    conn = pymysql.connect(**DB_CONFIG)
+    try:
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+        # 1. 대상 2026 학생의 응시 횟수 및 평균값 조회
+        cursor.execute("""
+            SELECT COUNT(DISTINCT month) as cnt,
+                   AVG(CASE WHEN total_score > 0 THEN total_score ELSE NULL END) as avg_eng,
+                   AVG(CASE WHEN math_total > 0 THEN math_total ELSE NULL END) as avg_math,
+                   MAX(department) as department
+            FROM peer_data
+            WHERE year = 2026 AND student_name = %s
+        """, (student_name,))
+        target = cursor.fetchone()
+
+        # 수학 응시 이력 또는 자연계열 여부 확인
+        cursor.execute("""
+            SELECT math_total, department FROM peer_data
+            WHERE year = 2026 AND student_name = %s
+        """, (student_name,))
+        records = cursor.fetchall()
+
+        has_math = False
+        is_natural = False
+        for r in records:
+            m = r.get("math_total")
+            if m is not None and str(m).strip() not in ['', 'None', 'nan', 'null', '-']:
+                try:
+                    if float(m) > 0:
+                        has_math = True
+                except ValueError:
+                    pass
+            d = str(r.get("department") or "")
+            if "자연" in d:
+                is_natural = True
+
+        is_natural = is_natural or has_math
+
+        target_cnt = target["cnt"] or 0
+        target_eng = float(target["avg_eng"]) if target and target["avg_eng"] is not None else None
+        target_math = float(target["avg_math"]) if target and target["avg_math"] is not None else None
+
+        if target_cnt == 0 or target_eng is None:
+            return {
+                "status": "empty",
+                "message": f"{student_name} 학생의 모의고사 성적 데이터가 부족합니다.",
+                "similar_seniors": []
+            }
+
+        # 2. 과거 선배 데이터와 거리 비교 (응시 횟수 + 평균 점수)
+        past_list = get_cached_past_seniors()
+        matched = []
+
+        for s in past_list:
+            p_cnt = s["past_cnt"] or 0
+            p_eng = s["past_eng"]
+            p_math = s["past_math"]
+            if p_eng is None:
+                continue
+
+            cnt_diff = abs(p_cnt - target_cnt)
+            eng_diff = abs(float(p_eng) - target_eng)
+
+            if is_natural:
+                if p_math is not None and float(p_math) > 0:
+                    math_diff = abs(float(p_math) - (target_math or 0.0))
+                    dist = (cnt_diff * 3.0) + (eng_diff * 1.0) + (math_diff * 1.0)
+                else:
+                    dist = (cnt_diff * 3.0) + (eng_diff * 1.0) + 40.0
+            else:
+                dist = (cnt_diff * 3.0) + (eng_diff * 1.2)
+
+            matched.append({
+                "senior_name": s["student_name"],
+                "year": s["year"],
+                "univ": s["univ"],
+                "major": s["major"],
+                "test_count": p_cnt,
+                "avg_eng": round(float(p_eng), 1) if p_eng is not None else None,
+                "avg_math": round(float(p_math), 1) if p_math is not None else None,
+                "distance": round(dist, 2)
+            })
+
+        matched.sort(key=lambda x: x["distance"])
+
+        # 중복 대학·학과를 최소화하면서 상위 6개 선발
+        unique_destinations = []
+        seen = set()
+        for item in matched:
+            key = f"{item['univ']}_{item['major']}"
+            if key not in seen:
+                seen.add(key)
+                unique_destinations.append(item)
+            if len(unique_destinations) >= 6:
+                break
+
+        return {
+            "status": "success",
+            "student_name": student_name,
+            "target": {
+                "test_count": target_cnt,
+                "avg_eng": round(target_eng, 1) if target_eng else None,
+                "avg_math": round(target_math, 1) if target_math else None,
+                "is_natural": is_natural
+            },
+            "similar_seniors": unique_destinations
+        }
+    except Exception as e:
+        print("similar_senior_destinations 에러:", e)
+        return {"status": "error", "message": str(e), "similar_seniors": []}
+    finally:
+        conn.close()
+
 
 @app.get("/health")
 def health_check():

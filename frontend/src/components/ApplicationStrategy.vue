@@ -331,10 +331,13 @@
       </div>
 
       <div class="fast-basket-layout">
+        <!-- 좌측 패널: 대학 및 학과 탐색 및 담기 -->
         <div class="panel picker-panel">
           <div class="panel-header">
-            <h3 class="panel-title">⚡ 빠른 대학 · 학과 선택</h3>
-            <span class="guide-hint">학과를 클릭하면 즉시 담기/취소됩니다</span>
+            <div class="panel-header-left">
+              <h3 class="panel-title">🎯 지원 대학 · 학과 탐색 및 담기</h3>
+              <span class="guide-hint">학과를 클릭하면 즉시 담기/취소됩니다 (지원한 대학 <span class="dot-legend">●</span> 표시)</span>
+            </div>
           </div>
 
           <div class="univ-chip-box">
@@ -347,8 +350,8 @@
               ]"
               @click="selectFormUniv(u)"
             >
-              <span>{{ u }}</span>
-              <span v-if="appliedUnivSet.has(u)" class="applied-dot">●</span>
+              <span class="univ-chip-name">{{ u }}</span>
+              <span v-if="appliedUnivSet.has(u)" class="applied-dot" title="지원 대학 포함됨">●</span>
             </button>
           </div>
 
@@ -384,7 +387,14 @@
               </div>
 
               <div class="major-right">
-                <span class="quota-mini">일반 {{ d.gen }} / 학사 {{ d.bac }}</span>
+                <div class="quota-tag-group">
+                  <span :class="['quota-pill', 'gen', { zero: !d.gen || d.gen == 0 }]">
+                    일반 <strong class="num">{{ d.gen || 0 }}</strong>명
+                  </span>
+                  <span :class="['quota-pill', 'bac', { zero: !d.bac || d.bac == 0 }]">
+                    학사 <strong class="num">{{ d.bac || 0 }}</strong>명
+                  </span>
+                </div>
                 <span v-if="d.past_admissions && d.past_admissions.length > 0" class="past-mini">
                   합격 {{ d.past_admissions.length }}
                 </span>
@@ -400,12 +410,43 @@
           </div>
         </div>
 
+        <!-- 우측 패널: 학생 지원 현황 & 특이사항 비고 & 성적 유사 선배 합격 진학 대학 -->
         <div class="panel list-panel">
           <div class="panel-header">
             <h3 class="panel-title">📋 {{ selectedStudent }} 학생 지원 희망 리스트</h3>
             <span class="count-tag">총 {{ studentApplications.length }}개교</span>
           </div>
 
+          <!-- 📝 학생별 특이사항 및 상담 비고 카드 (사용자 선호 위치) -->
+          <div class="student-note-card">
+            <div class="note-card-header">
+              <div class="note-title-wrap">
+                <span class="note-icon">📝</span>
+                <span class="note-title">{{ selectedStudent }} 학생 특이사항 & 비고</span>
+              </div>
+              <div class="note-actions">
+                <span v-if="noteSaveMsg" class="note-save-status">{{ noteSaveMsg }}</span>
+                <button
+                  @click="saveStudentNote"
+                  :disabled="isSavingNote"
+                  class="btn-save-note"
+                >
+                  {{ isSavingNote ? '저장 중...' : '메모 저장' }}
+                </button>
+              </div>
+            </div>
+            <div class="note-card-body">
+              <textarea
+                v-model="studentNoteText"
+                @blur="autoSaveStudentNote"
+                placeholder="학생 특이사항을 기록하세요 (예: 학점은행제 70학점 완료, 토익 850점, 건국대/한양대 최우선 희망 등) - 포커스 해제 시 자동 저장"
+                rows="2"
+                class="student-note-textarea"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- 담긴 원서 목록 -->
           <div v-if="studentApplications.length === 0" class="empty-list-box">
             아직 추가된 지원 대학이 없습니다.<br>좌측에서 대학과 학과를 클릭해 바로 담아보세요.
           </div>
@@ -427,6 +468,59 @@
               <button @click="handleRemoveApplication(app.id)" class="btn-remove" title="삭제">
                 ✕
               </button>
+            </div>
+          </div>
+
+          <!-- 💡 응시 횟수와 평균값이 가장 비슷한 선배가 갔던 학교 추천 섹션 -->
+          <div class="similar-seniors-section">
+            <div class="similar-header">
+              <div class="similar-title-wrap">
+                <span class="similar-icon">💡</span>
+                <h4 class="similar-title">성적 유사 선배 합격 대학</h4>
+                <span class="similar-badge">응시횟수 · 평균성적 매칭</span>
+              </div>
+            </div>
+
+            <div v-if="similarSeniorsTarget" class="similar-target-bar">
+              <span>기준: 모의고사 <strong>{{ similarSeniorsTarget.test_count }}회</strong> 응시 · 평균 영 <strong>{{ similarSeniorsTarget.avg_eng }}점</strong><span v-if="similarSeniorsTarget.is_natural"> / 수 <strong>{{ similarSeniorsTarget.avg_math }}점</strong></span></span>
+            </div>
+
+            <div v-if="isLoadingSimilar" class="similar-loading">
+              유사 성적 선배 진학 데이터를 분석 중입니다...
+            </div>
+            <div v-else-if="similarSeniorsList.length === 0" class="similar-empty">
+              비교할 수 있는 모의고사 성적 데이터가 아직 없습니다.
+            </div>
+            <div v-else class="similar-cards-grid">
+              <div
+                v-for="(s, idx) in similarSeniorsList"
+                :key="idx"
+                class="similar-card"
+              >
+                <div class="similar-card-top">
+                  <div class="senior-info-pill">
+                    <span class="senior-yr">{{ s.year }}'</span>
+                    <span class="senior-nm">{{ s.senior_name }} 선배</span>
+                  </div>
+                  <span class="senior-spec">
+                    {{ s.test_count }}회 · 영 {{ s.avg_eng }}<span v-if="s.avg_math"> / 수 {{ s.avg_math }}</span>
+                  </span>
+                </div>
+
+                <div class="similar-card-dest" @click="jumpToFormUniv(s.univ)" :title="`${s.univ} 학과 탐색하기`">
+                  <span class="dest-univ">{{ s.univ }}</span>
+                  <span class="dest-major">{{ s.major }}</span>
+                </div>
+
+                <div class="similar-card-action">
+                  <button
+                    :class="['btn-add-similar', { added: isMajorApplied(s.univ, s.major) }]"
+                    @click.stop="quickApplySimilar(s.univ, s.major)"
+                  >
+                    {{ isMajorApplied(s.univ, s.major) ? '담김 ✓' : '+ 내 원서에 담기' }}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -484,6 +578,17 @@ const isSavingApp = ref(false)
 const showQuotaModal = ref(false)
 const quotaFileInput = ref(null)
 const isUploadingQuota = ref(false)
+
+// 5. 학생별 특이사항 비고 상태
+const studentNoteText = ref('')
+const isSavingNote = ref(false)
+const noteSaveMsg = ref('')
+let noteSaveTimer = null
+
+// 6. 유사 성적 선배 합격 대학 상태
+const similarSeniorsList = ref([])
+const similarSeniorsTarget = ref(null)
+const isLoadingSimilar = ref(false)
 
 const filteredUnivListTab1 = computed(() => {
   const kw = univSearchKeyword.value.trim().toLowerCase()
@@ -620,6 +725,118 @@ async function fetchStudentMonthlyScores() {
   }
 }
 
+async function fetchStudentNote() {
+  if (!selectedStudent.value) {
+    studentNoteText.value = ''
+    return
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/student-notes?student_name=${encodeURIComponent(selectedStudent.value)}`)
+    const data = await res.json()
+    studentNoteText.value = data.memo || ''
+  } catch (err) {
+    console.error('학생 비고 메모 조회 실패:', err)
+  }
+}
+
+async function saveStudentNote() {
+  if (!selectedStudent.value || isSavingNote.value) return
+  isSavingNote.value = true
+  noteSaveMsg.value = ''
+  try {
+    const res = await fetch(`${API_BASE}/api/student-notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_name: selectedStudent.value,
+        memo: studentNoteText.value
+      })
+    })
+    if (res.ok) {
+      noteSaveMsg.value = '저장됨 ✓'
+      if (noteSaveTimer) clearTimeout(noteSaveTimer)
+      noteSaveTimer = setTimeout(() => {
+        noteSaveMsg.value = ''
+      }, 2500)
+    }
+  } catch (err) {
+    console.error('학생 비고 저장 실패:', err)
+  } finally {
+    isSavingNote.value = false
+  }
+}
+
+function autoSaveStudentNote() {
+  saveStudentNote()
+}
+
+async function fetchSimilarSeniors() {
+  if (!selectedStudent.value) {
+    similarSeniorsList.value = []
+    similarSeniorsTarget.value = null
+    return
+  }
+  isLoadingSimilar.value = true
+  try {
+    const res = await fetch(`${API_BASE}/api/similar-senior-destinations?student_name=${encodeURIComponent(selectedStudent.value)}`)
+    const data = await res.json()
+    if (data && data.status === 'success') {
+      similarSeniorsList.value = data.similar_seniors || []
+      similarSeniorsTarget.value = data.target || null
+    } else {
+      similarSeniorsList.value = []
+      similarSeniorsTarget.value = null
+    }
+  } catch (err) {
+    console.error('유사 선배 조회 실패:', err)
+    similarSeniorsList.value = []
+    similarSeniorsTarget.value = null
+  } finally {
+    isLoadingSimilar.value = false
+  }
+}
+
+async function quickApplySimilar(univ, major) {
+  if (isSavingApp.value || !selectedStudent.value) return
+
+  const existing = studentApplications.value.find(
+    a => a.univ === univ && a.major === major
+  )
+
+  if (existing) {
+    await handleRemoveApplication(existing.id)
+    return
+  }
+
+  isSavingApp.value = true
+  try {
+    const res = await fetch(`${API_BASE}/api/applications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_name: selectedStudent.value,
+        univ: univ,
+        major: major
+      })
+    })
+
+    if (res.ok) {
+      delete deptCache[univ]
+      await fetchStudentApplications()
+      if (selectedUniv.value === univ) {
+        await fetchUnivDepartments(true)
+      }
+      if (formUniv.value === univ) {
+        await fetchFormMajors(true)
+      }
+    }
+  } catch (err) {
+    console.error('원서 담기 실패:', err)
+  } finally {
+    isSavingApp.value = false
+  }
+}
+
 async function fetchAllowedStudents() {
   try {
     const res = await fetch(`${API_BASE}/all-students-2026`)
@@ -629,7 +846,9 @@ async function fetchAllowedStudents() {
       selectedStudent.value = data[0]
       await Promise.all([
         fetchStudentApplications(),
-        fetchStudentMonthlyScores()
+        fetchStudentMonthlyScores(),
+        fetchStudentNote(),
+        fetchSimilarSeniors()
       ])
     }
   } catch (err) {
@@ -642,7 +861,9 @@ async function selectStudent(name) {
   selectedStudent.value = name
   await Promise.all([
     fetchStudentApplications(),
-    fetchStudentMonthlyScores()
+    fetchStudentMonthlyScores(),
+    fetchStudentNote(),
+    fetchSimilarSeniors()
   ])
 }
 
@@ -1518,7 +1739,45 @@ onMounted(async () => {
 .major-title { font-size: 13.5px; font-weight: 700; color: #0f172a; }
 
 .major-right { display: flex; align-items: center; gap: 8px; }
-.quota-mini { font-size: 11.5px; color: #64748b; }
+
+/* 선발 정원 뱃지 디자인 (일반 / 학사) */
+.quota-tag-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.quota-pill {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.quota-pill .num {
+  font-weight: 800;
+}
+.quota-pill.gen {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+.quota-pill.bac {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+.quota-pill.zero {
+  background: #f8fafc;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+}
+.quota-pill.zero .num {
+  font-weight: 600;
+}
+
 .past-mini { font-size: 11px; font-weight: 600; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; }
 .pick-status-btn {
   font-size: 11.5px;
@@ -1528,35 +1787,260 @@ onMounted(async () => {
   border: 1px solid #cbd5e1;
   background: #f8fafc;
   color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
 }
 .pick-status-btn.active { background: #2563eb; border-color: #2563eb; color: #ffffff; }
 
+.dot-legend {
+  color: #2563eb;
+  font-size: 10px;
+}
+
+/* =====================================================================
+   학생별 특이사항 및 상담 비고 카드
+   ===================================================================== */
+.student-note-card {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+.note-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.note-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.note-icon {
+  font-size: 13px;
+}
+.note-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.note-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.note-save-status {
+  font-size: 11px;
+  font-weight: 700;
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.btn-save-note {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 5px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+.btn-save-note:hover:not(:disabled) {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+.student-note-textarea {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  box-sizing: border-box;
+  resize: vertical;
+  outline: none;
+  background: #ffffff;
+  color: #1e293b;
+  font-family: inherit;
+}
+.student-note-textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
 .empty-list-box { padding: 40px 20px; text-align: center; font-size: 13px; color: #94a3b8; line-height: 1.6; }
-.application-cards { display: flex; flex-direction: column; gap: 8px; max-height: 640px; overflow-y: auto; }
+.application-cards { display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; }
 .app-card {
   display: flex;
   align-items: center;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #f8fafc;
   gap: 12px;
 }
-.card-num { font-size: 14px; font-weight: 800; color: #2563eb; width: 20px; text-align: center; }
+.card-num { font-size: 13px; font-weight: 800; color: #2563eb; width: 20px; text-align: center; }
 .card-content { flex: 1; cursor: pointer; }
 .card-univ { font-size: 12px; font-weight: 700; color: #2563eb; }
-.card-major { font-size: 14.5px; font-weight: 700; color: #0f172a; margin: 2px 0; }
-.card-meta { font-size: 11.5px; color: #64748b; }
+.card-major { font-size: 13.5px; font-weight: 700; color: #0f172a; margin: 2px 0; }
+.card-meta { font-size: 11px; color: #64748b; }
 .btn-remove {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border: none;
   border-radius: 6px;
   background: #fee2e2;
   color: #dc2626;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* =====================================================================
+   💡 성적 유사 선배 합격 대학 추천 섹션
+   ===================================================================== */
+.similar-seniors-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1.5px dashed #cbd5e1;
+}
+.similar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.similar-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.similar-icon {
+  font-size: 14px;
+}
+.similar-title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.similar-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #0369a1;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.similar-target-bar {
+  font-size: 11.5px;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 5px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+.similar-loading, .similar-empty {
+  font-size: 12px;
+  color: #94a3b8;
+  padding: 18px 10px;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+.similar-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.similar-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  transition: all 0.15s ease;
+}
+.similar-card:hover {
+  border-color: #3b82f6;
+  background: #f8fafc;
+}
+.similar-card-top {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 130px;
+}
+.senior-info-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.senior-yr {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+}
+.senior-nm {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.senior-spec {
+  font-size: 10.5px;
+  color: #64748b;
+}
+.similar-card-dest {
+  flex: 1;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.dest-univ {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+}
+.dest-major {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.similar-card-action {
+  flex-shrink: 0;
+}
+.btn-add-similar {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #1e293b;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-add-similar:hover {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+.btn-add-similar.added {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
 }
 
 /* 모달 */
