@@ -1104,6 +1104,24 @@ def ensure_application_tables():
                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                    );
                    """)
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS student_past_exam_scores
+                   (
+                       id INT AUTO_INCREMENT PRIMARY KEY,
+                       student_name VARCHAR(50) NOT NULL,
+                       univ VARCHAR(50) NOT NULL,
+                       exam_year INT NOT NULL,
+                       my_score FLOAT NOT NULL,
+                       avg_score FLOAT NULL,
+                       score_gap FLOAT NULL,
+                       percentile VARCHAR(30) DEFAULT '',
+                       is_unofficial BOOLEAN DEFAULT TRUE,
+                       memo VARCHAR(100) DEFAULT '',
+                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                       UNIQUE KEY uq_student_univ_year (student_name, univ, exam_year)
+                   );
+                   """)
     # 기존 테이블이 이미 있을 경우 대비 컬럼 추가
     cols_to_add = [
         ("pref_major_1", "VARCHAR(100) DEFAULT ''"),
@@ -1637,6 +1655,111 @@ def save_student_note(data: StudentNoteUpdate):
     cursor.close()
     conn.close()
     return {"status": "success", "message": f"{data.student_name} 학생 정보 및 비고 메모 저장 완료"}
+
+
+class PastExamScoreCreate(BaseModel):
+    student_name: str
+    univ: str
+    exam_year: int
+    my_score: float
+    avg_score: Optional[float] = None
+    percentile: Optional[str] = ""
+    is_unofficial: Optional[bool] = True
+    memo: Optional[str] = ""
+
+
+@app.get("/api/student-past-exams")
+def get_student_past_exams(student_name: str, univ: Optional[str] = None):
+    conn = get_db_connection()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+    if univ:
+        univ_clean = univ.replace("대학교", "").replace("대학", "").split("(")[0].strip()
+        cursor.execute("""
+            SELECT id, student_name, univ, exam_year, my_score, avg_score, score_gap, percentile, is_unofficial, memo, updated_at
+            FROM student_past_exam_scores
+            WHERE student_name = %s 
+              AND (univ = %s OR univ LIKE %s OR %s LIKE CONCAT(univ, '%%'))
+            ORDER BY exam_year DESC;
+        """, (student_name, univ, f"%{univ_clean}%", univ))
+    else:
+        cursor.execute("""
+            SELECT id, student_name, univ, exam_year, my_score, avg_score, score_gap, percentile, is_unofficial, memo, updated_at
+            FROM student_past_exam_scores
+            WHERE student_name = %s
+            ORDER BY univ ASC, exam_year DESC;
+        """, (student_name,))
+    
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    results = []
+    for r in rows:
+        results.append({
+            "id": r["id"],
+            "student_name": r["student_name"],
+            "univ": r["univ"],
+            "exam_year": r["exam_year"],
+            "year_short": f"{str(r['exam_year'])[-2:]}'",
+            "my_score": float(r["my_score"]) if r["my_score"] is not None else 0.0,
+            "avg_score": float(r["avg_score"]) if r["avg_score"] is not None else None,
+            "score_gap": float(r["score_gap"]) if r["score_gap"] is not None else None,
+            "percentile": r.get("percentile") or "",
+            "is_unofficial": bool(r.get("is_unofficial")),
+            "memo": r.get("memo") or "",
+            "updated_at": str(r["updated_at"]) if r.get("updated_at") else None
+        })
+
+    return {"scores": results}
+
+
+@app.post("/api/student-past-exams")
+def save_student_past_exam(data: PastExamScoreCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    score_gap = None
+    if data.avg_score is not None and data.avg_score > 0:
+        score_gap = round(float(data.my_score) - float(data.avg_score), 2)
+
+    cursor.execute("""
+        INSERT INTO student_past_exam_scores 
+        (student_name, univ, exam_year, my_score, avg_score, score_gap, percentile, is_unofficial, memo)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            my_score = VALUES(my_score),
+            avg_score = VALUES(avg_score),
+            score_gap = VALUES(score_gap),
+            percentile = VALUES(percentile),
+            is_unofficial = VALUES(is_unofficial),
+            memo = VALUES(memo),
+            updated_at = CURRENT_TIMESTAMP;
+    """, (
+        data.student_name,
+        data.univ,
+        data.exam_year,
+        data.my_score,
+        data.avg_score,
+        score_gap,
+        data.percentile or "",
+        data.is_unofficial if data.is_unofficial is not None else True,
+        data.memo or ""
+    ))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"status": "success", "message": f"{data.student_name} 학생 {data.univ} {data.exam_year}년도 기출 점수 저장 완료"}
+
+
+@app.delete("/api/student-past-exams/{score_id}")
+def delete_student_past_exam(score_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM student_past_exam_scores WHERE id = %s;", (score_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"status": "success", "message": "기출 점수 삭제 완료"}
 
 
 # 8. 지원 현황: 실제 응시한 월들의 성적 기반 지난 합격생 진학 대학 매칭 API
