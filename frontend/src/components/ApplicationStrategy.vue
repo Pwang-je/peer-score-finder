@@ -443,7 +443,7 @@
                   <input
                     v-model="studentProfile.pref_major_1"
                     @blur="autoSaveStudentProfile"
-                    placeholder="예: 컴퓨터공학과, 경영학과"
+                    placeholder=""
                     class="pref-input"
                   />
                 </div>
@@ -455,7 +455,7 @@
                   <input
                     v-model="studentProfile.pref_major_2"
                     @blur="autoSaveStudentProfile"
-                    placeholder="예: 인공지능학과, 경제학과"
+                    placeholder=""
                     class="pref-input"
                   />
                 </div>
@@ -470,7 +470,7 @@
                   <input
                     v-model="studentProfile.dislike_major"
                     @blur="autoSaveStudentProfile"
-                    placeholder="예: 토목공학, 신소재, 야간"
+                    placeholder=""
                     class="pref-input dislike-input"
                   />
                 </div>
@@ -482,7 +482,7 @@
                   <input
                     v-model="studentProfile.toeic_score"
                     @blur="autoSaveStudentProfile"
-                    placeholder="예: 850점 (미응시)"
+                    placeholder=""
                     class="pref-input"
                   />
                 </div>
@@ -494,7 +494,7 @@
                   <input
                     v-model="studentProfile.gpa_score"
                     @blur="autoSaveStudentProfile"
-                    placeholder="예: 3.85 / 4.5"
+                    placeholder=""
                     class="pref-input"
                   />
                 </div>
@@ -523,15 +523,14 @@
             <div class="note-card-body">
               <textarea
                 v-model="studentNoteText"
-                @blur="autoSaveStudentNote"
-                placeholder="학생 특이사항을 기록하세요 (예: 학점은행제 70학점 완료, 건국대/한양대 최우선 희망 등) - 포커스 해제 시 자동 저장"
+                placeholder=""
                 rows="2"
                 class="student-note-textarea"
               ></textarea>
             </div>
           </div>
 
-          <!-- 📌 [요청 1] 저장된 메모를 비고 밑에 따로 띄움 -->
+          <!-- 📌 [요청 1 & 3] 저장된 메모를 비고 밑에 따로 띄움 + 메모 삭제 기능 -->
           <div class="saved-memo-card">
             <div class="saved-memo-header">
               <div class="saved-memo-title-wrap">
@@ -539,6 +538,15 @@
                 <span class="saved-title">저장된 메모</span>
                 <span v-if="savedNoteUpdatedAt" class="saved-date">({{ savedNoteUpdatedAt }} 기준)</span>
               </div>
+              <button
+                v-if="savedStudentNote && savedStudentNote.trim()"
+                @click="deleteSavedNote"
+                :disabled="isDeletingNote"
+                class="btn-delete-memo"
+                title="저장된 메모 삭제"
+              >
+                {{ isDeletingNote ? '삭제 중...' : '메모 삭제' }}
+              </button>
             </div>
             <div class="saved-memo-body">
               <div v-if="savedStudentNote && savedStudentNote.trim()" class="saved-memo-text">
@@ -614,6 +622,9 @@
                   <div class="senior-info-pill">
                     <span class="senior-yr">{{ s.year }}'</span>
                     <span class="senior-nm">{{ s.student_name || s.senior_name }}</span>
+                    <span :class="['senior-apply-badge', s.apply_type === '학사' ? 'bac' : 'gen']">
+                      {{ s.apply_type || '일반' }}
+                    </span>
                   </div>
                   <span class="senior-spec">
                     {{ s.test_count }}회 응시 · 영 {{ s.avg_eng }}<span v-if="s.avg_math"> / 수 {{ s.avg_math }}</span>
@@ -697,6 +708,7 @@ const studentNoteText = ref('')
 const savedStudentNote = ref('')
 const savedNoteUpdatedAt = ref('')
 const isSavingNote = ref(false)
+const isDeletingNote = ref(false)
 const noteSaveMsg = ref('')
 let noteSaveTimer = null
 
@@ -868,7 +880,8 @@ async function fetchStudentNote() {
   try {
     const res = await fetch(`${API_BASE}/api/student-notes?student_name=${encodeURIComponent(selectedStudent.value)}`)
     const data = await res.json()
-    studentNoteText.value = data.memo || ''
+    // 💡 [사용자 요청 2] 새로고침/학생 변경 시 입력창은 언제나 빈칸으로 대기
+    studentNoteText.value = ''
     savedStudentNote.value = data.memo || ''
     savedNoteUpdatedAt.value = data.updated_at || ''
     studentProfile.value = {
@@ -885,6 +898,9 @@ async function fetchStudentNote() {
 
 async function saveStudentNote() {
   if (!selectedStudent.value || isSavingNote.value) return
+  const textToSave = studentNoteText.value.trim()
+  if (!textToSave) return // 내용이 없으면 저장하지 않음
+
   isSavingNote.value = true
   noteSaveMsg.value = ''
   try {
@@ -893,7 +909,7 @@ async function saveStudentNote() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         student_name: selectedStudent.value,
-        memo: studentNoteText.value,
+        memo: textToSave,
         pref_major_1: studentProfile.value.pref_major_1,
         pref_major_2: studentProfile.value.pref_major_2,
         dislike_major: studentProfile.value.dislike_major,
@@ -902,7 +918,9 @@ async function saveStudentNote() {
       })
     })
     if (res.ok) {
-      savedStudentNote.value = studentNoteText.value
+      savedStudentNote.value = textToSave
+      // 💡 [사용자 요청 2] 저장 완료 후 입력창은 다시 빈칸으로 리셋
+      studentNoteText.value = ''
       const now = new Date()
       savedNoteUpdatedAt.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
       noteSaveMsg.value = '저장됨 ✓'
@@ -919,7 +937,39 @@ async function saveStudentNote() {
 }
 
 function autoSaveStudentNote() {
-  saveStudentNote()
+  // blur 시에는 저장하지 않고 사용자가 명시적으로 '메모 저장' 버튼을 누를 때 저장
+}
+
+async function deleteSavedNote() {
+  if (!selectedStudent.value || isDeletingNote.value) return
+  if (!confirm(`'${selectedStudent.value}' 학생의 저장된 메모를 삭제하시겠습니까?`)) return
+
+  isDeletingNote.value = true
+  try {
+    const res = await fetch(`${API_BASE}/api/student-notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_name: selectedStudent.value,
+        memo: '', // 빈 문자열로 메모 삭제
+        pref_major_1: studentProfile.value.pref_major_1,
+        pref_major_2: studentProfile.value.pref_major_2,
+        dislike_major: studentProfile.value.dislike_major,
+        toeic_score: studentProfile.value.toeic_score,
+        gpa_score: studentProfile.value.gpa_score
+      })
+    })
+    if (res.ok) {
+      savedStudentNote.value = ''
+      savedNoteUpdatedAt.value = ''
+      studentNoteText.value = ''
+    }
+  } catch (err) {
+    console.error('메모 삭제 실패:', err)
+    alert('메모 삭제 중 오류가 발생했습니다.')
+  } finally {
+    isDeletingNote.value = false
+  }
 }
 
 async function saveStudentProfile() {
@@ -932,7 +982,7 @@ async function saveStudentProfile() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         student_name: selectedStudent.value,
-        memo: studentNoteText.value,
+        memo: savedStudentNote.value || '', // 💡 저장된 기존 메모 유지
         pref_major_1: studentProfile.value.pref_major_1,
         pref_major_2: studentProfile.value.pref_major_2,
         dislike_major: studentProfile.value.dislike_major,
@@ -2228,6 +2278,22 @@ onMounted(async () => {
   font-size: 10.5px;
   color: #a16207;
 }
+.btn-delete-memo {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #fecaca;
+  background: #ffffff;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-delete-memo:hover:not(:disabled) {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
 .saved-memo-body {
   font-size: 12px;
   line-height: 1.45;
@@ -2334,7 +2400,7 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 1fr;
   gap: 7px;
-  max-height: 400px;
+  max-height: 520px;
   overflow-y: auto;
 }
 .similar-card {
@@ -2356,12 +2422,12 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 130px;
+  min-width: 135px;
 }
 .senior-info-pill {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 .senior-yr {
   font-size: 11px;
@@ -2372,6 +2438,23 @@ onMounted(async () => {
   font-size: 12px;
   font-weight: 700;
   color: #1e293b;
+}
+.senior-apply-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+.senior-apply-badge.gen {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+.senior-apply-badge.bac {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
 }
 .senior-spec {
   font-size: 10.5px;

@@ -1666,6 +1666,7 @@ def get_cached_past_admissions():
             'univ': '',
             'major': '',
             'is_natural': False,
+            'apply_type': '일반',
             'scores': {}
         })
 
@@ -1678,6 +1679,10 @@ def get_cached_past_admissions():
             dept = str(r.get('department') or '')
             if '자연' in dept:
                 stu['is_natural'] = True
+            if '학사' in dept:
+                stu['apply_type'] = '학사'
+            elif '일반' in dept and stu['apply_type'] != '학사':
+                stu['apply_type'] = '일반'
 
             m = r.get('month')
             if not m:
@@ -1832,6 +1837,7 @@ def get_similar_senior_destinations(student_name: str):
                 "student_name": name,
                 "senior_name": name,  # 호환성 유지
                 "year": year,
+                "apply_type": info.get("apply_type", "일반"),
                 "univ": info["univ"],
                 "major": info["major"],
                 "test_count": len(p_months),
@@ -1843,7 +1849,7 @@ def get_similar_senior_destinations(student_name: str):
 
         matched.sort(key=lambda x: x["distance"])
 
-        # 중복 대학·학과 방지하며 상위 6개 선발
+        # 중복 대학·학과 방지하며 상위 최대 10개 선발
         unique_destinations = []
         seen = set()
         for item in matched:
@@ -1851,7 +1857,7 @@ def get_similar_senior_destinations(student_name: str):
             if key not in seen:
                 seen.add(key)
                 unique_destinations.append(item)
-            if len(unique_destinations) >= 6:
+            if len(unique_destinations) >= 10:
                 break
 
         return {
