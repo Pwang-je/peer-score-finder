@@ -2202,7 +2202,7 @@ export default {
    ======================================================== */
 @media (max-width: 768px) {
   .dashboard-root {
-    padding: 20px 12px;
+    padding: 14px 10px;
     width: 100%;
     max-width: 100vw;
     box-sizing: border-box;
@@ -2215,13 +2215,60 @@ export default {
     min-width: 0;
   }
 
+  /* 최상단 메인 모드 네비게이션 탭 */
+  .main-mode-nav {
+    width: 100%;
+    gap: 8px;
+    padding-top: 4px;
+    margin-bottom: 12px;
+  }
+
+  .mode-nav-btn {
+    flex: 1;
+    padding: 10px 6px;
+    font-size: 13px;
+    text-align: center;
+    white-space: normal;
+    word-break: keep-all;
+    line-height: 1.3;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 헤더 섹션 & 관리자 업로드 버튼 */
+  .app-header {
+    margin-bottom: 20px;
+  }
+
+  .admin-action-row {
+    width: 100%;
+    margin-bottom: 12px;
+    justify-content: stretch;
+  }
+
+  .admin-upload-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 9px 0;
+    font-size: 13px;
+  }
+
   .main-title {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .main-desc {
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.5;
+    word-break: keep-all;
+  }
+
+  /* 알고리즘 안내 카드 */
+  .methodology-card {
+    padding: 14px 12px;
+    margin-bottom: 16px;
   }
 
   .methodology-grid {
@@ -2233,28 +2280,102 @@ export default {
     padding: 12px;
   }
 
+  .step-body p {
+    font-size: 12.5px;
+    line-height: 1.45;
+    word-break: keep-all;
+  }
+
+  /* 컨트롤 그리드 (2열 ➔ 1열) */
   .control-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 14px;
     width: 100%;
   }
 
   .glass-panel {
-    padding: 18px 14px;
+    padding: 16px 12px;
     min-width: 0;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .stat-summary-box {
+    padding: 10px;
+    margin-top: 10px;
+  }
+
+  .stat-summary-title {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .stat-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .stat-pill {
+    padding: 6px 2px;
+  }
+
+  .stat-pill .k {
+    font-size: 10.5px;
+  }
+
+  .stat-pill .v {
+    font-size: 13.5px;
   }
 
   .manual-score-grid,
   .manual-score-grid.grid-natural {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
+  }
+
+  .manual-score-grid.grid-natural .math-wrap {
+    grid-column: span 2;
+  }
+
+  .manual-total-line {
+    font-size: 13px;
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+
+  .total-number {
+    font-size: 18px;
+  }
+
+  /* 가중치 조절 패널 */
+  .weight-control-panel {
+    padding: 14px 12px;
+    margin-bottom: 14px;
   }
 
   .weight-header {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .weight-title-group {
+    gap: 8px;
+  }
+
+  .weight-title {
+    font-size: 14px;
+  }
+
+  .weight-desc {
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: keep-all;
   }
 
   .reset-weight-btn {
@@ -2265,8 +2386,8 @@ export default {
 
   .weight-sliders-grid,
   .weight-sliders-grid.grid-five {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: 1fr;
+    gap: 8px;
     width: 100%;
   }
 
@@ -2276,25 +2397,57 @@ export default {
   }
 
   .action-bar {
-    margin: 20px 0 28px;
+    margin: 16px 0 24px;
   }
 
   .primary-btn {
     width: 100%;
     justify-content: center;
-    padding: 15px 0;
-    font-size: 16px;
+    padding: 14px 0;
+    font-size: 15px;
   }
 
+  /* 결과 섹션 */
   .results-container {
     width: 100%;
     max-width: 100%;
     min-width: 0;
   }
 
+  .matching-mode-banner {
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+
+  .mode-badge-wrap {
+    gap: 6px;
+    font-size: 12.5px;
+  }
+
+  .mode-desc {
+    font-size: 12px;
+    line-height: 1.45;
+    word-break: keep-all;
+  }
+
+  .diagnostic-banner {
+    padding: 10px 12px;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .diag-label {
+    font-size: 12.5px;
+  }
+
+  .diag-tag {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
   .charts-section {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 14px;
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -2303,7 +2456,7 @@ export default {
   .mini-charts-row,
   .mini-charts-row.row-five {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
     width: 100%;
     min-width: 0;
   }
@@ -2313,35 +2466,40 @@ export default {
   }
 
   .chart-tile {
-    padding: 12px 10px;
+    padding: 10px 8px;
     min-width: 0;
     overflow: hidden;
   }
 
   .tile-header {
-    font-size: 12px;
-    margin-bottom: 8px;
+    font-size: 11.5px;
+    margin-bottom: 6px;
     word-break: keep-all;
   }
 
   .chart-canvas-box {
     position: relative;
     width: 100% !important;
-    height: 95px !important;
+    height: 100px !important;
     min-width: 0;
   }
 
   .main-timeline-tile {
-    padding: 14px 10px;
+    padding: 12px 10px;
     width: 100%;
     min-width: 0;
     overflow: hidden;
   }
 
+  .timeline-header-wrap {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .timeline-canvas-box {
     position: relative;
     width: 100% !important;
-    height: 210px !important;
+    height: 220px !important;
     min-width: 0;
   }
 
@@ -2351,10 +2509,79 @@ export default {
     max-width: 100% !important;
   }
 
+  /* TOP 10 대학 카드 */
+  .sub-heading {
+    font-size: 15px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
   .univ-card-flow {
     grid-template-columns: 1fr;
     gap: 12px;
     width: 100%;
+  }
+
+  .univ-modern-card {
+    padding: 14px 12px;
+  }
+
+  .u-card-head {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .senior-line-top {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .senior-line-sub {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .badge-score {
+    font-size: 10.5px;
+    padding: 2px 6px;
+  }
+
+  .badge-meta {
+    font-size: 10.5px;
+  }
+
+  /* 모달 */
+  .modal-card {
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    padding: 16px !important;
+    border-radius: 12px !important;
+  }
+
+  .modal-header h3 {
+    font-size: 15px;
+  }
+
+  .modal-guide {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .dup-scroll-list {
+    max-height: 140px;
+    font-size: 11.5px;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .modal-footer button {
+    width: 100%;
+    text-align: center;
   }
 }
 

@@ -158,6 +158,7 @@
 
       <!-- 3) 모집단위 테이블 -->
       <div class="table-wrapper">
+        <div class="mobile-scroll-hint">👈 좌우로 넘겨서 전체 모집인원 및 지원현황을 확인하세요 👉</div>
         <div v-if="isLoadingDepts" class="table-loading-overlay">
           데이터 불러오는 중...
         </div>
@@ -1550,7 +1551,13 @@ onMounted(async () => {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+.mobile-scroll-hint {
+  display: none;
 }
 
 .table-loading-overlay {
@@ -2534,7 +2541,485 @@ onMounted(async () => {
 .btn-cancel { padding: 7px 14px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; font-size: 13px; cursor: pointer; }
 .btn-submit { padding: 7px 16px; border: none; background: #2563eb; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
 
-@media (max-width: 900px) {
-  .fast-basket-layout { grid-template-columns: 1fr; }
+/* ========================================================
+   📱 원서 지원 관리 모바일 완벽 대응 (768px 이하)
+   ======================================================== */
+@media (max-width: 768px) {
+  .strategy-container {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .wakeup-banner {
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .header-card {
+    padding: 14px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .header-left h2 {
+    font-size: 16px;
+    line-height: 1.35;
+    margin-bottom: 4px;
+  }
+
+  .sub-desc {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .header-right-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-upload-quota {
+    width: 100%;
+    text-align: center;
+    padding: 9px 12px;
+    font-size: 13px;
+    box-sizing: border-box;
+  }
+
+  .tab-controls {
+    width: 100%;
+    display: flex;
+    box-sizing: border-box;
+  }
+
+  .tab-btn {
+    flex: 1;
+    text-align: center;
+    padding: 9px 8px;
+    font-size: 13px;
+  }
+
+  /* 탭 1: 빠른 대학 선택 */
+  .univ-picker-card {
+    padding: 12px 10px;
+    margin-bottom: 12px;
+  }
+
+  .univ-picker-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .univ-search-wrap {
+    width: 100%;
+  }
+
+  .dept-filters {
+    width: 100%;
+    display: flex;
+    gap: 4px;
+  }
+
+  .filter-btn {
+    flex: 1;
+    text-align: center;
+    padding: 7px 0;
+    font-size: 12px;
+  }
+
+  .legend-box {
+    justify-content: flex-end;
+    font-size: 11.5px;
+  }
+
+  .univ-chip-box {
+    padding: 8px;
+    gap: 5px;
+    max-height: 125px;
+  }
+
+  .univ-chip {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  /* 탭 1: 학점은행제 지원자격 */
+  .eligibility-card {
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+
+  .eligibility-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .eligibility-title {
+    font-size: 13px;
+  }
+
+  .elig-badge {
+    font-size: 10.5px;
+    padding: 2px 6px;
+  }
+
+  .elig-text {
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+
+  /* 탭 1: 모집단위 테이블 */
+  .table-wrapper {
+    border-radius: 8px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .mobile-scroll-hint {
+    display: block;
+    text-align: center;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #2563eb;
+    background: #eff6ff;
+    border-bottom: 1px solid #dbeafe;
+    padding: 7px 10px;
+    letter-spacing: -0.2px;
+  }
+
+  .quota-table {
+    min-width: 780px;
+  }
+
+  .quota-table th, .quota-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .student-tag, .past-student-tag {
+    padding: 2px 5px;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  /* 탭 2: 학생 선택 바 */
+  .student-quick-bar {
+    padding: 12px 10px;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .student-bar-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .student-nav-group {
+    width: 100%;
+    display: flex;
+  }
+
+  .student-select {
+    flex: 1;
+    width: 100%;
+  }
+
+  .student-search-wrap {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .stat-badge.count {
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+    font-size: 12px;
+    padding: 5px 0;
+  }
+
+  /* 탭 2: 월별 스코어보드 */
+  .student-score-strip {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .score-summary-col {
+    min-width: 0;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    padding-right: 0;
+    padding-bottom: 8px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .summary-top {
+    gap: 6px;
+  }
+
+  .summary-values {
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .monthly-grid-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .monthly-grid {
+    grid-template-columns: repeat(10, 48px);
+    gap: 4px;
+  }
+
+  .month-col {
+    padding: 4px 2px;
+  }
+
+  .month-header {
+    font-size: 10px;
+  }
+
+  .score-cell {
+    font-size: 10.5px;
+  }
+
+  /* 탭 2: 패널 레이아웃 */
+  .fast-basket-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    width: 100%;
+  }
+
+  .panel {
+    padding: 14px 10px;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .panel-header {
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+  }
+
+  .guide-hint {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  /* 탭 2: 학과 탐색 및 담기 행 */
+  .major-filter-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .major-search-wrap {
+    width: 100%;
+  }
+
+  .mini-dept-tabs {
+    width: 100%;
+    display: flex;
+  }
+
+  .mini-tab {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0;
+  }
+
+  .major-pick-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 10px;
+  }
+
+  .major-left {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .major-title {
+    flex: 1;
+    word-break: keep-all;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .major-right {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-top: 1px dashed #f1f5f9;
+    padding-top: 6px;
+  }
+
+  .quota-tag-group {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .pick-status-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  /* 탭 2: 희망 학과 및 스펙 */
+  .student-pref-card {
+    padding: 10px;
+  }
+
+  .pref-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .pref-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .pref-grid-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .pref-grid-row.three-cols {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .pref-grid-row.three-cols .pref-field-group:first-child {
+    grid-column: span 2;
+  }
+
+  /* 탭 2: 특이사항 & 메모 */
+  .note-card-header,
+  .saved-memo-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .note-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* 탭 2: 지원 카드 */
+  .app-card {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .card-num {
+    width: 16px;
+    font-size: 12px;
+  }
+
+  .card-major {
+    font-size: 13px;
+    word-break: keep-all;
+  }
+
+  .card-meta {
+    font-size: 10.5px;
+  }
+
+  /* 탭 2: 성적 유사 지난 합격생 추천 */
+  .similar-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .similar-card-top {
+    width: 100%;
+    min-width: 0;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .similar-card-dest {
+    width: 100%;
+  }
+
+  .dest-major {
+    font-size: 13px;
+    word-break: keep-all;
+  }
+
+  .similar-card-action {
+    width: 100%;
+  }
+
+  .btn-add-similar {
+    width: 100%;
+    text-align: center;
+    padding: 6px 0;
+  }
+
+  /* 엑셀 업로드 모달 */
+  .modal-backdrop {
+    padding: 10px;
+  }
+
+  .modal-box {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    padding: 12px 14px;
+  }
+
+  .modal-body {
+    padding: 14px;
+  }
+
+  .sample-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sample-table {
+    min-width: 360px;
+  }
+
+  .modal-footer {
+    padding: 10px 14px;
+  }
 }
 </style>
