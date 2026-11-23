@@ -159,7 +159,7 @@
       <AutoIntrospectionLevel>3</AutoIntrospectionLevel>
       <Current>1</Current>
       <LastIntrospectionLevel>3</LastIntrospectionLevel>
-      <LastIntrospectionLocalTimestamp>2026-11-22.12:17:30</LastIntrospectionLocalTimestamp>
+      <LastIntrospectionLocalTimestamp>2026-11-23.02:21:25</LastIntrospectionLocalTimestamp>
       <CollationName>utf8mb4_unicode_ci</CollationName>
     </schema>
     <schema id="19" parent="1" name="sys">
@@ -211,353 +211,452 @@
       <Engine>InnoDB</Engine>
       <CollationName>utf8mb4_unicode_ci</CollationName>
     </table>
-    <table id="32" parent="18" name="univ_eligibility">
+    <table id="32" parent="18" name="student_past_exam_scores">
       <DetailsLevel>3</DetailsLevel>
       <Engine>InnoDB</Engine>
       <CollationName>utf8mb4_unicode_ci</CollationName>
     </table>
-    <column id="33" parent="26" name="year">
+    <table id="33" parent="18" name="univ_eligibility">
+      <DetailsLevel>3</DetailsLevel>
+      <Engine>InnoDB</Engine>
+      <CollationName>utf8mb4_unicode_ci</CollationName>
+    </table>
+    <column id="34" parent="26" name="year">
       <Position>1</Position>
       <StoredType>bigint|0s</StoredType>
     </column>
-    <column id="34" parent="26" name="student_name">
+    <column id="35" parent="26" name="student_name">
       <Position>2</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="35" parent="26" name="month">
+    <column id="36" parent="26" name="month">
       <Position>3</Position>
       <StoredType>bigint|0s</StoredType>
     </column>
-    <column id="36" parent="26" name="grammar">
+    <column id="37" parent="26" name="grammar">
       <Position>4</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="37" parent="26" name="vocabulary">
+    <column id="38" parent="26" name="vocabulary">
       <Position>5</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="38" parent="26" name="logic">
+    <column id="39" parent="26" name="logic">
       <Position>6</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="39" parent="26" name="reading">
+    <column id="40" parent="26" name="reading">
       <Position>7</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="40" parent="26" name="total_score">
+    <column id="41" parent="26" name="total_score">
       <Position>8</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="41" parent="26" name="univ">
+    <column id="42" parent="26" name="univ">
       <Position>9</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="42" parent="26" name="major">
+    <column id="43" parent="26" name="major">
       <Position>10</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="43" parent="26" name="department">
+    <column id="44" parent="26" name="department">
       <Position>11</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="44" parent="26" name="center">
+    <column id="45" parent="26" name="center">
       <Position>12</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="45" parent="26" name="매칭_상태">
+    <column id="46" parent="26" name="매칭_상태">
       <Position>13</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="46" parent="26" name="유사도_점수">
+    <column id="47" parent="26" name="유사도_점수">
       <Position>14</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="47" parent="26" name="math_total">
+    <column id="48" parent="26" name="math_total">
       <Position>15</Position>
       <StoredType>float|0s</StoredType>
     </column>
-    <column id="48" parent="27" name="year">
+    <column id="49" parent="27" name="year">
       <Position>1</Position>
       <StoredType>bigint|0s</StoredType>
     </column>
-    <column id="49" parent="27" name="student_name">
+    <column id="50" parent="27" name="student_name">
       <Position>2</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="50" parent="27" name="month">
+    <column id="51" parent="27" name="month">
       <Position>3</Position>
       <StoredType>bigint|0s</StoredType>
     </column>
-    <column id="51" parent="27" name="grammar">
+    <column id="52" parent="27" name="grammar">
       <Position>4</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="52" parent="27" name="vocabulary">
+    <column id="53" parent="27" name="vocabulary">
       <Position>5</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="53" parent="27" name="logic">
+    <column id="54" parent="27" name="logic">
       <Position>6</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="54" parent="27" name="reading">
+    <column id="55" parent="27" name="reading">
       <Position>7</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="55" parent="27" name="total_score">
+    <column id="56" parent="27" name="total_score">
       <Position>8</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="56" parent="27" name="univ">
+    <column id="57" parent="27" name="univ">
       <Position>9</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="57" parent="27" name="major">
+    <column id="58" parent="27" name="major">
       <Position>10</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="58" parent="27" name="department">
+    <column id="59" parent="27" name="department">
       <Position>11</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="59" parent="27" name="math_total">
+    <column id="60" parent="27" name="math_total">
       <Position>12</Position>
       <StoredType>float|0s</StoredType>
     </column>
-    <column id="60" parent="28" name="year">
+    <column id="61" parent="28" name="year">
       <Position>1</Position>
       <StoredType>bigint|0s</StoredType>
     </column>
-    <column id="61" parent="28" name="student_name">
+    <column id="62" parent="28" name="student_name">
       <Position>2</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="62" parent="28" name="month">
+    <column id="63" parent="28" name="month">
       <Position>3</Position>
       <StoredType>bigint|0s</StoredType>
     </column>
-    <column id="63" parent="28" name="grammar">
+    <column id="64" parent="28" name="grammar">
       <Position>4</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="64" parent="28" name="vocabulary">
+    <column id="65" parent="28" name="vocabulary">
       <Position>5</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="65" parent="28" name="logic">
+    <column id="66" parent="28" name="logic">
       <Position>6</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="66" parent="28" name="reading">
+    <column id="67" parent="28" name="reading">
       <Position>7</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="67" parent="28" name="total_score">
+    <column id="68" parent="28" name="total_score">
       <Position>8</Position>
       <StoredType>double|0s</StoredType>
     </column>
-    <column id="68" parent="28" name="univ">
+    <column id="69" parent="28" name="univ">
       <Position>9</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="69" parent="28" name="major">
+    <column id="70" parent="28" name="major">
       <Position>10</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="70" parent="28" name="department">
+    <column id="71" parent="28" name="department">
       <Position>11</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="71" parent="28" name="math_total">
+    <column id="72" parent="28" name="math_total">
       <Position>12</Position>
       <StoredType>float|0s</StoredType>
     </column>
-    <column id="72" parent="29" name="id">
+    <column id="73" parent="29" name="id">
       <AutoIncrement>0</AutoIncrement>
       <NotNull>1</NotNull>
       <Position>1</Position>
       <StoredType>int|0s</StoredType>
     </column>
-    <column id="73" parent="29" name="year">
+    <column id="74" parent="29" name="year">
       <DefaultExpression>2026</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>2</Position>
       <StoredType>int|0s</StoredType>
     </column>
-    <column id="74" parent="29" name="univ">
+    <column id="75" parent="29" name="univ">
       <NotNull>1</NotNull>
       <Position>3</Position>
       <StoredType>varchar(50)|0s</StoredType>
     </column>
-    <column id="75" parent="29" name="department">
+    <column id="76" parent="29" name="department">
       <NotNull>1</NotNull>
       <Position>4</Position>
       <StoredType>varchar(20)|0s</StoredType>
     </column>
-    <column id="76" parent="29" name="major">
+    <column id="77" parent="29" name="major">
       <NotNull>1</NotNull>
       <Position>5</Position>
       <StoredType>varchar(150)|0s</StoredType>
     </column>
-    <column id="77" parent="29" name="general_quota">
+    <column id="78" parent="29" name="general_quota">
       <DefaultExpression>0</DefaultExpression>
       <Position>6</Position>
       <StoredType>int|0s</StoredType>
     </column>
-    <column id="78" parent="29" name="bachelor_quota">
+    <column id="79" parent="29" name="bachelor_quota">
       <DefaultExpression>0</DefaultExpression>
       <Position>7</Position>
       <StoredType>int|0s</StoredType>
     </column>
-    <index id="79" parent="29" name="PRIMARY">
+    <index id="80" parent="29" name="PRIMARY">
       <ColNames>id</ColNames>
       <Type>btree</Type>
       <Unique>1</Unique>
     </index>
-    <index id="80" parent="29" name="uq_univ_major">
+    <index id="81" parent="29" name="uq_univ_major">
       <ColNames>year
 univ
 major</ColNames>
       <Type>btree</Type>
       <Unique>1</Unique>
     </index>
-    <key id="81" parent="29" name="PRIMARY">
+    <key id="82" parent="29" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <Primary>1</Primary>
       <UnderlyingIndexName>PRIMARY</UnderlyingIndexName>
     </key>
-    <key id="82" parent="29" name="uq_univ_major">
+    <key id="83" parent="29" name="uq_univ_major">
       <UnderlyingIndexName>uq_univ_major</UnderlyingIndexName>
     </key>
-    <column id="83" parent="30" name="id">
+    <column id="84" parent="30" name="id">
       <AutoIncrement>0</AutoIncrement>
       <NotNull>1</NotNull>
       <Position>1</Position>
       <StoredType>int|0s</StoredType>
     </column>
-    <column id="84" parent="30" name="year">
+    <column id="85" parent="30" name="year">
       <DefaultExpression>2026</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>2</Position>
       <StoredType>int|0s</StoredType>
     </column>
-    <column id="85" parent="30" name="student_name">
+    <column id="86" parent="30" name="student_name">
       <NotNull>1</NotNull>
       <Position>3</Position>
       <StoredType>varchar(50)|0s</StoredType>
     </column>
-    <column id="86" parent="30" name="univ">
+    <column id="87" parent="30" name="univ">
       <NotNull>1</NotNull>
       <Position>4</Position>
       <StoredType>varchar(50)|0s</StoredType>
     </column>
-    <column id="87" parent="30" name="major">
+    <column id="88" parent="30" name="major">
       <NotNull>1</NotNull>
       <Position>5</Position>
       <StoredType>varchar(50)|0s</StoredType>
     </column>
-    <column id="88" parent="30" name="memo">
+    <column id="89" parent="30" name="memo">
       <DefaultExpression>&apos;적정&apos;</DefaultExpression>
       <Position>6</Position>
       <StoredType>varchar(50)|0s</StoredType>
     </column>
-    <column id="89" parent="30" name="created_at">
+    <column id="90" parent="30" name="created_at">
       <DefaultExpression>CURRENT_TIMESTAMP</DefaultExpression>
       <OnUpdate>CURRENT_TIMESTAMP</OnUpdate>
       <Position>7</Position>
       <StoredType>timestamp|0s</StoredType>
     </column>
-    <index id="90" parent="30" name="PRIMARY">
+    <index id="91" parent="30" name="PRIMARY">
       <ColNames>id</ColNames>
       <Type>btree</Type>
       <Unique>1</Unique>
     </index>
-    <index id="91" parent="30" name="uq_student_univ">
+    <index id="92" parent="30" name="uq_student_univ">
       <ColNames>year
 student_name
 univ</ColNames>
       <Type>btree</Type>
       <Unique>1</Unique>
     </index>
-    <key id="92" parent="30" name="PRIMARY">
+    <key id="93" parent="30" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <Primary>1</Primary>
       <UnderlyingIndexName>PRIMARY</UnderlyingIndexName>
     </key>
-    <key id="93" parent="30" name="uq_student_univ">
+    <key id="94" parent="30" name="uq_student_univ">
       <UnderlyingIndexName>uq_student_univ</UnderlyingIndexName>
     </key>
-    <column id="94" parent="31" name="student_name">
+    <column id="95" parent="31" name="student_name">
       <NotNull>1</NotNull>
       <Position>1</Position>
       <StoredType>varchar(50)|0s</StoredType>
     </column>
-    <column id="95" parent="31" name="memo">
+    <column id="96" parent="31" name="memo">
       <Position>2</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="96" parent="31" name="updated_at">
+    <column id="97" parent="31" name="updated_at">
       <DefaultExpression>CURRENT_TIMESTAMP</DefaultExpression>
       <OnUpdate>CURRENT_TIMESTAMP</OnUpdate>
       <Position>3</Position>
       <StoredType>timestamp|0s</StoredType>
     </column>
-    <column id="97" parent="31" name="pref_major_1">
+    <column id="98" parent="31" name="pref_major_1">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <Position>4</Position>
       <StoredType>varchar(100)|0s</StoredType>
     </column>
-    <column id="98" parent="31" name="pref_major_2">
+    <column id="99" parent="31" name="pref_major_2">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <Position>5</Position>
       <StoredType>varchar(100)|0s</StoredType>
     </column>
-    <column id="99" parent="31" name="dislike_major">
+    <column id="100" parent="31" name="dislike_major">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <Position>6</Position>
       <StoredType>varchar(100)|0s</StoredType>
     </column>
-    <column id="100" parent="31" name="toeic_score">
+    <column id="101" parent="31" name="toeic_score">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <Position>7</Position>
       <StoredType>varchar(50)|0s</StoredType>
     </column>
-    <column id="101" parent="31" name="gpa_score">
+    <column id="102" parent="31" name="gpa_score">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <Position>8</Position>
       <StoredType>varchar(50)|0s</StoredType>
     </column>
-    <index id="102" parent="31" name="PRIMARY">
+    <index id="103" parent="31" name="PRIMARY">
       <ColNames>student_name</ColNames>
       <Type>btree</Type>
       <Unique>1</Unique>
     </index>
-    <key id="103" parent="31" name="PRIMARY">
+    <key id="104" parent="31" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <Primary>1</Primary>
       <UnderlyingIndexName>PRIMARY</UnderlyingIndexName>
     </key>
-    <column id="104" parent="32" name="univ">
+    <column id="105" parent="32" name="id">
+      <AutoIncrement>0</AutoIncrement>
+      <NotNull>1</NotNull>
+      <Position>1</Position>
+      <StoredType>int|0s</StoredType>
+    </column>
+    <column id="106" parent="32" name="student_name">
+      <NotNull>1</NotNull>
+      <Position>2</Position>
+      <StoredType>varchar(50)|0s</StoredType>
+    </column>
+    <column id="107" parent="32" name="univ">
+      <NotNull>1</NotNull>
+      <Position>3</Position>
+      <StoredType>varchar(50)|0s</StoredType>
+    </column>
+    <column id="108" parent="32" name="exam_year">
+      <NotNull>1</NotNull>
+      <Position>4</Position>
+      <StoredType>int|0s</StoredType>
+    </column>
+    <column id="109" parent="32" name="my_score">
+      <NotNull>1</NotNull>
+      <Position>5</Position>
+      <StoredType>float|0s</StoredType>
+    </column>
+    <column id="110" parent="32" name="avg_score">
+      <Position>6</Position>
+      <StoredType>float|0s</StoredType>
+    </column>
+    <column id="111" parent="32" name="score_gap">
+      <Position>7</Position>
+      <StoredType>float|0s</StoredType>
+    </column>
+    <column id="112" parent="32" name="percentile">
+      <DefaultExpression>&apos;&apos;</DefaultExpression>
+      <Position>8</Position>
+      <StoredType>varchar(30)|0s</StoredType>
+    </column>
+    <column id="113" parent="32" name="is_unofficial">
+      <DefaultExpression>1</DefaultExpression>
+      <Position>9</Position>
+      <StoredType>tinyint(1)|0s</StoredType>
+    </column>
+    <column id="114" parent="32" name="memo">
+      <DefaultExpression>&apos;&apos;</DefaultExpression>
+      <Position>10</Position>
+      <StoredType>varchar(100)|0s</StoredType>
+    </column>
+    <column id="115" parent="32" name="created_at">
+      <DefaultExpression>CURRENT_TIMESTAMP</DefaultExpression>
+      <Position>11</Position>
+      <StoredType>timestamp|0s</StoredType>
+    </column>
+    <column id="116" parent="32" name="updated_at">
+      <DefaultExpression>CURRENT_TIMESTAMP</DefaultExpression>
+      <OnUpdate>CURRENT_TIMESTAMP</OnUpdate>
+      <Position>12</Position>
+      <StoredType>timestamp|0s</StoredType>
+    </column>
+    <column id="117" parent="32" name="subject_type">
+      <DefaultExpression>&apos;영어&apos;</DefaultExpression>
+      <Position>13</Position>
+      <StoredType>varchar(20)|0s</StoredType>
+    </column>
+    <column id="118" parent="32" name="eng_score">
+      <Position>14</Position>
+      <StoredType>float|0s</StoredType>
+    </column>
+    <column id="119" parent="32" name="math_score">
+      <Position>15</Position>
+      <StoredType>float|0s</StoredType>
+    </column>
+    <index id="120" parent="32" name="PRIMARY">
+      <ColNames>id</ColNames>
+      <Type>btree</Type>
+      <Unique>1</Unique>
+    </index>
+    <index id="121" parent="32" name="uq_student_univ_year_subj">
+      <ColNames>student_name
+univ
+exam_year
+subject_type</ColNames>
+      <Type>btree</Type>
+      <Unique>1</Unique>
+    </index>
+    <key id="122" parent="32" name="PRIMARY">
+      <NameSurrogate>1</NameSurrogate>
+      <Primary>1</Primary>
+      <UnderlyingIndexName>PRIMARY</UnderlyingIndexName>
+    </key>
+    <key id="123" parent="32" name="uq_student_univ_year_subj">
+      <UnderlyingIndexName>uq_student_univ_year_subj</UnderlyingIndexName>
+    </key>
+    <column id="124" parent="33" name="univ">
       <NotNull>1</NotNull>
       <Position>1</Position>
       <StoredType>varchar(50)|0s</StoredType>
     </column>
-    <column id="105" parent="32" name="eligibility_text">
+    <column id="125" parent="33" name="eligibility_text">
       <Position>2</Position>
       <StoredType>text|0s</StoredType>
     </column>
-    <column id="106" parent="32" name="updated_at">
+    <column id="126" parent="33" name="updated_at">
       <DefaultExpression>CURRENT_TIMESTAMP</DefaultExpression>
       <OnUpdate>CURRENT_TIMESTAMP</OnUpdate>
       <Position>3</Position>
       <StoredType>timestamp|0s</StoredType>
     </column>
-    <index id="107" parent="32" name="PRIMARY">
+    <index id="127" parent="33" name="PRIMARY">
       <ColNames>univ</ColNames>
       <Type>btree</Type>
       <Unique>1</Unique>
     </index>
-    <key id="108" parent="32" name="PRIMARY">
+    <key id="128" parent="33" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <Primary>1</Primary>
       <UnderlyingIndexName>PRIMARY</UnderlyingIndexName>

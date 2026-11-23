@@ -466,13 +466,13 @@
                   class="btn-excel-upload-exam"
                   title="엑셀로 기출 성적 일괄 등록"
                 >
-                  📥 엑셀 일괄 업로드
+                  📥
                 </button>
                 <button
                   @click="showAddPastExamModal = !showAddPastExamModal"
                   class="btn-toggle-add-exam"
                 >
-                  {{ showAddPastExamModal ? '입력 닫기 ✕' : '+ 점수 직접 입력' }}
+                  {{ showAddPastExamModal ? '입력 닫기 ✕' : '+' }}
                 </button>
               </div>
             </div>
@@ -742,7 +742,7 @@
         <!-- 우측 패널: 학생 지원 현황 & 특이사항 비고 & 성적 유사 선배 합격 진학 대학 -->
         <div class="panel list-panel">
           <div class="panel-header">
-            <h3 class="panel-title">📋 {{ selectedStudent }} 학생 지원 희망 리스트</h3>
+            <h3 class="panel-title">📋 {{ selectedStudent }} 학생 지원</h3>
             <span class="count-tag">총 {{ studentApplications.length }}개교</span>
           </div>
 
@@ -750,8 +750,7 @@
           <div class="student-pref-card">
             <div class="pref-card-header">
               <div class="pref-title-wrap">
-                <span class="pref-icon">🎯</span>
-                <span class="pref-title">{{ selectedStudent }} 학생 희망 학과 & 스펙</span>
+
               </div>
               <div class="pref-actions">
                 <span v-if="profileSaveMsg" class="pref-save-status">{{ profileSaveMsg }}</span>
@@ -769,7 +768,7 @@
                 <div class="pref-field-group">
                   <label class="pref-label">
                     <span class="rank-badge r1">1순위</span>
-                    가고싶은 학과 1순위
+
                   </label>
                   <input
                     v-model="studentProfile.pref_major_1"
@@ -781,7 +780,7 @@
                 <div class="pref-field-group">
                   <label class="pref-label">
                     <span class="rank-badge r2">2순위</span>
-                    가고싶은 학과 2순위
+
                   </label>
                   <input
                     v-model="studentProfile.pref_major_2"
@@ -796,7 +795,7 @@
                 <div class="pref-field-group">
                   <label class="pref-label">
                     <span class="rank-badge dislike">기피</span>
-                    정말 가고싶지 않은 학과
+
                   </label>
                   <input
                     v-model="studentProfile.dislike_major"
@@ -807,8 +806,8 @@
                 </div>
                 <div class="pref-field-group">
                   <label class="pref-label">
-                    <span class="rank-badge spec">영어</span>
-                    토익 점수
+                    <span class="rank-badge spec">토익</span>
+
                   </label>
                   <input
                     v-model="studentProfile.toeic_score"
@@ -820,7 +819,7 @@
                 <div class="pref-field-group">
                   <label class="pref-label">
                     <span class="rank-badge spec">학점</span>
-                    4.5만점 성적
+
                   </label>
                   <input
                     v-model="studentProfile.gpa_score"
@@ -838,7 +837,7 @@
             <div class="note-card-header">
               <div class="note-title-wrap">
                 <span class="note-icon">📝</span>
-                <span class="note-title">{{ selectedStudent }} 학생 특이사항 & 비고</span>
+                <span class="note-title">{{ selectedStudent }} 특이사항 & 비고</span>
               </div>
               <div class="note-actions">
                 <span v-if="noteSaveMsg" class="note-save-status">{{ noteSaveMsg }}</span>
