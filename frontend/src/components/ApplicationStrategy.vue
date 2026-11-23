@@ -459,6 +459,15 @@
                 <span class="past-exam-count" v-if="currentUnivPastExams.length > 0">
                   ({{ currentUnivPastExams.length }}건)
                 </span>
+                <!-- 한눈에 보는 기출 성적 요약 배지 -->
+                <div v-if="currentUnivPastExamStats" class="past-exam-summary-chips">
+                  <span class="exam-summary-chip avg" title="기출 내점수 평균">
+                    평균 <strong>{{ currentUnivPastExamStats.avgMyScore }}</strong>점
+                  </span>
+                  <span class="exam-summary-chip latest" title="가장 최근 응시 기출 점수">
+                    최근({{ String(currentUnivPastExamStats.latestYear).slice(-2) }}') <strong>{{ currentUnivPastExamStats.latestScore }}</strong>점
+                  </span>
+                </div>
               </div>
               <div class="past-exam-header-btns">
                 <button
@@ -466,13 +475,22 @@
                   class="btn-excel-upload-exam"
                   title="엑셀로 기출 성적 일괄 등록"
                 >
-                  📥
+                  📥 엑셀등록
                 </button>
                 <button
                   @click="showAddPastExamModal = !showAddPastExamModal"
                   class="btn-toggle-add-exam"
+                  :title="showAddPastExamModal ? '등록 폼 닫기' : '기출 점수 직접 추가'"
                 >
-                  {{ showAddPastExamModal ? '입력 닫기 ✕' : '+' }}
+                  {{ showAddPastExamModal ? '입력 닫기 ✕' : '+ 점수등록' }}
+                </button>
+                <button
+                  v-if="currentUnivPastExams.length > 0"
+                  @click="isPastExamFolded = !isPastExamFolded"
+                  class="btn-fold-exam"
+                  :title="isPastExamFolded ? '기출 성적 카드 펼치기' : '기출 성적 카드 접기'"
+                >
+                  {{ isPastExamFolded ? '펼치기 ▼' : '접기 ▲' }}
                 </button>
               </div>
             </div>
@@ -630,56 +648,60 @@
               </div>
             </div>
 
-            <!-- 등록된 기출 점수 타일 목록 -->
-            <div v-if="currentUnivPastExams.length > 0" class="past-exam-tiles">
-              <div
-                v-for="sc in currentUnivPastExams"
-                :key="sc.id"
-                class="past-exam-tile"
-              >
-                <div class="tile-top-row">
-                  <span class="exam-year-tag">{{ String(sc.exam_year).slice(-2) }}' 기출</span>
-                  <span :class="['exam-subj-badge', getSubjClass(sc.subject_type)]">
-                    {{ sc.subject_type || '영어' }}
-                  </span>
-                  <button
-                    @click="deletePastExamScore(sc.id)"
-                    class="btn-del-exam-score"
-                    title="기출 점수 삭제"
-                  >
-                    ✕
-                  </button>
-                </div>
+            <!-- 등록된 기출 점수 타일 목록 (가로형 컴팩트 카드) -->
+            <div v-if="currentUnivPastExams.length > 0 && !isPastExamFolded" class="past-exam-tiles-wrapper">
+              <div class="past-exam-tiles">
+                <div
+                  v-for="sc in currentUnivPastExams"
+                  :key="sc.id"
+                  class="past-exam-tile"
+                >
+                  <div class="tile-top-row">
+                    <span class="exam-year-tag">{{ String(sc.exam_year).slice(-2) }}' 기출</span>
+                    <span :class="['exam-subj-badge', getSubjClass(sc.subject_type)]">
+                      {{ sc.subject_type || '영어' }}
+                    </span>
+                    <button
+                      @click="deletePastExamScore(sc.id)"
+                      class="btn-del-exam-score"
+                      title="기출 점수 삭제"
+                    >
+                      ✕
+                    </button>
+                  </div>
 
-                <div class="tile-body">
-                  <div class="exam-score-display">
-                    <span class="lbl">내점수</span>
-                    <strong class="val">{{ sc.my_score }}점</strong>
+                  <div class="tile-score-row">
+                    <div class="exam-score-display">
+                      <strong class="val">{{ sc.my_score }}</strong>
+                      <span class="unit">점</span>
+                    </div>
+                    <div
+                      v-if="sc.score_gap !== null && sc.score_gap !== undefined"
+                      :class="['exam-gap-pill', sc.score_gap >= 0 ? 'plus' : 'minus']"
+                      :title="`평균 대비 ${sc.score_gap >= 0 ? '+' : ''}${sc.score_gap}점`"
+                    >
+                      {{ sc.score_gap >= 0 ? '+' + sc.score_gap : sc.score_gap }}점
+                    </div>
                   </div>
 
                   <!-- 영+수 세부 점수 표시 -->
                   <div v-if="sc.subject_type === '영+수' && (sc.eng_score !== null || sc.math_score !== null)" class="subscore-breakdown">
-                    (영 {{ sc.eng_score ?? '-' }} / 수 {{ sc.math_score ?? '-' }})
+                    영 {{ sc.eng_score ?? '-' }} · 수 {{ sc.math_score ?? '-' }}
                   </div>
 
-                  <div v-if="sc.avg_score" class="exam-avg-display">
-                    평균 {{ sc.avg_score }}점
+                  <div class="tile-foot-row">
+                    <span v-if="sc.avg_score" class="exam-avg-display" :title="`기출 평균 ${sc.avg_score}점`">
+                      평균 {{ sc.avg_score }}점
+                    </span>
+                    <span v-else class="exam-avg-display empty">평균 미등록</span>
+                    <span v-if="sc.memo" class="exam-memo-chip" :title="`메모: ${sc.memo}`">
+                      💬
+                    </span>
                   </div>
-
-                  <div
-                    v-if="sc.score_gap !== null && sc.score_gap !== undefined"
-                    :class="['exam-gap-pill', sc.score_gap >= 0 ? 'plus' : 'minus']"
-                  >
-                    {{ sc.score_gap >= 0 ? '+' + sc.score_gap : sc.score_gap }}점
-                  </div>
-
-                  <span v-if="sc.memo" class="exam-memo-chip" :title="sc.memo">
-                    💬 {{ sc.memo }}
-                  </span>
                 </div>
               </div>
             </div>
-            <div v-else-if="!isLoadingPastExams" class="no-past-exam">
+            <div v-else-if="!isLoadingPastExams && !isPastExamFolded" class="no-past-exam">
               <span>{{ selectedStudent ? `${selectedStudent} 학생의 ${formUniv} 기출 점수 기록이 없습니다.` : '학생을 선택하면 기출 점수가 표시됩니다.' }}</span>
             </div>
           </div>
@@ -1036,6 +1058,7 @@ const studentPastExams = ref([])
 const isLoadingPastExams = ref(false)
 const showAddPastExamModal = ref(false)
 const isSavingExam = ref(false)
+const isPastExamFolded = ref(false)
 
 const showPastExamExcelModal = ref(false)
 const pastExamFileInput = ref(null)
@@ -1125,6 +1148,20 @@ const currentUnivPastExams = computed(() => {
     const sUniv = (s.univ || '').replace(/대학교|대학/g, '').split('(')[0].trim()
     return s.univ === formUniv.value || sUniv === uClean || formUniv.value.includes(sUniv) || s.univ.includes(uClean)
   }).sort((a, b) => b.exam_year - a.exam_year)
+})
+
+const currentUnivPastExamStats = computed(() => {
+  const list = currentUnivPastExams.value
+  if (!list.length) return null
+  const total = list.reduce((acc, cur) => acc + (Number(cur.my_score) || 0), 0)
+  const avg = (total / list.length).toFixed(1)
+  const latest = list[0]
+  return {
+    count: list.length,
+    avgMyScore: avg.endsWith('.0') ? parseInt(avg) : avg,
+    latestYear: latest.exam_year,
+    latestScore: latest.my_score
+  }
 })
 
 function isMajorApplied(univ, major) {
@@ -2686,27 +2723,65 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.btn-toggle-add-exam {
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 10px;
-  background: #ffffff;
-  border: 1px solid #93c5fd;
-  color: #2563eb;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease;
+.past-exam-summary-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 2px;
 }
-.btn-toggle-add-exam:hover {
-  background: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
+
+.exam-summary-chip {
+  font-size: 11px;
+  padding: 1.5px 7px;
+  border-radius: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.exam-summary-chip.avg {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+.exam-summary-chip.avg strong {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.exam-summary-chip.latest {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #dbeafe;
+}
+.exam-summary-chip.latest strong {
+  color: #1d4ed8;
+  font-weight: 800;
 }
 
 .past-exam-header-btns {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+.btn-toggle-add-exam {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  background: #ffffff;
+  border: 1px solid #93c5fd;
+  color: #2563eb;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+}
+.btn-toggle-add-exam:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
 }
 
 .btn-excel-upload-exam {
@@ -2719,9 +2794,31 @@ onMounted(async () => {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.12s ease;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
 }
 .btn-excel-upload-exam:hover {
   background: #dcfce7;
+}
+
+.btn-fold-exam {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+}
+.btn-fold-exam:hover {
+  background: #e2e8f0;
+  color: #1e293b;
 }
 
 /* 직접 입력 폼 */
@@ -2848,56 +2945,83 @@ onMounted(async () => {
   background: #1d4ed8;
 }
 
-/* 기출 점수 타일 리스트 */
+/* 기출 점수 가로 스크롤 카드 래퍼 및 리스트 */
+.past-exam-tiles-wrapper {
+  margin-top: 8px;
+  position: relative;
+}
+
 .past-exam-tiles {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 2px 6px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+.past-exam-tiles::-webkit-scrollbar {
+  height: 5px;
+}
+.past-exam-tiles::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 4px;
+}
+.past-exam-tiles::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.past-exam-tiles::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .past-exam-tile {
+  flex: 0 0 138px;
+  min-width: 130px;
+  max-width: 155px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 7px 9px;
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  transition: all 0.12s ease;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
 }
 .past-exam-tile:hover {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: #ffffff;
+  border-color: #93c5fd;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
 }
 
 .tile-top-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-
-.tile-body {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+  width: 100%;
 }
 
 .exam-year-tag {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   color: #1e293b;
   background: #e2e8f0;
-  padding: 2px 6px;
+  padding: 1px 5px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 .exam-subj-badge {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 6px;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 .exam-subj-badge.subj-eng {
   background: #eff6ff;
@@ -2915,37 +3039,57 @@ onMounted(async () => {
   border: 1px solid #a7f3d0;
 }
 
-.subscore-breakdown {
-  font-size: 11.5px;
-  color: #475569;
-  font-weight: 600;
+.btn-del-exam-score {
+  width: 17px;
+  height: 17px;
+  font-size: 9px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+  margin-left: auto;
+}
+.btn-del-exam-score:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.tile-score-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 1px;
 }
 
 .exam-score-display {
   display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12.5px;
+  align-items: baseline;
 }
-.exam-score-display .lbl {
-  color: #64748b;
-  font-size: 11px;
-}
-.exam-score-display strong {
+.exam-score-display .val {
+  font-size: 17px;
   font-weight: 900;
   color: #0f172a;
+  letter-spacing: -0.3px;
 }
-
-.exam-avg-display {
-  font-size: 11.5px;
+.exam-score-display .unit {
+  font-size: 10.5px;
+  font-weight: 600;
   color: #64748b;
+  margin-left: 1px;
 }
 
 .exam-gap-pill {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
-  padding: 2px 6px;
+  padding: 1px 5px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 .exam-gap-pill.plus {
   background: #ecfdf5;
@@ -2958,32 +3102,52 @@ onMounted(async () => {
   border: 1px solid #fecaca;
 }
 
-.exam-memo-chip {
-  font-size: 11px;
-  color: #64748b;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  padding: 1px 6px;
-  border-radius: 4px;
-  max-width: 140px;
+.subscore-breakdown {
+  font-size: 10px;
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.btn-del-exam-score {
-  margin-left: auto;
-  width: 20px;
-  height: 20px;
-  font-size: 10px;
-  border: none;
-  background: #fee2e2;
-  color: #dc2626;
-  border-radius: 4px;
-  cursor: pointer;
+.tile-foot-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 10.5px;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 4px;
+  margin-top: 2px;
+}
+
+.exam-avg-display {
+  font-size: 10.5px;
+  color: #64748b;
+  white-space: nowrap;
+}
+.exam-avg-display.empty {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.exam-memo-chip {
+  font-size: 11px;
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+}
+
+.no-past-exam {
+  margin-top: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px dashed #e2e8f0;
 }
 
 .template-download-row {
