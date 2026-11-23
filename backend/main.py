@@ -1565,23 +1565,39 @@ class EligibilityUpdate(BaseModel):
 def get_univ_eligibility(univ: str):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT eligibility_text FROM univ_eligibility WHERE univ = %s;", (univ,))
-    row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    text = (row[0] if isinstance(row, tuple) else row["eligibility_text"]) if row else ""
-    return {"univ": univ, "eligibility_text": text or ""}
+    try:
+        cursor.execute("SELECT eligibility_text FROM univ_eligibility WHERE univ = %s;", (univ,))
+        row = cursor.fetchone()
+    finally:
+        cursor.close()
+        conn.close()
+
+    text = ""
+    if row:
+        if isinstance(row, tuple):
+            text = row[0] or ""
+        elif isinstance(row, dict):
+            text = row.get("eligibility_text") or ""
+    return {"univ": univ, "eligibility_text": text}
 
 
 @app.post("/api/quota/eligibility")
 def save_univ_eligibility(data: EligibilityUpdate):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO univ_eligibility (univ, eligibility_text)
-        VALUES (%s, %s)
-        ON DUPLICATE KEY UPDATE eligibility_text = VALUES(eligibility_text)
-    """, (data.univ, data.eligibility_text))
+    try:
+        cursor.execute("""
+            INSERT INTO univ_eligibility (univ, eligibility_text)
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE eligibility_text = VALUES(eligibility_text);
+        """, (data.univ, data.eligibility_text))
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+    return {"status": "success", "univ": data.univ, "eligibility_text": data.eligibility_text}
+
+
 # 7. 학생별 비고(상담 및 특이사항 메모) 및 희망학과/스펙 조회 및 저장 API
 class StudentNoteUpdate(BaseModel):
     student_name: str
