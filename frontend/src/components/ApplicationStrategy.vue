@@ -767,7 +767,7 @@
               <div class="pref-grid-row">
                 <div class="pref-field-group">
                   <label class="pref-label">
-                    <span class="rank-badge r1">1순위</span>
+                    <span class="rank-badge r1">1순위 학과</span>
 
                   </label>
                   <input
@@ -779,7 +779,7 @@
                 </div>
                 <div class="pref-field-group">
                   <label class="pref-label">
-                    <span class="rank-badge r2">2순위</span>
+                    <span class="rank-badge r2">2순위 학과</span>
 
                   </label>
                   <input
@@ -794,7 +794,7 @@
               <div class="pref-grid-row three-cols">
                 <div class="pref-field-group">
                   <label class="pref-label">
-                    <span class="rank-badge dislike">기피</span>
+                    <span class="rank-badge dislike">기피 학과</span>
 
                   </label>
                   <input
@@ -806,7 +806,7 @@
                 </div>
                 <div class="pref-field-group">
                   <label class="pref-label">
-                    <span class="rank-badge spec">토익</span>
+                    <span class="rank-badge spec">토익 점수</span>
 
                   </label>
                   <input
@@ -818,7 +818,7 @@
                 </div>
                 <div class="pref-field-group">
                   <label class="pref-label">
-                    <span class="rank-badge spec">학점</span>
+                    <span class="rank-badge spec">학점 ( /4.5)</span>
 
                   </label>
                   <input
