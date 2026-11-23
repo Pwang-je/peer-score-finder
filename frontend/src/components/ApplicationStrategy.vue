@@ -475,14 +475,14 @@
                   class="btn-excel-upload-exam"
                   title="엑셀로 기출 성적 일괄 등록"
                 >
-                  📥 엑셀등록
+                  📥
                 </button>
                 <button
                   @click="showAddPastExamModal = !showAddPastExamModal"
                   class="btn-toggle-add-exam"
                   :title="showAddPastExamModal ? '등록 폼 닫기' : '기출 점수 직접 추가'"
                 >
-                  {{ showAddPastExamModal ? '입력 닫기 ✕' : '+ 점수등록' }}
+                  {{ showAddPastExamModal ? '입력 닫기 ✕' : '+' }}
                 </button>
                 <button
                   v-if="currentUnivPastExams.length > 0"
@@ -764,34 +764,20 @@
         <!-- 우측 패널: 학생 지원 현황 & 특이사항 비고 & 성적 유사 선배 합격 진학 대학 -->
         <div class="panel list-panel">
           <div class="panel-header">
-            <h3 class="panel-title">📋 {{ selectedStudent }} 학생 지원</h3>
+            <h3 class="panel-title">📋 {{ selectedStudent }} 학생 지원 정보</h3>
             <span class="count-tag">총 {{ studentApplications.length }}개교</span>
           </div>
 
           <!-- 🎯 [요청 2] 가고싶은 학과 1/2순위, 기피 학과, 토익 점수, 학점(4.5) 입력 카드 -->
           <div class="student-pref-card">
-            <div class="pref-card-header">
-              <div class="pref-title-wrap">
-
-              </div>
-              <div class="pref-actions">
-                <span v-if="profileSaveMsg" class="pref-save-status">{{ profileSaveMsg }}</span>
-                <button
-                  @click="saveStudentProfile"
-                  :disabled="isSavingProfile"
-                  class="btn-save-pref"
-                >
-                  {{ isSavingProfile ? '저장 중...' : '저장' }}
-                </button>
-              </div>
-            </div>
             <div class="pref-card-body">
               <div class="pref-grid-row">
                 <div class="pref-field-group">
-                  <label class="pref-label">
-                    <span class="rank-badge r1">1순위 학과</span>
-
-                  </label>
+                  <div class="pref-label-row">
+                    <label class="pref-label">
+                      <span class="rank-badge r1">1순위 학과</span>
+                    </label>
+                  </div>
                   <input
                     v-model="studentProfile.pref_major_1"
                     @blur="autoSaveStudentProfile"
@@ -800,10 +786,21 @@
                   />
                 </div>
                 <div class="pref-field-group">
-                  <label class="pref-label">
-                    <span class="rank-badge r2">2순위 학과</span>
-
-                  </label>
+                  <div class="pref-label-row with-action">
+                    <label class="pref-label">
+                      <span class="rank-badge r2">2순위 학과</span>
+                    </label>
+                    <div class="pref-actions">
+                      <span v-if="profileSaveMsg" class="pref-save-status">{{ profileSaveMsg }}</span>
+                      <button
+                        @click="saveStudentProfile"
+                        :disabled="isSavingProfile"
+                        class="btn-save-pref"
+                      >
+                        {{ isSavingProfile ? '저장 중...' : '저장' }}
+                      </button>
+                    </div>
+                  </div>
                   <input
                     v-model="studentProfile.pref_major_2"
                     @blur="autoSaveStudentProfile"
@@ -3350,52 +3347,49 @@ onMounted(async () => {
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
-  padding: 11px 13px;
+  padding: 10px 12px;
   margin-bottom: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
-.pref-card-header {
+
+.pref-label-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+  min-height: 22px;
 }
-.pref-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.pref-label-row.with-action {
+  gap: 6px;
 }
-.pref-icon {
-  font-size: 13.5px;
-}
-.pref-title {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #1e293b;
-}
+
 .pref-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .pref-save-status {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: #16a34a;
   background: #dcfce7;
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 4px;
 }
 .btn-save-pref {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 5px;
+  padding: 2px 8px;
+  height: 20px;
+  border-radius: 4px;
   border: 1px solid #cbd5e1;
   background: #f8fafc;
   color: #334155;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.15s ease;
+  line-height: 1;
 }
 .btn-save-pref:hover:not(:disabled) {
   background: #2563eb;
@@ -3427,6 +3421,7 @@ onMounted(async () => {
   font-size: 11px;
   font-weight: 600;
   color: #475569;
+  min-height: 22px;
 }
 .rank-badge {
   font-size: 9.5px;
@@ -4226,14 +4221,7 @@ onMounted(async () => {
     padding: 10px;
   }
 
-  .pref-card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
   .pref-actions {
-    width: 100%;
     justify-content: flex-end;
   }
 
