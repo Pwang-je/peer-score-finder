@@ -770,7 +770,7 @@
 
           <!-- 🎯 [요청 2] 가고싶은 학과 1/2순위, 기피 학과, 토익 점수, 학점(4.5) 입력 카드 -->
           <div class="student-pref-card">
-            <div >class="pref-card-header">
+            <div class="pref-card-header">
               <div class="pref-title-wrap">
 
               </div>
