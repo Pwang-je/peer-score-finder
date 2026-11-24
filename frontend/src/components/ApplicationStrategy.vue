@@ -871,7 +871,7 @@
 
             <!-- 등록된 기출 점수 타일 목록 (가로형 컴팩트 카드) -->
             <div v-if="currentUnivPastExams.length > 0 && !isPastExamFolded" class="past-exam-tiles-wrapper">
-              <div class="past-exam-tiles">
+              <div class="past-exam-tiles" @wheel="handleTilesWheel">
                 <div
                   v-for="sc in currentUnivPastExams"
                   :key="sc.id"
@@ -2221,6 +2221,15 @@ function onSubScoreChange() {
   }
 }
 
+function handleTilesWheel(e) {
+  const el = e.currentTarget
+  if (!el) return
+  if (el.scrollWidth > el.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+    el.scrollLeft += e.deltaY
+    e.preventDefault()
+  }
+}
+
 async function savePastExamScore() {
   if (!selectedStudent.value) {
     alert('학생을 먼저 선택해 주세요.')
@@ -3239,12 +3248,29 @@ onMounted(async () => {
 
 .fast-basket-layout {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
+  width: 100%;
+  min-width: 0;
 }
 
-.panel { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; }
+.panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.picker-panel,
+.list-panel {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -3428,6 +3454,9 @@ onMounted(async () => {
   padding: 12px 14px;
   margin-bottom: 14px;
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.04);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .past-exam-box-header {
@@ -3436,6 +3465,8 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .past-exam-title-group {
@@ -3692,6 +3723,10 @@ onMounted(async () => {
 .past-exam-tiles-wrapper {
   margin-top: 8px;
   position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .past-exam-tiles {
@@ -3700,9 +3735,13 @@ onMounted(async () => {
   gap: 8px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 2px 2px 6px 2px;
+  padding: 2px 2px 8px 2px;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 #f8fafc;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .past-exam-tiles::-webkit-scrollbar {
