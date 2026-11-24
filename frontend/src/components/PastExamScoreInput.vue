@@ -158,132 +158,162 @@
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="row in visibleRows"
-              :key="row.key"
-              :class="['score-row', { modified: row.isModified, saved: row.justSaved }]"
-            >
-              <!-- 1. 기출 년도 -->
-              <td class="td-year">
-                <span class="year-badge">{{ String(row.year).slice(-2) }}' 기출</span>
-                <span class="full-year">{{ row.year }}년도</span>
-              </td>
+            <template v-for="(group, gIdx) in yearGroups" :key="group.year">
+              <!-- 년도별 구분 간격 (다중 세션 대학에서 년도 간 시각적 여백 및 분리선) -->
+              <tr
+                v-if="gIdx > 0 && group.rows.length > 1"
+                class="year-group-gap-row"
+                aria-hidden="true"
+              >
+                <td :colspan="currentUniv.sessions.length > 1 ? 8 : 7" class="td-year-gap"></td>
+              </tr>
 
-              <!-- 2. 세션 구분 (해당 대학만) -->
-              <td v-if="currentUniv.sessions.length > 1" class="td-session">
-                <span :class="['session-badge', getSessionColorClass(row.session)]">
-                  {{ row.session }}
-                </span>
-              </td>
+              <tr
+                v-for="(row, rIdx) in group.rows"
+                :key="row.key"
+                :class="[
+                  'score-row',
+                  {
+                    modified: row.isModified,
+                    saved: row.justSaved,
+                    'first-in-group': rIdx === 0,
+                    'last-in-group': rIdx === group.rows.length - 1,
+                    'is-grouped': group.rows.length > 1
+                  }
+                ]"
+              >
+                <!-- 1. 기출 년도 (한 해에 세션이 2개 이상이면 첫 행에서 rowspan 병합) -->
+                <td
+                  v-if="rIdx === 0"
+                  :rowspan="group.rows.length"
+                  class="td-year"
+                  :class="{ 'td-year-merged': group.rows.length > 1 }"
+                >
+                  <div class="year-block-content">
+                    <span class="year-badge">{{ String(row.year).slice(-2) }}' 기출</span>
+                    <span class="full-year">{{ row.year }}년도</span>
+                    <span v-if="group.rows.length > 1" class="group-session-tag">
+                      {{ group.rows.length }}개 세션
+                    </span>
+                  </div>
+                </td>
 
-              <!-- 3. 영어 점수 입력 -->
-              <td class="td-score eng">
-                <div class="input-with-clear">
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="200"
-                    v-model.number="row.eng_score"
-                    @input="onRowInput(row)"
-                    placeholder=""
-                    class="score-input eng-input"
-                  />
-                  <span class="unit-text">점</span>
-                </div>
-              </td>
+                <!-- 2. 세션 구분 (해당 대학만) -->
+                <td v-if="currentUniv.sessions.length > 1" class="td-session">
+                  <span :class="['session-badge', getSessionColorClass(row.session)]">
+                    {{ row.session }}
+                  </span>
+                </td>
 
-              <!-- 4. 수학 점수 입력 -->
-              <td class="td-score math">
-                <div class="input-with-clear">
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="200"
-                    v-model.number="row.math_score"
-                    @input="onRowInput(row)"
-                    placeholder=""
-                    class="score-input math-input"
-                  />
-                  <span class="unit-text">점</span>
-                </div>
-              </td>
-
-              <!-- 5. 영+수 점수 입력 (합산 편의 버튼 제공) -->
-              <td class="td-score both">
-                <div class="both-input-wrapper">
+                <!-- 3. 영어 점수 입력 -->
+                <td class="td-score eng">
                   <div class="input-with-clear">
                     <input
                       type="number"
                       step="0.1"
                       min="0"
-                      max="300"
-                      v-model.number="row.both_score"
+                      max="200"
+                      v-model.number="row.eng_score"
                       @input="onRowInput(row)"
                       placeholder=""
-                      class="score-input both-input"
+                      class="score-input eng-input"
                     />
                     <span class="unit-text">점</span>
                   </div>
-                  <!-- 영어, 수학 둘 다 입력되어 있고 영+수가 비어있을 때 간편 합산 버튼 -->
-                  <button
-                    v-if="canAutoSum(row)"
-                    @click="applyAutoSum(row)"
-                    class="btn-autosum"
-                    type="button"
-                    title="영어+수학 점수 자동 합산"
-                  >
-                    +합산 {{ getSumValue(row) }}
-                  </button>
-                </div>
-              </td>
+                </td>
 
-              <!-- 6. 비고 메모 -->
-              <td class="td-memo">
-                <input
-                  type="text"
-                  v-model="row.memo"
-                  @input="onRowInput(row)"
-                  placeholder="특이사항 메모 (선택)"
-                  class="memo-input"
-                />
-              </td>
+                <!-- 4. 수학 점수 입력 -->
+                <td class="td-score math">
+                  <div class="input-with-clear">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="200"
+                      v-model.number="row.math_score"
+                      @input="onRowInput(row)"
+                      placeholder=""
+                      class="score-input math-input"
+                    />
+                    <span class="unit-text">점</span>
+                  </div>
+                </td>
 
-              <!-- 7. 저장 상태 인디케이터 -->
-              <td class="td-status">
-                <span v-if="row.justSaved" class="status-pill saved" style="display: inline-flex; align-items: center; gap: 3px;">
-                  <Check :size="12" :stroke-width="2.5" />
-                  <span>저장완료</span>
-                </span>
-                <span v-else-if="row.isModified" class="status-pill unsaved">수정됨</span>
-                <span v-else-if="hasAnyScore(row)" class="status-pill registered">등록됨</span>
-                <span v-else class="status-pill empty">미입력</span>
-              </td>
+                <!-- 5. 영+수 점수 입력 (합산 편의 버튼 제공) -->
+                <td class="td-score both">
+                  <div class="both-input-wrapper">
+                    <div class="input-with-clear">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="300"
+                        v-model.number="row.both_score"
+                        @input="onRowInput(row)"
+                        placeholder=""
+                        class="score-input both-input"
+                      />
+                      <span class="unit-text">점</span>
+                    </div>
+                    <!-- 영어, 수학 둘 다 입력되어 있고 영+수가 비어있을 때 간편 합산 버튼 -->
+                    <button
+                      v-if="canAutoSum(row)"
+                      @click="applyAutoSum(row)"
+                      class="btn-autosum"
+                      type="button"
+                      title="영어+수학 점수 자동 합산"
+                    >
+                      +합산 {{ getSumValue(row) }}
+                    </button>
+                  </div>
+                </td>
 
-              <!-- 8. 개별 저장 / 초기화 버튼 -->
-              <td class="td-action">
-                <button
-                  @click="saveSingleRow(row)"
-                  :disabled="row.isSaving"
-                  :class="['btn-row-save', { active: row.isModified }]"
-                  title="해당 년도 점수 저장"
-                >
-                  <span v-if="row.isSaving" style="display: inline-flex; align-items: center; justify-content: center;">
-                    <Loader2 class="spin" :size="12" />
+                <!-- 6. 비고 메모 -->
+                <td class="td-memo">
+                  <input
+                    type="text"
+                    v-model="row.memo"
+                    @input="onRowInput(row)"
+                    placeholder="특이사항 메모 (선택)"
+                    class="memo-input"
+                  />
+                </td>
+
+                <!-- 7. 저장 상태 인디케이터 -->
+                <td class="td-status">
+                  <span v-if="row.justSaved" class="status-pill saved" style="display: inline-flex; align-items: center; gap: 3px;">
+                    <Check :size="12" :stroke-width="2.5" />
+                    <span>저장완료</span>
                   </span>
-                  <span v-else>저장</span>
-                </button>
-                <button
-                  v-if="hasAnyScore(row)"
-                  @click="clearRow(row)"
-                  class="btn-row-clear"
-                  title="이 행 점수 삭제"
-                >
-                  삭제
-                </button>
-              </td>
-            </tr>
+                  <span v-else-if="row.isModified" class="status-pill unsaved">수정됨</span>
+                  <span v-else-if="hasAnyScore(row)" class="status-pill registered">등록됨</span>
+                  <span v-else class="status-pill empty">미입력</span>
+                </td>
+
+                <!-- 8. 개별 저장 / 초기화 버튼 -->
+                <td class="td-action">
+                  <button
+                    @click="saveSingleRow(row)"
+                    :disabled="row.isSaving"
+                    :class="['btn-row-save', { active: row.isModified }]"
+                    title="해당 년도 점수 저장"
+                  >
+                    <span v-if="row.isSaving" style="display: inline-flex; align-items: center; justify-content: center;">
+                      <Loader2 class="spin" :size="12" />
+                    </span>
+                    <span v-else>저장</span>
+                  </button>
+                  <button
+                    v-if="hasAnyScore(row)"
+                    @click="clearRow(row)"
+                    class="btn-row-clear"
+                    title="이 행 점수 삭제"
+                  >
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -385,12 +415,13 @@ const UNIVERSITY_GROUPS = [
   },
   {
     tier: '인가경',
-    name: '인하 · 인천 · 가천 · 경기',
+    name: '인하 · 인천 · 가천 · 경기 · 아주',
     universities: [
       { name: '인하대학교', sessions: ['공통'] },
       { name: '인천대학교', sessions: ['공통'] },
       { name: '가천대학교', sessions: ['A형', 'B형'] },
-      { name: '경기대학교', sessions: ['공통'] }
+      { name: '경기대학교', sessions: ['공통'] },
+      { name: '아주대학교', sessions: ['공통'] }
     ]
   },
   {
@@ -471,6 +502,23 @@ const visibleRows = computed(() => {
     return rows.value
   }
   return rows.value.filter(r => r.session === activeSessionFilter.value)
+})
+
+// 년도별로 행들을 묶어 다중 세션 대학을 깔끔하게 그룹핑
+const yearGroups = computed(() => {
+  const vRows = visibleRows.value
+  const groups = []
+  const map = new Map()
+
+  for (const row of vRows) {
+    if (!map.has(row.year)) {
+      const g = { year: row.year, rows: [] }
+      map.set(row.year, g)
+      groups.push(g)
+    }
+    map.get(row.year).rows.push(row)
+  }
+  return groups
 })
 
 const hasModifiedRows = computed(() => {
@@ -1503,6 +1551,71 @@ function getSessionColorClass(session) {
 .score-row.saved {
   background: #f0fdf4;
   transition: background 1.5s ease;
+}
+
+/* ========================================================
+   다중 세션 대학 년도별 그룹핑 & 구분 여백 스타일
+   ======================================================== */
+.year-group-gap-row {
+  height: 14px;
+}
+
+.td-year-gap {
+  padding: 0 !important;
+  height: 14px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+/* 다중 세션 대학: 년도 그룹 시작 행 (상단 실선 구분) */
+.score-row.is-grouped.first-in-group td {
+  border-top: 1.5px solid #cbd5e1;
+}
+
+/* 다중 세션 대학: 같은 년도 내 세션 간 행 (부드러운 점선 구분) */
+.score-row.is-grouped:not(.first-in-group) td {
+  border-top: 1px dashed #e2e8f0;
+}
+
+/* 다중 세션 대학: 년도 그룹 마지막 행 (하단 실선 구분) */
+.score-row.is-grouped.last-in-group td {
+  border-bottom: 1.5px solid #cbd5e1;
+}
+
+/* 병합된 년도 헤더 셀 */
+.td-year.td-year-merged {
+  background: #f8fafc;
+  border-right: 1.5px solid #e2e8f0 !important;
+  border-left: 3.5px solid #2563eb !important; /* 좌측에 눈에 띄는 블루 포인트 악센트 */
+  border-top: 1.5px solid #cbd5e1 !important;
+  border-bottom: 1.5px solid #cbd5e1 !important;
+  vertical-align: middle !important;
+  text-align: center;
+  padding: 14px 10px;
+}
+
+.year-block-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.group-session-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 1px 5px;
+  letter-spacing: -0.2px;
+  margin-top: 2px;
 }
 
 .td-year {

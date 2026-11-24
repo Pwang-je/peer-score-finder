@@ -1515,11 +1515,12 @@ const TARGET_UNIV_ORDER_LIST = [
   { name: '명지대학교', match: u => u.includes('명지') },
   { name: '상명대학교', match: u => u.includes('상명') },
   { name: '가톨릭대학교', match: u => u.includes('가톨릭') },
-  // 6. 인가경
+  // 6. 인가경 · 아주
   { name: '인하대학교', match: u => u.includes('인하') },
   { name: '인천대학교', match: u => u.includes('인천') },
   { name: '가천대학교', match: u => u.includes('가천') },
   { name: '경기대학교', match: u => u.includes('경기') },
+  { name: '아주대학교', match: u => u.includes('아주') },
   // 7. 여대 라인 (이대, 숙대, 동덕여대, 덕성여대, 서울여대)
   { name: '이화여자대학교', match: u => u.includes('이화') },
   { name: '숙명여자대학교', match: u => u.includes('숙명') },
