@@ -400,9 +400,37 @@
             </p>
           </div>
 
+          <!-- 🌟 [신규] 대학 라인(그룹) 탭 바 (서성한, 중경외시, 건동홍, 국숭세단 등) -->
+          <div v-if="studentPastExams.length > 0 && !isPastExamFolded" class="matrix-tier-tabs">
+            <button
+              type="button"
+              @click="matrixTierFilter = 'ALL'"
+              :class="['matrix-tier-btn', { active: matrixTierFilter === 'ALL' }]"
+            >
+              <span class="m-tier-name">전체 대학</span>
+              <span class="m-tier-count">({{ matrixTakenUnivCount }}개교)</span>
+            </button>
+            <button
+              v-for="grp in UNIVERSITY_TIERS"
+              :key="grp.tier"
+              type="button"
+              @click="matrixTierFilter = grp.tier"
+              :class="['matrix-tier-btn', { active: matrixTierFilter === grp.tier }]"
+            >
+              <span class="m-tier-name">{{ grp.tier }}</span>
+              <span class="m-tier-sub">{{ grp.name }}</span>
+              <span v-if="getTierScoreCount(grp) > 0" class="m-tier-count-chip">
+                {{ getTierScoreCount(grp) }}
+              </span>
+            </button>
+          </div>
+
           <!-- 🌟 [핵심] 사진의 엑셀 스타일 매트릭스 표 (가로: 학교이름, 세로: 년도) -->
           <div v-else-if="!isPastExamFolded" class="excel-matrix-wrapper">
-            <table class="excel-matrix-table">
+            <div v-if="matrixUnivColumns.length === 0" class="matrix-tier-empty">
+              <span>해당 라인({{ matrixTierFilter }})에 등록된 대학 기출 성적이 없습니다. 상단의 [전체 대학 보기]를 누르면 모든 대학 컬럼이 표시됩니다.</span>
+            </div>
+            <table v-else class="excel-matrix-table">
               <thead>
                 <tr>
                   <!-- 좌상단 고정 코너 셀 -->
@@ -743,6 +771,50 @@ const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname
   ? 'http://127.0.0.1:8000'
   : 'https://peer-score-finder.onrender.com';
 
+// 대학 라인(그룹) 정의 상수 (서성한, 중경외시, 건동홍, 국숭세단 등)
+const UNIVERSITY_TIERS = [
+  {
+    tier: '서성한',
+    name: '서강 · 성균관 · 한양',
+    univs: ['서강대학교', '성균관대학교', '한양대학교']
+  },
+  {
+    tier: '중경외시',
+    name: '중앙 · 경희 · 한국외대 · 시립대',
+    univs: ['중앙대학교', '경희대학교', '한국외국어대학교', '한국외국어대학교(T1 A형)', '한국외국어대학교(T2 B형)', '서울시립대학교']
+  },
+  {
+    tier: '건동홍',
+    name: '건국 · 동국 · 홍익',
+    univs: ['건국대학교', '동국대학교', '홍익대학교']
+  },
+  {
+    tier: '국숭세단',
+    name: '국민 · 숭실 · 세종 · 단국',
+    univs: ['국민대학교', '숭실대학교', '세종대학교', '단국대학교', '단국대학교(오전)', '단국대학교(오후)']
+  },
+  {
+    tier: '광명가',
+    name: '광운 · 명지 · 가톨릭 · 상명',
+    univs: ['광운대학교', '명지대학교', '명지대학교(오전)', '명지대학교(오후)', '가톨릭대학교', '상명대학교']
+  },
+  {
+    tier: '인가경',
+    name: '인하 · 인천 · 가천 · 경기',
+    univs: ['인하대학교', '인천대학교', '가천대학교', '가천대학교(A형)', '가천대학교(B형)', '경기대학교']
+  },
+  {
+    tier: '여대라인',
+    name: '이화 · 숙명 · 동덕 · 덕성 · 서울여대',
+    univs: ['이화여자대학교', '숙명여자대학교', '숙명여자대학교(A형)', '숙명여자대학교(B형)', '동덕여자대학교', '덕성여자대학교', '덕성여자대학교(1교시)', '덕성여자대학교(2교시)', '덕성여자대학교(3교시)', '서울여자대학교', '서울여자대학교(오전)', '서울여자대학교(오후)']
+  },
+  {
+    tier: '한성·항공',
+    name: '한성 · 항공',
+    univs: ['한성대학교', '한국항공대학교']
+  }
+];
+
 export default {
   components: {
     ApplicationStrategy,
@@ -797,7 +869,9 @@ export default {
       isLoadingPastExams: false,
       isPastExamFolded: false,
       matrixViewMode: 'taken', // 'taken' (응시 대학만 보기) | 'all' (전체 대학 보기)
-      matrixYears: [2026, 2025, 2024, 2023, 2022, 2021, 2020]
+      matrixTierFilter: 'ALL', // 'ALL' or '서성한', '중경외시', '건동홍', '국숭세단' 등
+      matrixYears: [2026, 2025, 2024, 2023, 2022, 2021, 2020],
+      UNIVERSITY_TIERS
     };
   },
   computed: {
@@ -865,15 +939,34 @@ export default {
         '한성대학교', '한국항공대학교'
       ];
 
+      let baseList = [];
       if (this.matrixViewMode === 'taken') {
-        return this.matrixTakenUnivList;
+        baseList = this.matrixTakenUnivList;
       } else {
         const all = [...standardOrder];
         for (const u of this.matrixTakenUnivList) {
           if (!all.includes(u)) all.push(u);
         }
-        return all;
+        baseList = all;
       }
+
+      // 라인(티어) 필터 적용
+      if (this.matrixTierFilter === 'ALL') {
+        return baseList;
+      }
+
+      const grp = UNIVERSITY_TIERS.find(g => g.tier === this.matrixTierFilter);
+      if (!grp) return baseList;
+
+      return baseList.filter(u => {
+        return grp.univs.some(target => {
+          if (u === target) return true;
+          // 세션 포함 호환 ("단국대학교(오전)" vs "단국대학교")
+          const uBase = u.replace(/\(.*?\)/, '').trim();
+          const targetBase = target.replace(/\(.*?\)/, '').trim();
+          return uBase === targetBase || u.startsWith(targetBase) || target.startsWith(uBase);
+        });
+      });
     }
   },
   watch: {
@@ -1031,6 +1124,18 @@ export default {
       } finally {
         this.isLoadingPastExams = false;
       }
+    },
+    getTierScoreCount(grp) {
+      if (!this.studentPastExams || !this.studentPastExams.length) return 0;
+      return this.studentPastExams.filter(s => {
+        if (!s.univ) return false;
+        return grp.univs.some(target => {
+          if (s.univ === target) return true;
+          const sBase = s.univ.replace(/\(.*?\)/, '').trim();
+          const targetBase = target.replace(/\(.*?\)/, '').trim();
+          return sBase === targetBase || s.univ.startsWith(targetBase) || target.startsWith(sBase);
+        });
+      }).length;
     },
     extractSession(univ) {
       if (!univ) return '';
@@ -1938,6 +2043,86 @@ export default {
   background: #ffffff;
   color: #0f172a;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* 🌟 기출 성적 대학 라인(그룹) 탭 바 */
+.matrix-tier-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 2px 12px 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.matrix-tier-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  font-size: 12.5px;
+}
+
+.matrix-tier-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.matrix-tier-btn.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+.m-tier-name {
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.m-tier-sub {
+  font-size: 11px;
+  opacity: 0.8;
+  font-weight: 500;
+}
+
+.matrix-tier-btn.active .m-tier-sub {
+  color: #dbeafe;
+}
+
+.m-tier-count {
+  font-size: 11.5px;
+  opacity: 0.85;
+}
+
+.m-tier-count-chip {
+  font-size: 10.5px;
+  font-weight: 800;
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+}
+
+.matrix-tier-btn.active .m-tier-count-chip {
+  background: #ffffff;
+  color: #1d4ed8;
+  border-color: #ffffff;
+}
+
+.matrix-tier-empty {
+  padding: 36px 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13.5px;
+  background: #fafafa;
 }
 
 .excel-matrix-wrapper {

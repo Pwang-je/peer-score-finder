@@ -159,7 +159,7 @@
       <AutoIntrospectionLevel>3</AutoIntrospectionLevel>
       <Current>1</Current>
       <LastIntrospectionLevel>3</LastIntrospectionLevel>
-      <LastIntrospectionLocalTimestamp>2026-11-24.08:26:44</LastIntrospectionLocalTimestamp>
+      <LastIntrospectionLocalTimestamp>2026-11-24.14:01:03</LastIntrospectionLocalTimestamp>
       <CollationName>utf8mb4_unicode_ci</CollationName>
     </schema>
     <schema id="19" parent="1" name="sys">
@@ -378,7 +378,7 @@
       <StoredType>float|0s</StoredType>
     </column>
     <column id="73" parent="29" name="id">
-      <AutoIncrement>330049</AutoIncrement>
+      <AutoIncrement>0</AutoIncrement>
       <NotNull>1</NotNull>
       <Position>1</Position>
       <StoredType>int|0s</StoredType>
@@ -435,7 +435,7 @@ major</ColNames>
       <UnderlyingIndexName>uq_univ_major</UnderlyingIndexName>
     </key>
     <column id="84" parent="30" name="id">
-      <AutoIncrement>270005</AutoIncrement>
+      <AutoIncrement>0</AutoIncrement>
       <NotNull>1</NotNull>
       <Position>1</Position>
       <StoredType>int|0s</StoredType>
