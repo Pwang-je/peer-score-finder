@@ -309,53 +309,53 @@
           </div>
         </section>
 
-        <!-- 🌟 [신규] 선택한 학생의 모든 기출고사 성적 패널 -->
+        <!-- 🌟 [신규] 선택한 학생의 모든 기출고사 성적 매트릭스 표 (사진의 엑셀 스타일) -->
         <section class="student-past-exams-panel">
           <div class="past-exams-header">
             <div class="header-title-group">
               <span class="panel-icon">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2"
                      stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="3" y1="9" x2="21" y2="9"></line>
+                  <line x1="3" y1="15" x2="21" y2="15"></line>
+                  <line x1="9" y1="3" x2="9" y2="21"></line>
+                  <line x1="15" y1="3" x2="15" y2="21"></line>
                 </svg>
               </span>
               <div class="title-text-wrap">
                 <div class="main-title-row">
                   <h3 class="panel-title">
-                    {{ form.student_name ? `${form.student_name} 학생 기출고사 전체 성적` : '선택한 학생의 전체 기출 성적' }}
+                    {{ form.student_name ? `${form.student_name} 학생 기출고사 성적표` : '선택한 학생의 기출고사 성적표' }}
                   </h3>
                   <span v-if="studentPastExams.length > 0" class="score-total-chip">
                     총 {{ studentPastExams.length }}건 등록됨
                   </span>
                 </div>
                 <p class="panel-subtitle">
-                  학생이 응시한 대학별 기출고사 성적 및 시험 평균 대비 격차를 한눈에 확인합니다.
+                  대학별(열) × 년도별(행) 기출고사 점수를 엑셀 표 형태로 한눈에 확인합니다.
                 </p>
               </div>
             </div>
 
-            <!-- 우측 액션 버튼 및 필터 -->
+            <!-- 우측 액션 버튼 및 모드 전환 -->
             <div class="header-action-group" v-if="form.student_name">
-              <div v-if="pastExamUnivList.length > 1" class="univ-filter-pills">
+              <div class="matrix-view-toggle">
                 <button
                   type="button"
-                  :class="['filter-pill-btn', { active: pastExamUnivFilter === 'ALL' }]"
-                  @click="pastExamUnivFilter = 'ALL'"
+                  :class="['toggle-chip', { active: matrixViewMode === 'taken' }]"
+                  @click="matrixViewMode = 'taken'"
+                  title="현재 학생이 기출을 푼 대학만 모아보기"
                 >
-                  전체 ({{ studentPastExams.length }})
+                  응시 대학만 보기 ({{ matrixTakenUnivCount }}개교)
                 </button>
                 <button
-                  v-for="u in pastExamUnivList"
-                  :key="u.name"
                   type="button"
-                  :class="['filter-pill-btn', { active: pastExamUnivFilter === u.name }]"
-                  @click="pastExamUnivFilter = u.name"
+                  :class="['toggle-chip', { active: matrixViewMode === 'all' }]"
+                  @click="matrixViewMode = 'all'"
+                  title="전체 주요 대학 컬럼 모두 보기"
                 >
-                  {{ u.name }} ({{ u.count }})
+                  전체 대학 보기
                 </button>
               </div>
 
@@ -386,7 +386,7 @@
           <!-- 학생 미선택 안내 -->
           <div v-else-if="!form.student_name" class="past-exams-empty-guide">
             <span class="guide-icon">👤</span>
-            <p>위 <strong>MODE 01 [26년도 성적 불러오기]</strong>에서 학생을 선택하면, 해당 학생의 2020~2026년도 전체 기출 점수가 이곳에 표시됩니다.</p>
+            <p>위 <strong>MODE 01 [26년도 성적 불러오기]</strong>에서 학생을 선택하면, 해당 학생의 2020~2026년도 기출 점수 표가 이곳에 표시됩니다.</p>
           </div>
 
           <!-- 등록된 기출 성적이 없을 때 -->
@@ -400,68 +400,88 @@
             </p>
           </div>
 
-          <!-- 기출 성적 목록 (대학별 그룹화 카드/타일) -->
-          <div v-else-if="!isPastExamFolded" class="past-exams-content">
-            <div
-              v-for="grp in filteredPastExamGroups"
-              :key="grp.univName"
-              class="univ-past-group"
-            >
-              <div class="group-univ-bar">
-                <div class="univ-info">
-                  <span class="univ-badge">🏛️</span>
-                  <strong class="univ-name">{{ grp.univName }}</strong>
-                  <span class="univ-count">총 {{ grp.scores.length }}회</span>
-                </div>
-                <div v-if="grp.avgScore" class="univ-avg-tag">
-                  평균: <strong>{{ grp.avgScore }}</strong>점
-                </div>
-              </div>
-
-              <!-- 해당 대학의 기출 타일 그리드 -->
-              <div class="group-tiles-grid">
-                <div
-                  v-for="sc in grp.scores"
-                  :key="sc.id"
-                  class="exam-tile-card"
+          <!-- 🌟 [핵심] 사진의 엑셀 스타일 매트릭스 표 (가로: 학교이름, 세로: 년도) -->
+          <div v-else-if="!isPastExamFolded" class="excel-matrix-wrapper">
+            <table class="excel-matrix-table">
+              <thead>
+                <tr>
+                  <!-- 좌상단 고정 코너 셀 -->
+                  <th class="matrix-corner-th">년도 \ 대학</th>
+                  <!-- 상단 가로 헤더: 학교 이름들 -->
+                  <th
+                    v-for="univ in matrixUnivColumns"
+                    :key="univ"
+                    class="matrix-univ-th"
+                  >
+                    <div class="th-univ-title">{{ formatMatrixUnivTitle(univ).name }}</div>
+                    <div v-if="formatMatrixUnivTitle(univ).session" class="th-univ-session">
+                      {{ formatMatrixUnivTitle(univ).session }}
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- 년도 행 (2026 -> 2020) -->
+                <tr
+                  v-for="year in matrixYears"
+                  :key="year"
+                  class="matrix-row"
                 >
-                  <div class="tile-header">
-                    <span class="year-label">{{ String(sc.exam_year).slice(-2) }}' 기출</span>
-                    <span v-if="extractSession(sc.univ)" class="session-label">
-                      {{ extractSession(sc.univ) }}
-                    </span>
-                    <span :class="['subj-label', getSubjBadgeClass(sc.subject_type)]">
-                      {{ sc.subject_type || '영어' }}
-                    </span>
-                  </div>
+                  <!-- 좌측 년도 헤더 열 -->
+                  <th class="matrix-year-th">
+                    <span class="year-num">{{ year }}년도</span>
+                    <span class="year-sub">({{ String(year).slice(-2) }}' 기출)</span>
+                  </th>
 
-                  <div class="tile-score-body">
-                    <div class="score-main">
-                      <span class="score-val">{{ sc.my_score }}</span>
-                      <span class="score-unit">점</span>
+                  <!-- 각 학교별 점수 셀 -->
+                  <td
+                    v-for="univ in matrixUnivColumns"
+                    :key="univ"
+                    class="matrix-cell"
+                    :class="{ 'has-score': getCellScores(year, univ).length > 0 }"
+                  >
+                    <div v-if="getCellScores(year, univ).length > 0" class="cell-scores-box">
+                      <div
+                        v-for="sc in getCellScores(year, univ)"
+                        :key="sc.id || sc.subject_type"
+                        class="cell-score-pill"
+                        :title="getCellTooltip(sc)"
+                      >
+                        <span :class="['pill-subj-tag', getSubjBadgeClass(sc.subject_type)]">
+                          {{ getMiniSubjText(sc.subject_type) }}
+                        </span>
+                        <strong class="pill-score-val">{{ sc.my_score }}</strong>
+                        <span
+                          v-if="sc.score_gap !== null && sc.score_gap !== undefined"
+                          :class="['pill-gap', sc.score_gap >= 0 ? 'plus' : 'minus']"
+                        >
+                          {{ sc.score_gap >= 0 ? '+' + sc.score_gap : sc.score_gap }}
+                        </span>
+                      </div>
                     </div>
-                    <div
-                      v-if="sc.score_gap !== null && sc.score_gap !== undefined"
-                      :class="['score-gap-badge', sc.score_gap >= 0 ? 'plus' : 'minus']"
-                      :title="`기출 평균 대비 ${sc.score_gap >= 0 ? '+' : ''}${sc.score_gap}점`"
-                    >
-                      {{ sc.score_gap >= 0 ? '+' + sc.score_gap : sc.score_gap }}점
+                    <span v-else class="cell-dash">-</span>
+                  </td>
+                </tr>
+
+                <!-- 🌟 하단 통계 행: 대학별 평균 점수 -->
+                <tr class="matrix-summary-row">
+                  <th class="matrix-year-th summary-th">
+                    평균 (응시)
+                  </th>
+                  <td
+                    v-for="univ in matrixUnivColumns"
+                    :key="univ"
+                    class="matrix-cell summary-cell"
+                  >
+                    <div v-if="getColumnSummary(univ)" class="col-summary-content">
+                      <strong class="summary-avg">{{ getColumnSummary(univ).avg }}점</strong>
+                      <span class="summary-cnt">({{ getColumnSummary(univ).count }}회)</span>
                     </div>
-                  </div>
-
-                  <!-- 영+수 세부 점수 표시 -->
-                  <div v-if="sc.subject_type === '영+수' && (sc.eng_score !== null || sc.math_score !== null)" class="tile-subscore">
-                    영 {{ sc.eng_score ?? '-' }} · 수 {{ sc.math_score ?? '-' }}
-                  </div>
-
-                  <div class="tile-footer">
-                    <span v-if="sc.avg_score" class="avg-label">평균 {{ sc.avg_score }}점</span>
-                    <span v-else class="avg-label empty">평균 미등록</span>
-                    <span v-if="sc.memo" class="memo-icon" :title="`메모: ${sc.memo}`">💬</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+                    <span v-else class="cell-dash">-</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -775,8 +795,9 @@ export default {
       // 🌟 선택한 학생의 기출고사 성적 데이터 상태
       studentPastExams: [],
       isLoadingPastExams: false,
-      pastExamUnivFilter: 'ALL',
-      isPastExamFolded: false
+      isPastExamFolded: false,
+      matrixViewMode: 'taken', // 'taken' (응시 대학만 보기) | 'all' (전체 대학 보기)
+      matrixYears: [2026, 2025, 2024, 2023, 2022, 2021, 2020]
     };
   },
   computed: {
@@ -798,41 +819,61 @@ export default {
         return (engTotal > 0 || m > 0) ? `영어 ${(Math.round(engTotal * 10) / 10).toFixed(1)}점 + 수학 ${m.toFixed(1)}점` : '- 점';
       }
     },
-    pastExamUnivList() {
+    matrixTakenUnivList() {
       if (!this.studentPastExams || !this.studentPastExams.length) return [];
-      const counts = {};
+      const standardOrder = [
+        '서강대학교', '성균관대학교', '한양대학교',
+        '중앙대학교', '경희대학교', '한국외국어대학교(T1 A형)', '한국외국어대학교(T2 B형)', '한국외국어대학교', '서울시립대학교',
+        '건국대학교', '동국대학교', '홍익대학교',
+        '국민대학교', '숭실대학교', '세종대학교', '단국대학교(오전)', '단국대학교(오후)', '단국대학교',
+        '광운대학교', '명지대학교(오전)', '명지대학교(오후)', '명지대학교', '가톨릭대학교', '상명대학교',
+        '인하대학교', '인천대학교', '가천대학교(A형)', '가천대학교(B형)', '가천대학교', '경기대학교',
+        '이화여자대학교', '숙명여자대학교(A형)', '숙명여자대학교(B형)', '숙명여자대학교', '동덕여자대학교',
+        '덕성여자대학교(1교시)', '덕성여자대학교(2교시)', '덕성여자대학교(3교시)', '덕성여자대학교',
+        '서울여자대학교(오전)', '서울여자대학교(오후)', '서울여자대학교',
+        '한성대학교', '한국항공대학교'
+      ];
+      const set = new Set();
       for (const sc of this.studentPastExams) {
-        const baseUniv = sc.univ ? sc.univ.split('(')[0].trim() : '기타';
-        counts[baseUniv] = (counts[baseUniv] || 0) + 1;
+        if (sc.univ) set.add(sc.univ);
       }
-      return Object.keys(counts).map(name => ({
-        name,
-        count: counts[name]
-      }));
-    },
-    filteredPastExamGroups() {
-      if (!this.studentPastExams || !this.studentPastExams.length) return [];
-      const groupsMap = {};
-      for (const sc of this.studentPastExams) {
-        const baseUniv = sc.univ ? sc.univ.split('(')[0].trim() : '기타';
-        if (!groupsMap[baseUniv]) {
-          groupsMap[baseUniv] = {
-            univName: baseUniv,
-            scores: []
-          };
-        }
-        groupsMap[baseUniv].scores.push(sc);
-      }
-      let list = Object.values(groupsMap).map(g => {
-        g.scores.sort((a, b) => b.exam_year - a.exam_year);
-        const total = g.scores.reduce((acc, cur) => acc + (Number(cur.my_score) || 0), 0);
-        g.avgScore = g.scores.length ? (total / g.scores.length).toFixed(1) : null;
-        return g;
+      const list = Array.from(set);
+      list.sort((a, b) => {
+        const idxA = standardOrder.findIndex(u => a === u || a.startsWith(u) || u.startsWith(a));
+        const idxB = standardOrder.findIndex(u => b === u || b.startsWith(u) || u.startsWith(b));
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.localeCompare(b);
       });
-      if (this.pastExamUnivFilter !== 'ALL') {
-        list = list.filter(g => g.univName === this.pastExamUnivFilter);
-      }
       return list;
+    },
+    matrixTakenUnivCount() {
+      return this.matrixTakenUnivList.length;
+    },
+    matrixUnivColumns() {
+      const standardOrder = [
+        '서강대학교', '성균관대학교', '한양대학교',
+        '중앙대학교', '경희대학교', '한국외국어대학교(T1 A형)', '한국외국어대학교(T2 B형)', '서울시립대학교',
+        '건국대학교', '동국대학교', '홍익대학교',
+        '국민대학교', '숭실대학교', '세종대학교', '단국대학교(오전)', '단국대학교(오후)',
+        '광운대학교', '명지대학교(오전)', '명지대학교(오후)', '가톨릭대학교', '상명대학교',
+        '인하대학교', '인천대학교', '가천대학교(A형)', '가천대학교(B형)', '경기대학교',
+        '이화여자대학교', '숙명여자대학교(A형)', '숙명여자대학교(B형)', '동덕여자대학교',
+        '덕성여자대학교(1교시)', '덕성여자대학교(2교시)', '덕성여자대학교(3교시)',
+        '서울여자대학교(오전)', '서울여자대학교(오후)',
+        '한성대학교', '한국항공대학교'
+      ];
+
+      if (this.matrixViewMode === 'taken') {
+        return this.matrixTakenUnivList;
+      } else {
+        const all = [...standardOrder];
+        for (const u of this.matrixTakenUnivList) {
+          if (!all.includes(u)) all.push(u);
+        }
+        return all;
+      }
     }
   },
   watch: {
@@ -1000,6 +1041,50 @@ export default {
       if (subj === '수학') return 'subj-math';
       if (subj === '영+수') return 'subj-both';
       return 'subj-eng';
+    },
+    getCellScores(year, univName) {
+      if (!this.studentPastExams || !this.studentPastExams.length) return [];
+      return this.studentPastExams.filter(s => {
+        if (Number(s.exam_year) !== Number(year)) return false;
+        if (s.univ === univName) return true;
+        const sNorm = (s.univ || '').replace(/\s+/g, '');
+        const uNorm = (univName || '').replace(/\s+/g, '');
+        return sNorm === uNorm;
+      });
+    },
+    getColumnSummary(univName) {
+      if (!this.studentPastExams || !this.studentPastExams.length) return null;
+      const matches = this.studentPastExams.filter(s => {
+        if (s.univ === univName) return true;
+        const sNorm = (s.univ || '').replace(/\s+/g, '');
+        const uNorm = (univName || '').replace(/\s+/g, '');
+        return sNorm === uNorm;
+      });
+      if (!matches.length) return null;
+      const total = matches.reduce((acc, cur) => acc + (Number(cur.my_score) || 0), 0);
+      return {
+        avg: (total / matches.length).toFixed(1),
+        count: matches.length
+      };
+    },
+    formatMatrixUnivTitle(univ) {
+      if (!univ) return { name: '', session: '' };
+      const match = univ.match(/^(.*?)\((.*?)\)$/);
+      if (match) {
+        return { name: match[1], session: match[2] };
+      }
+      return { name: univ, session: '' };
+    },
+    getMiniSubjText(subj) {
+      if (subj === '수학') return '수';
+      if (subj === '영+수') return '영수';
+      return '영';
+    },
+    getCellTooltip(sc) {
+      let tip = `${sc.univ} ${sc.exam_year}년도 [${sc.subject_type || '영어'}]\n내 점수: ${sc.my_score}점`;
+      if (sc.avg_score) tip += `\n기출 평균: ${sc.avg_score}점 (격차: ${sc.score_gap >= 0 ? '+' : ''}${sc.score_gap}점)`;
+      if (sc.memo) tip += `\n메모: ${sc.memo}`;
+      return tip;
     },
     async loadStudentScore() {
       if (!this.form.student_name || !this.form.month) return;
@@ -1826,200 +1911,251 @@ export default {
   padding: 0 4px;
 }
 
-.past-exams-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+/* ========================================================
+   엑셀 스타일 기출 성적 매트릭스 표
+   ======================================================== */
+.matrix-view-toggle {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
 }
 
-.univ-past-group {
-  background: #f8fafc;
+.toggle-chip {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-chip.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.excel-matrix-wrapper {
+  overflow-x: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.excel-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.excel-matrix-table th,
+.excel-matrix-table td {
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px 16px;
+  padding: 8px 12px;
+  text-align: center;
+  vertical-align: middle;
 }
 
-.group-univ-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e2e8f0;
+/* 좌상단 코너 헤더 */
+.matrix-corner-th {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 800;
+  font-size: 12.5px;
+  min-width: 110px;
+  border-right: 2px solid #cbd5e1 !important;
+  border-bottom: 2px solid #cbd5e1 !important;
 }
 
-.univ-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* 상단 대학 헤더 */
+.matrix-univ-th {
+  background: #f8fafc;
+  color: #0f172a;
+  min-width: 110px;
+  padding: 10px 12px;
+  border-bottom: 2px solid #cbd5e1 !important;
 }
 
-.univ-name {
-  font-size: 15px;
+.th-univ-title {
+  font-size: 13.5px;
   font-weight: 800;
   color: #0f172a;
 }
 
-.univ-count {
-  font-size: 11.5px;
-  color: #64748b;
+.th-univ-session {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #7c3aed;
+  background: #f3e8ff;
+  border: 1px solid #e9d5ff;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+
+/* 좌측 년도 헤더 열 (가로 스크롤 시 고정) */
+.matrix-year-th {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: #f8fafc;
+  color: #334155;
+  min-width: 110px;
+  border-right: 2px solid #cbd5e1 !important;
+}
+
+.matrix-year-th .year-num {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.matrix-year-th .year-sub {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.matrix-row:hover {
+  background: #f8fafc;
+}
+
+.matrix-cell {
   background: #ffffff;
-  padding: 2px 7px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  transition: background 0.15s ease;
 }
 
-.univ-avg-tag {
-  font-size: 12px;
-  color: #475569;
+.matrix-cell:hover {
+  background: #f0fdf4;
 }
 
-.univ-avg-tag strong {
-  color: #2563eb;
+.matrix-cell.has-score {
+  background: #fafafa;
 }
 
-.group-tiles-grid {
+.matrix-cell.has-score:hover {
+  background: #eff6ff;
+}
+
+.cell-scores-box {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.exam-tile-card {
-  flex: 0 0 auto;
-  width: 148px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.exam-tile-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
-}
-
-.tile-header {
-  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 4px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
 }
 
-.year-label {
-  font-size: 11px;
+.cell-score-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 3px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.cell-score-pill:hover {
+  border-color: #2563eb;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.15);
+}
+
+.pill-subj-tag {
+  font-size: 10px;
   font-weight: 800;
-  color: #334155;
-  background: #f1f5f9;
-  padding: 1px 5px;
-  border-radius: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
-.session-label {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #fef3c7;
-  color: #b45309;
-  border: 1px solid #fde68a;
-}
-
-.subj-label {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-}
-
-.subj-label.subj-eng {
+.pill-subj-tag.subj-eng {
   background: #eff6ff;
   color: #1d4ed8;
-  border: 1px solid #bfdbfe;
 }
 
-.subj-label.subj-math {
+.pill-subj-tag.subj-math {
   background: #faf5ff;
   color: #7e22ce;
-  border: 1px solid #e9d5ff;
 }
 
-.subj-label.subj-both {
+.pill-subj-tag.subj-both {
   background: #ecfdf5;
   color: #047857;
-  border: 1px solid #a7f3d0;
 }
 
-.tile-score-body {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
-.score-main {
-  display: flex;
-  align-items: baseline;
-  gap: 2px;
-}
-
-.score-val {
-  font-size: 18px;
+.pill-score-val {
+  font-size: 13.5px;
   font-weight: 900;
   color: #0f172a;
 }
 
-.score-unit {
-  font-size: 11px;
-  color: #64748b;
+.pill-gap {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 3px;
+  border-radius: 3px;
 }
 
-.score-gap-badge {
-  font-size: 11px;
-  font-weight: 800;
-  padding: 1px 5px;
-  border-radius: 10px;
-}
-
-.score-gap-badge.plus {
+.pill-gap.plus {
   background: #dcfce7;
   color: #15803d;
 }
 
-.score-gap-badge.minus {
+.pill-gap.minus {
   background: #fee2e2;
   color: #b91c1c;
 }
 
-.tile-subscore {
-  font-size: 11px;
-  color: #64748b;
-  margin-bottom: 4px;
-  background: #f8fafc;
-  padding: 2px 4px;
-  border-radius: 4px;
-}
-
-.tile-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: #94a3b8;
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px dashed #f1f5f9;
-}
-
-.avg-label.empty {
+.cell-dash {
   color: #cbd5e1;
+  font-size: 14px;
 }
 
-.memo-icon {
-  font-size: 12px;
-  cursor: help;
+/* 요약 행 */
+.matrix-summary-row {
+  background: #f1f5f9;
+  border-top: 2px solid #cbd5e1 !important;
+}
+
+.summary-th {
+  background: #f1f5f9;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.summary-cell {
+  background: #f8fafc;
+}
+
+.col-summary-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.summary-avg {
+  font-size: 13px;
+  font-weight: 800;
+  color: #2563eb;
+}
+
+.summary-cnt {
+  font-size: 10.5px;
+  color: #64748b;
 }
 
 /* ========================================================
