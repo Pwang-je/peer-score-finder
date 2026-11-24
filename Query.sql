@@ -70,11 +70,285 @@ WHERE univ = '한국항공대학교'
     '경영학부', '경영학과', '항공경영전공'
   );
 
+DELETE FROM recruit_quota
+WHERE year = 2026
+  AND univ = '숙명여자대학교';
+
+
+-- 1) 현재 DB에 저장된 숙명여자대학교 과거 합격생 major 분포 확인
+SELECT department, major, COUNT(*) AS cnt
+FROM peer_data
+WHERE univ = '숙명여자대학교'
+GROUP BY department, major
+ORDER BY cnt DESC;
+
+-- 2) 구(舊) 학과명·학부명 -> 현행 모집단위명 연결 예시 (조회 결과 확인 후 필요한 항목만 실행)
+-- 예: 프랑스언어·문화학과(구 불어불문학과), 독일언어·문화학과(구 독어독문학과), 인공지능공학부(구 IT공학전공 등)
+UPDATE peer_data
+SET major = '프랑스언어·문화학과'
+WHERE univ = '숙명여자대학교'
+  AND major IN ('불어불문학과', '프랑스언어문화학과');
+
+UPDATE peer_data
+SET major = '독일언어·문화학과'
+WHERE univ = '숙명여자대학교'
+  AND major IN ('독어독문학과', '독일언어문화학과');
+
+UPDATE peer_data
+SET major = '인공지능공학부'
+WHERE univ = '숙명여자대학교'
+  AND major IN ('IT공학전공', 'IT공학과', '인공지능전공');
+
+UPDATE peer_data
+SET major = '지능형전자시스템전공'
+WHERE univ = '숙명여자대학교'
+  AND major IN ('전자공학전공', '전자공학과');
+
+UPDATE peer_data
+SET major = '신소재물리전공'
+WHERE univ = '숙명여자대학교'
+  AND major IN ('응용물리전공', '물리학과');
+
+-- 2. 전형구분(department) 및 학과명(major)별 분포 확인
+SELECT
+    univ,
+    department,
+    major,
+    COUNT(*) AS 행수,
+    COUNT(DISTINCT student_name, year) AS 합격생수
+FROM peer_data
+WHERE univ LIKE '숙명%'
+GROUP BY univ, department, major
+ORDER BY department, 행수 DESC;
+
+SELECT
+    univ,
+    COUNT(*) AS 총_데이터_행수,
+    COUNT(DISTINCT student_name, year) AS 실제_합격생수
+FROM peer_data
+WHERE univ LIKE '숙명%'
+GROUP BY univ;
+
+-- 16명 전체 명단 및 매칭 기준 컬럼(univ, department, major) 조회
+SELECT
+    student_name,
+    univ,
+    department,
+    major,
+    year,
+    COUNT(*) AS 데이터_행수
+FROM peer_data
+WHERE univ LIKE '숙명%'
+GROUP BY student_name, univ, department, major, year
+ORDER BY department, major, year;
+
+INSERT INTO recruit_quota (year, univ, department, major, general_quota, bachelor_quota)
+VALUES
+  (2026, '숙명여자대학교', '인문', '문헌정보학과', 0, 0),
+  (2026, '숙명여자대학교', '인문', '르꼬르동블루외식경영전공', 0, 0),
+  (2026, '숙명여자대학교', '인문', '행정학과', 0, 0),
+  (2026, '숙명여자대학교', '인문', '사회심리학과', 0, 0),
+  (2026, '숙명여자대학교', '인문', '글로벌협력전공', 0, 0),
+  (2026, '숙명여자대학교', '인문', '앙트러프러너십전공', 0, 0);
+
+SELECT
+    p.student_name,
+    p.univ,
+    p.department,
+    p.major,
+    p.year,
+    CASE WHEN rq.id IS NULL THEN '❌ 매칭실패' ELSE '✅ 연결됨' END AS 상태
+FROM (
+    SELECT DISTINCT student_name, univ, department, major, year
+    FROM peer_data
+    WHERE univ LIKE '숙명%'
+) p
+LEFT JOIN recruit_quota rq
+  ON rq.year = 2026
+ AND rq.univ = p.univ
+ AND CONCAT(
+       CASE WHEN p.department LIKE '일반%' THEN '일반' ELSE '학사' END,
+       rq.department
+     ) = p.department
+ AND REGEXP_REPLACE(REPLACE(REPLACE(REPLACE(p.major, '*', ''), '·', ''), ' ', ''), '(학전공|학과|학부|전공|과)$', '')
+   = REGEXP_REPLACE(REPLACE(REPLACE(REPLACE(rq.major, '*', ''), '·', ''), ' ', ''), '(학전공|학과|학부|전공|과)$', '')
+ORDER BY 상태 ASC, p.department, p.major;
+
+-- 1) 앞쪽 학부명 접두어 제거 (임서영, 김지원)
+UPDATE peer_data
+SET major = '신소재물리전공'
+WHERE univ = '숙명여자대학교'
+  AND major LIKE '%신소재물리전공%';
+
+UPDATE peer_data
+SET major = '컴퓨터과학전공'
+WHERE univ = '숙명여자대학교'
+  AND major LIKE '%컴퓨터과학전공%';
+
+-- 2) 식품영양학과·의류학과 계열 보정 (노서진, 조영은, 이지원, 박채은)
+UPDATE peer_data
+SET department = '일반자연'
+WHERE univ = '숙명여자대학교'
+  AND department = '일반인문'
+  AND major IN ('식품영양학과', '의류학과');
+
+UPDATE peer_data
+SET department = '학사자연'
+WHERE univ = '숙명여자대학교'
+  AND department = '학사인문'
+  AND major IN ('식품영양학과', '의류학과');
+
+-- 3) 역사문화학과 계열 오타 수정 (김다희)
+UPDATE peer_data
+SET department = '일반인문'
+WHERE univ = '숙명여자대학교'
+  AND major = '역사문화학과'
+  AND department = '일반자연';
+
+DELETE FROM recruit_quota
+WHERE year = 2026
+  AND univ = '건국대학교';
+
+DELETE FROM recruit_quota
+WHERE year = 2026
+  AND univ = '건국대학교(서울)';
+
+-- 1) 현재 peer_data에 저장된 건국대 대학명(univ) 및 학과명(major) 분포 확인
+SELECT univ, department, major, COUNT(*) AS cnt
+FROM peer_data
+WHERE univ LIKE '건국%'
+GROUP BY univ, department, major
+ORDER BY univ, department, cnt DESC;
+
+-- 2) peer_data의 대학명이 '건국대학교'로 되어 있다면 '건국대학교(서울)'로 통일 (글로컬캠퍼스 제외)
+UPDATE peer_data
+SET univ = '건국대학교(서울)'
+WHERE univ = '건국대학교';
+
+-- 3) 구(舊) 학과명 / 학부 병기 명칭 -> 2027 현행 모집단위 매핑
+UPDATE peer_data
+SET major = '기계·로봇·자동차공학부'
+WHERE univ = '건국대학교(서울)'
+  AND major IN ('기계공학부', '기계공학과', '기계항공공학부', '스마트운행체공학과');
+
+UPDATE peer_data
+SET major = '화공·생명·에너지공학부'
+WHERE univ = '건국대학교(서울)'
+  AND major IN ('화학공학부', '화학공학과');
+
+UPDATE peer_data
+SET major = '항공우주·모빌리티공학과'
+WHERE univ = '건국대학교(서울)'
+  AND major IN ('항공우주정보시스템공학과', '항공우주공학과');
+
+UPDATE peer_data
+SET major = '컴퓨터공학과'
+WHERE univ = '건국대학교(서울)'
+  AND major IN ('컴퓨터공학부', '인공지능컴퓨터공학부 컴퓨터공학과', '소프트웨어학과');
+
+UPDATE peer_data
+SET major = TRIM(REPLACE(REPLACE(REPLACE(major, '생명공학부 ', ''), '식품융합학부 ', ''), '환경생태과학부 ', ''))
+WHERE univ = '건국대학교(서울)'
+  AND (major LIKE '생명공학부 %' OR major LIKE '식품융합학부 %' OR major LIKE '환경생태과학부 %');
+
+UPDATE peer_data
+SET major = TRIM(REPLACE(major, '건축학부 ', ''))
+WHERE univ = '건국대학교(서울)'
+  AND major LIKE '건축학부 %';
+
+UPDATE peer_data
+SET major = '의상디자인학과-인문계'
+WHERE univ = '건국대학교(서울)'
+  AND major IN ('의상디자인학과', '의상디자인학과(인문계)');
+
+-- 1) peer_data에 저장된 건국대 표기 확인
+SELECT univ, COUNT(*) AS cnt
+FROM peer_data
+WHERE univ LIKE '건국%'
+GROUP BY univ;
+
+SELECT
+    p.student_name,
+    p.univ,
+    p.department,
+    p.major,
+    p.year,
+    CASE WHEN rq.id IS NULL THEN '❌ 매칭실패' ELSE '✅ 연결됨' END AS 상태
+FROM (
+    SELECT DISTINCT student_name, univ, department, major, year
+    FROM peer_data
+    WHERE univ LIKE '건국%'
+) p
+LEFT JOIN recruit_quota rq
+  ON rq.year = 2026
+ AND rq.univ = p.univ
+ AND CONCAT(
+       CASE WHEN p.department LIKE '일반%' THEN '일반' ELSE '학사' END,
+       rq.department
+     ) = p.department
+ AND REGEXP_REPLACE(REPLACE(REPLACE(REPLACE(p.major, '*', ''), '·', ''), ' ', ''), '(학전공|학과|학부|전공|과)$', '')
+   = REGEXP_REPLACE(REPLACE(REPLACE(REPLACE(rq.major, '*', ''), '·', ''), ' ', ''), '(학전공|학과|학부|전공|과)$', '')
+ORDER BY 상태 ASC, p.department, p.major;
 
 
 
+-- 1) 계열(department) 오타 수정 (조성연, 김윤지, 유성재, 김승현, 이규리)
+UPDATE peer_data
+SET department = '일반자연'
+WHERE univ = '건국대학교(서울)'
+  AND department = '일반인문'
+  AND major IN ('산업공학과', '재료공학과');
+
+UPDATE peer_data
+SET department = '일반인문'
+WHERE univ = '건국대학교(서울)'
+  AND department = '일반자연'
+  AND major = '철학과';
+
+UPDATE peer_data
+SET department = '학사인문'
+WHERE univ = '건국대학교(서울)'
+  AND department = '학사자연'
+  AND major = '행정학과';
+
+-- 2) 구(舊) 학과명 -> 2027 현행 모집단위 매핑 (김진웅, 김민우, 이현규)
+UPDATE peer_data
+SET major = '생명과학과'
+WHERE univ = '건국대학교(서울)'
+  AND major = '생명과학특성학과';
+
+UPDATE peer_data
+SET major = '동물자원과학과'
+WHERE univ = '건국대학교(서울)'
+  AND major = '동물자원·식품과학·유통학부';
+
+-- 3) 한민지 학생 전형구분 보완 (일반편입 기준 예시, 학사편입이면 '학사자연'으로 변경)
+UPDATE peer_data
+SET department = '일반자연'
+WHERE univ = '건국대학교(서울)'
+  AND student_name = '한민지'
+  AND major = '융합생명공학과'
+  AND department IN ('일반자연', '자연');
 
 
+-- 1) 이현규(50번): 가운뎃점 문자 차이를 피하기 위해 LIKE로 매핑
+UPDATE peer_data
+SET major = '동물자원과학과'
+WHERE univ = '건국대학교(서울)'
+  AND major LIKE '동물자원%유통학부%';
 
+-- 2) 한민지(46번): 전형구분 보정 (학사편입이면 '학사자연'으로 변경)
+UPDATE peer_data
+SET department = '일반자연'
+WHERE univ = '건국대학교(서울)'
+  AND student_name = '한민지'
+  AND department LIKE '미기재';
 
+-- 3) 올해 미모집 학과 3개(유현정, 김은서, 강은진)도 사이트에 노출하려면 0명 행 추가
+INSERT INTO recruit_quota (year, univ, department, major, general_quota, bachelor_quota)
+VALUES
+  (2026, '건국대학교(서울)', '인문', '리빙디자인학과', 0, 0),
+  (2026, '건국대학교(서울)', '인문', '매체연기학과', 0, 0),
+  (2026, '건국대학교(서울)', '인문', '일어교육과', 0, 0);
 
+select peer_data.student_name, peer_data.major, peer_data.year from peer_data where major = '건축학부';

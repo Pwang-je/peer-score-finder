@@ -145,6 +145,196 @@
       </div>
     </div>
 
+    <!-- 🖨️ 지원 대학:학과 리스트 출력 및 PNG 저장 모달 -->
+    <div
+      v-if="showPrintSlipModal"
+      class="modal-backdrop slip-modal-backdrop"
+      @click.self="closePrintModal"
+    >
+      <div class="modal-box slip-modal-box">
+        <div class="modal-header slip-modal-header">
+          <div class="slip-modal-title-wrap">
+            <span class="slip-header-icon">🖨️</span>
+            <div>
+              <h3>지원 대학 · 학과 리스트 출력 및 PNG 저장</h3>
+              <p class="slip-header-sub">
+                서강대 ~ 서울여대 순서대로 정렬된 <strong>{{ selectedStudent }}</strong> 학생의 원서 지원표입니다.
+              </p>
+            </div>
+          </div>
+          <button @click="closePrintModal" class="close-btn">&times;</button>
+        </div>
+
+        <!-- 옵션 컨트롤 툴바 -->
+        <div class="slip-modal-toolbar">
+          <div class="toolbar-group">
+            <label class="toolbar-label">출력 범위:</label>
+            <div class="toolbar-toggle-btns">
+              <button
+                type="button"
+                :class="['toggle-btn', { active: printViewMode === 'applied' }]"
+                @click="printViewMode = 'applied'"
+              >
+                지원 대학만 ({{ studentApplications.length }}개교)
+              </button>
+              <button
+                type="button"
+                :class="['toggle-btn', { active: printViewMode === 'all25' }]"
+                @click="printViewMode = 'all25'"
+              >
+                25개 대학 전체 양식
+              </button>
+            </div>
+          </div>
+
+          <div class="toolbar-group">
+            <label class="toolbar-label">대학 표기:</label>
+            <div class="toolbar-toggle-btns">
+              <button
+                type="button"
+                :class="['toggle-btn', { active: printUnivNameMode === 'short' }]"
+                @click="printUnivNameMode = 'short'"
+              >
+                약칭 (예: 서강대)
+              </button>
+              <button
+                type="button"
+                :class="['toggle-btn', { active: printUnivNameMode === 'full' }]"
+                @click="printUnivNameMode = 'full'"
+              >
+                정식 명칭
+              </button>
+            </div>
+          </div>
+
+          <div class="toolbar-group">
+            <label class="toolbar-checkbox">
+              <input type="checkbox" v-model="printIncludeQuota" />
+              <span>전형/정원 표시</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-body slip-modal-body">
+          <!-- 복사 완료 피드백 알림 -->
+          <div v-if="copySlipSuccess" class="copy-success-alert">
+            {{ copySlipSuccess }}
+          </div>
+
+          <!-- 실제 인쇄 및 화면에 표시되는 상담표 시트 (Canvas 및 window.print 타겟) -->
+          <div class="slip-print-container">
+            <div class="print-slip-sheet" id="printSlipSheet">
+              <!-- 슬립 상단 헤더 -->
+              <div class="slip-header">
+                <div class="slip-top-line">
+                  <span class="slip-category-pill">2026학년도 편입학 원서접수 상담표</span>
+                  <span class="slip-today-date">출력일자: {{ todayFormattedStr }}</span>
+                </div>
+                <h2 class="slip-sheet-title">지원 대학 · 학과 리스트</h2>
+                <div class="slip-meta-cards">
+                  <div class="slip-meta-item">
+                    <span class="lbl">학생 이름</span>
+                    <strong class="val student">{{ selectedStudent }}</strong>
+                  </div>
+                  <div class="slip-meta-item">
+                    <span class="lbl">지원 대학 수</span>
+                    <strong class="val count">{{ studentApplications.length }}개교</strong>
+                  </div>
+                  <div class="slip-meta-item" v-if="studentProfile && studentProfile.pref_major_1">
+                    <span class="lbl">1순위 희망</span>
+                    <span class="val">{{ studentProfile.pref_major_1 }}</span>
+                  </div>
+                  <div class="slip-meta-item" v-if="studentProfile && studentProfile.pref_major_2">
+                    <span class="lbl">2순위 희망</span>
+                    <span class="val">{{ studentProfile.pref_major_2 }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 순서 안내 띠 -->
+              <div class="slip-order-guide">
+                <span class="guide-badge">대학 순위 정렬</span>
+                <span class="guide-text">서강대 → 성균관대 → 한양대 → 중앙대 → 경희대 → 외대 → 시립대 → 건국대 → 동국대 → 홍익대 → 국숭세단 → 광명가인가경 → 여대 라인 순</span>
+              </div>
+
+              <!-- 지원 대학 : 지원 학과 리스트 테이블 -->
+              <div class="slip-table-wrap">
+                <table class="slip-table">
+                  <thead>
+                    <tr>
+                      <th class="th-num">No.</th>
+                      <th class="th-univ">지원 학교</th>
+                      <th class="th-sep"></th>
+                      <th class="th-major">지원 학과</th>
+                      <th v-if="printIncludeQuota" class="th-quota">선발인원 / 전형</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="(row, idx) in printDisplayList"
+                      :key="row.id"
+                      :class="['slip-row', { 'row-empty': !row.isApplied }]"
+                    >
+                      <td class="td-num">{{ String(idx + 1).padStart(2, '0') }}</td>
+                      <td class="td-univ">
+                        <strong>{{ row.displayUniv }}</strong>
+                      </td>
+                      <td class="td-sep">:</td>
+                      <td class="td-major">
+                        <span :class="['major-name', { 'applied-txt': row.isApplied, 'unapplied-txt': !row.isApplied }]">
+                          {{ row.displayMajor }}
+                        </span>
+                      </td>
+                      <td v-if="printIncludeQuota" class="td-quota">
+                        <span v-if="row.isApplied && (row.genQuota !== null || row.bacQuota !== null)" class="quota-text">
+                          일반 {{ row.genQuota || 0 }} / 학사 {{ row.bacQuota || 0 }}
+                        </span>
+                        <span v-else-if="row.isApplied && row.memo" class="quota-text">
+                          {{ row.memo }}
+                        </span>
+                        <span v-else class="quota-text empty">-</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- 슬립 하단 안내 문구 -->
+              <div class="slip-footer">
+                <div class="slip-footer-left">
+                  <span>※ 본 문서는 편입학 상담 및 원서 지원용 참고 자료입니다.</span>
+                  <span>※ 접수 전 각 대학별 세부 전형일정 및 공식 모집요강을 반드시 확인하시기 바랍니다.</span>
+                </div>
+                <div class="slip-footer-brand">
+                  ScoreFinder 원서 전략
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer slip-modal-footer">
+          <div class="footer-left-info">
+            <span class="info-tip">💡 PNG 이미지를 저장하거나 출력하여 학생 상담 및 원서 접수 시 활용하세요.</span>
+          </div>
+          <div class="footer-right-actions">
+            <button @click="copyTextList" class="btn-slip-action text" title="카카오톡 전송용 텍스트 복사">
+              💬 텍스트 복사
+            </button>
+            <button @click="copySlipToClipboard" class="btn-slip-action copy" title="클립보드에 이미지 복사 (Ctrl+V)">
+              📋 이미지 복사
+            </button>
+            <button @click="printSlip" class="btn-slip-action print" title="브라우저 인쇄">
+              🖨️ 프린트 (인쇄)
+            </button>
+            <button @click="downloadSlipAsPNG" class="btn-slip-action primary" title="고화질 PNG 이미지 파일로 다운로드">
+              📥 PNG 이미지 저장
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ================================================================= -->
     <!-- 탭 1: 학교별 모집요강 현황판 (빠른 대학 칩 + 학점은행제 지원자격) -->
     <!-- ================================================================= -->
@@ -764,8 +954,18 @@
         <!-- 우측 패널: 학생 지원 현황 & 특이사항 비고 & 성적 유사 선배 합격 진학 대학 -->
         <div class="panel list-panel">
           <div class="panel-header">
-            <h3 class="panel-title">📋 {{ selectedStudent }} 학생 지원 정보</h3>
-            <span class="count-tag">총 {{ studentApplications.length }}개교</span>
+            <div class="panel-header-left">
+              <h3 class="panel-title">📋 {{ selectedStudent }} 학생 지원 정보</h3>
+              <span class="count-tag">총 {{ studentApplications.length }}개교</span>
+            </div>
+            <button
+              @click="openPrintModal"
+              :disabled="!selectedStudent || studentApplications.length === 0"
+              class="btn-open-print-modal"
+              title="지원 대학:학과 리스트를 PNG 이미지로 저장하거나 인쇄합니다"
+            >
+              🖨️ 지원표 출력 / PNG
+            </button>
           </div>
 
           <!-- 🎯 [요청 2] 가고싶은 학과 1/2순위, 기피 학과, 토익 점수, 학점(4.5) 입력 카드 -->
@@ -908,6 +1108,17 @@
           </div>
 
           <!-- 담긴 원서 목록 -->
+          <div v-if="studentApplications.length > 0" class="app-cards-top-bar">
+            <span class="app-cards-subtitle">담긴 원서 목록 ({{ studentApplications.length }}개교)</span>
+            <button
+              @click="openPrintModal"
+              class="btn-print-mini-action"
+              title="지원 대학:학과 리스트 PNG 저장 및 인쇄"
+            >
+              🖼️ PNG 저장 · 인쇄
+            </button>
+          </div>
+
           <div v-if="studentApplications.length === 0" class="empty-list-box">
             아직 추가된 지원 대학이 없습니다.<br>좌측에서 대학과 학과를 클릭해 바로 담아보세요.
           </div>
@@ -1100,6 +1311,145 @@ let profileSaveTimer = null
 const similarSeniorsList = ref([])
 const similarSeniorsTarget = ref(null)
 const isLoadingSimilar = ref(false)
+
+// 7. 지원 대학:학과 리스트 인쇄 / PNG 저장 상태
+const showPrintSlipModal = ref(false)
+const printUnivNameMode = ref('short') // 'short' (약칭: 서강대) | 'full' (정식 명칭)
+const printViewMode = ref('applied') // 'applied' (지원한 대학만) | 'all25' (25개 전체 양식)
+const printIncludeQuota = ref(true) // 선발인원/전형 표시 여부
+const copySlipSuccess = ref('')
+let copySlipTimer = null
+
+const todayFormattedStr = computed(() => {
+  const now = new Date()
+  return `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`
+})
+
+// 25개 목표 대학 순서 정의 (서강대 ~ 서울여대 순)
+const TARGET_UNIV_ORDER_LIST = [
+  { shortName: '서강대', fullName: '서강대학교', match: u => u.includes('서강') },
+  { shortName: '성균관대', fullName: '성균관대학교', match: u => u.includes('성균관') },
+  { shortName: '한양대', fullName: '한양대학교', match: u => u.includes('한양') },
+  { shortName: '중앙대', fullName: '중앙대학교', match: u => u.includes('중앙') },
+  { shortName: '경희대', fullName: '경희대학교', match: u => u.includes('경희') },
+  { shortName: '한국외대', fullName: '한국외국어대학교', match: u => u.includes('한국외') || u.includes('외국어') },
+  { shortName: '시립대', fullName: '서울시립대학교', match: u => u.includes('시립') },
+  { shortName: '건국대', fullName: '건국대학교', match: u => u.includes('건국') },
+  { shortName: '동국대', fullName: '동국대학교', match: u => u.includes('동국') },
+  { shortName: '홍익대', fullName: '홍익대학교', match: u => u.includes('홍익') },
+  { shortName: '국민대', fullName: '국민대학교', match: u => u.includes('국민') },
+  { shortName: '숭실대', fullName: '숭실대학교', match: u => u.includes('숭실') },
+  { shortName: '세종대', fullName: '세종대학교', match: u => u.includes('세종') },
+  { shortName: '단국대', fullName: '단국대학교', match: u => u.includes('단국') },
+  { shortName: '광운대', fullName: '광운대학교', match: u => u.includes('광운') },
+  { shortName: '명지대', fullName: '명지대학교', match: u => u.includes('명지') },
+  { shortName: '가천대', fullName: '가천대학교', match: u => u.includes('가천') },
+  { shortName: '인하대', fullName: '인하대학교', match: u => u.includes('인하') },
+  { shortName: '가톨릭대', fullName: '가톨릭대학교', match: u => u.includes('가톨릭') },
+  { shortName: '경기대', fullName: '경기대학교', match: u => u.includes('경기') },
+  { shortName: '이화여대', fullName: '이화여자대학교', match: u => u.includes('이화') },
+  { shortName: '숙명여대', fullName: '숙명여자대학교', match: u => u.includes('숙명') },
+  { shortName: '동덕여대', fullName: '동덕여자대학교', match: u => u.includes('동덕') },
+  { shortName: '덕성여대', fullName: '덕성여자대학교', match: u => u.includes('덕성') },
+  { shortName: '서울여대', fullName: '서울여자대학교', match: u => u.includes('서울여') || (u.includes('서울') && u.includes('여자')) }
+]
+
+function getUnivMeta(univName) {
+  if (!univName) return { shortName: '', fullName: '', rank: 999 }
+  const clean = univName.replace(/\s+/g, '')
+  for (let i = 0; i < TARGET_UNIV_ORDER_LIST.length; i++) {
+    const item = TARGET_UNIV_ORDER_LIST[i]
+    if (item.match(clean)) {
+      return { shortName: item.shortName, fullName: univName, rank: i }
+    }
+  }
+  let short = univName.replace(/대학교|대학/g, '대').split('(')[0].trim()
+  if (!short.endsWith('대')) short += '대'
+  return { shortName: short, fullName: univName, rank: 900 }
+}
+
+const printDisplayList = computed(() => {
+  if (printViewMode.value === 'applied') {
+    const sorted = [...studentApplications.value].sort((a, b) => {
+      const metaA = getUnivMeta(a.univ)
+      const metaB = getUnivMeta(b.univ)
+      if (metaA.rank !== metaB.rank) return metaA.rank - metaB.rank
+      return (a.univ || '').localeCompare(b.univ || '', 'ko')
+    })
+
+    return sorted.map((app, idx) => {
+      const meta = getUnivMeta(app.univ)
+      const displayUniv = printUnivNameMode.value === 'short' ? meta.shortName : app.univ
+      return {
+        id: app.id || idx,
+        univOriginal: app.univ,
+        displayUniv,
+        displayMajor: app.major,
+        isApplied: true,
+        rank: meta.rank,
+        genQuota: app.gen_quota,
+        bacQuota: app.bac_quota,
+        memo: app.memo
+      }
+    })
+  } else {
+    const result = []
+    const appliedList = [...studentApplications.value]
+    const matchedAppIds = new Set()
+
+    TARGET_UNIV_ORDER_LIST.forEach((spec, sIdx) => {
+      const apps = appliedList.filter(a => spec.match((a.univ || '').replace(/\s+/g, '')))
+      if (apps.length > 0) {
+        apps.forEach(app => {
+          matchedAppIds.add(app.id)
+          const displayUniv = printUnivNameMode.value === 'short' ? spec.shortName : app.univ
+          result.push({
+            id: app.id,
+            univOriginal: app.univ,
+            displayUniv,
+            displayMajor: app.major,
+            isApplied: true,
+            rank: sIdx,
+            genQuota: app.gen_quota,
+            bacQuota: app.bac_quota,
+            memo: app.memo
+          })
+        })
+      } else {
+        const displayUniv = printUnivNameMode.value === 'short' ? spec.shortName : spec.fullName
+        result.push({
+          id: `empty-${spec.shortName}`,
+          univOriginal: spec.fullName,
+          displayUniv,
+          displayMajor: '-',
+          isApplied: false,
+          rank: sIdx,
+          genQuota: null,
+          bacQuota: null,
+          memo: ''
+        })
+      }
+    })
+
+    appliedList.filter(a => !matchedAppIds.has(a.id)).forEach((app, idx) => {
+      const meta = getUnivMeta(app.univ)
+      const displayUniv = printUnivNameMode.value === 'short' ? meta.shortName : app.univ
+      result.push({
+        id: app.id || `extra-${idx}`,
+        univOriginal: app.univ,
+        displayUniv,
+        displayMajor: app.major,
+        isApplied: true,
+        rank: 900 + idx,
+        genQuota: app.gen_quota,
+        bacQuota: app.bac_quota,
+        memo: app.memo
+      })
+    })
+
+    return result
+  }
+})
 
 const filteredUnivListTab1 = computed(() => {
   const kw = univSearchKeyword.value.trim().toLowerCase()
@@ -1859,6 +2209,276 @@ function getUnivExamSummary(univ) {
     }
     return str
   }).slice(0, 2).join(' / ')
+}
+
+/* =====================================================================
+   🖨️ 지원 대학:학과 상담표 인쇄 및 PNG 이미지 생성 로직
+   ===================================================================== */
+function openPrintModal() {
+  if (!selectedStudent.value) {
+    alert('학생을 먼저 선택해 주세요.')
+    return
+  }
+  if (studentApplications.value.length === 0) {
+    alert('지원 담긴 대학이 없습니다. 먼저 대학과 학과를 담아주세요.')
+    return
+  }
+  copySlipSuccess.value = ''
+  showPrintSlipModal.value = true
+}
+
+function closePrintModal() {
+  showPrintSlipModal.value = false
+}
+
+function drawSlipToCanvas() {
+  const items = printDisplayList.value
+  if (!items || items.length === 0) return null
+
+  const scale = 2
+  const width = 720
+  const rowH = 42
+  const headerH = 135
+  const footerH = 55
+  const height = headerH + items.length * rowH + footerH
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width * scale
+  canvas.height = height * scale
+  const ctx = canvas.getContext('2d')
+  ctx.scale(scale, scale)
+
+  // 1. 전체 배경
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+
+  // 상단 로열 블루 악센트 바
+  const grad = ctx.createLinearGradient(0, 0, width, 0)
+  grad.addColorStop(0, '#1d4ed8')
+  grad.addColorStop(1, '#3b82f6')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, width, 6)
+
+  // 2. 카테고리 태그 및 출력일
+  ctx.fillStyle = '#eff6ff'
+  if (ctx.roundRect) {
+    ctx.beginPath()
+    ctx.roundRect(40, 22, 130, 22, 4)
+    ctx.fill()
+  } else {
+    ctx.fillRect(40, 22, 130, 22)
+  }
+  ctx.fillStyle = '#1d4ed8'
+  ctx.font = 'bold 11px Pretendard, "Malgun Gothic", sans-serif'
+  ctx.fillText('2026 편입 지원 상담표', 48, 37)
+
+  ctx.fillStyle = '#94a3b8'
+  ctx.font = '12px Pretendard, "Malgun Gothic", sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText(`출력일자: ${todayFormattedStr.value}`, width - 40, 37)
+  ctx.textAlign = 'left'
+
+  // 3. 타이틀
+  ctx.fillStyle = '#0f172a'
+  ctx.font = 'bold 22px Pretendard, "Malgun Gothic", sans-serif'
+  ctx.fillText('지원 대학 · 학과 리스트', 40, 72)
+
+  // 4. 학생 정보 메타 요약 줄
+  ctx.fillStyle = '#475569'
+  ctx.font = '13.5px Pretendard, "Malgun Gothic", sans-serif'
+  ctx.fillText('학생명: ', 40, 98)
+  ctx.fillStyle = '#0f172a'
+  ctx.font = 'bold 14px Pretendard, "Malgun Gothic", sans-serif'
+  ctx.fillText(`${selectedStudent.value} 학생`, 85, 98)
+
+  ctx.fillStyle = '#cbd5e1'
+  ctx.font = '13px Pretendard, "Malgun Gothic", sans-serif'
+  ctx.fillText('|', 165, 98)
+
+  ctx.fillStyle = '#475569'
+  ctx.font = '13.5px Pretendard, "Malgun Gothic", sans-serif'
+  ctx.fillText('지원 대학: ', 180, 98)
+  ctx.fillStyle = '#2563eb'
+  ctx.font = 'bold 14px Pretendard, "Malgun Gothic", sans-serif'
+  ctx.fillText(`총 ${studentApplications.value.length}개교`, 245, 98)
+
+  if (studentProfile.value && studentProfile.value.pref_major_1) {
+    ctx.fillStyle = '#cbd5e1'
+    ctx.font = '13px Pretendard, "Malgun Gothic", sans-serif'
+    ctx.fillText('|', 320, 98)
+    ctx.fillStyle = '#475569'
+    ctx.font = '13.5px Pretendard, "Malgun Gothic", sans-serif'
+    ctx.fillText('1순위 희망: ', 335, 98)
+    ctx.fillStyle = '#1e293b'
+    ctx.font = 'bold 13.5px Pretendard, "Malgun Gothic", sans-serif'
+    ctx.fillText(`${studentProfile.value.pref_major_1}`, 405, 98)
+  }
+
+  // 구분선
+  ctx.strokeStyle = '#e2e8f0'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(40, 112)
+  ctx.lineTo(width - 40, 112)
+  ctx.stroke()
+
+  // 5. 테이블 헤더
+  const tableX = 40
+  const tableW = width - 80
+  const headY = 120
+  const headH = 28
+  ctx.fillStyle = '#f1f5f9'
+  ctx.fillRect(tableX, headY, tableW, headH)
+  ctx.strokeStyle = '#cbd5e1'
+  ctx.strokeRect(tableX, headY, tableW, headH)
+
+  ctx.fillStyle = '#475569'
+  ctx.font = 'bold 12px Pretendard, "Malgun Gothic", sans-serif'
+  ctx.fillText('No.', tableX + 12, headY + 19)
+  ctx.fillText('지원 학교', tableX + 50, headY + 19)
+  ctx.fillText(':', tableX + 172, headY + 19)
+  ctx.fillText('지원 학과', tableX + 192, headY + 19)
+  if (printIncludeQuota.value) {
+    ctx.fillText('선발인원 / 전형', tableX + 510, headY + 19)
+  }
+
+  // 6. 테이블 행 (Rows)
+  const startRowY = headY + headH
+  items.forEach((item, idx) => {
+    const rY = startRowY + idx * rowH
+    // 교차 배경
+    if (idx % 2 === 1) {
+      ctx.fillStyle = '#f8fafc'
+      ctx.fillRect(tableX, rY, tableW, rowH)
+    }
+
+    // 하단 구분선
+    ctx.strokeStyle = '#f1f5f9'
+    ctx.beginPath()
+    ctx.moveTo(tableX, rY + rowH)
+    ctx.lineTo(tableX + tableW, rY + rowH)
+    ctx.stroke()
+
+    // No.
+    ctx.fillStyle = item.isApplied ? '#64748b' : '#cbd5e1'
+    ctx.font = '600 12px Pretendard, "Malgun Gothic", sans-serif'
+    ctx.fillText(String(idx + 1).padStart(2, '0'), tableX + 12, rY + 26)
+
+    // 학교
+    ctx.fillStyle = item.isApplied ? '#0f172a' : '#94a3b8'
+    ctx.font = item.isApplied ? 'bold 14px Pretendard, "Malgun Gothic", sans-serif' : '13px Pretendard, "Malgun Gothic", sans-serif'
+    ctx.fillText(item.displayUniv, tableX + 50, rY + 26)
+
+    // 콜론 :
+    ctx.fillStyle = '#cbd5e1'
+    ctx.font = 'bold 13px Pretendard, "Malgun Gothic", sans-serif'
+    ctx.fillText(':', tableX + 172, rY + 26)
+
+    // 학과
+    ctx.fillStyle = item.isApplied ? '#1d4ed8' : '#cbd5e1'
+    ctx.font = item.isApplied ? 'bold 14px Pretendard, "Malgun Gothic", sans-serif' : '13px Pretendard, "Malgun Gothic", sans-serif'
+    ctx.fillText(item.displayMajor, tableX + 192, rY + 26)
+
+    // 정원 / 전형 정보
+    if (printIncludeQuota.value) {
+      ctx.fillStyle = item.isApplied ? '#64748b' : '#cbd5e1'
+      ctx.font = '11.5px Pretendard, "Malgun Gothic", sans-serif'
+      let quotaText = '-'
+      if (item.isApplied && (item.genQuota !== null || item.bacQuota !== null)) {
+        quotaText = `일반 ${item.genQuota || 0} / 학사 ${item.bacQuota || 0}`
+      } else if (item.isApplied && item.memo) {
+        quotaText = item.memo
+      }
+      ctx.fillText(quotaText, tableX + 510, rY + 26)
+    }
+  })
+
+  // 테이블 외곽 테두리
+  ctx.strokeStyle = '#cbd5e1'
+  ctx.lineWidth = 1
+  ctx.strokeRect(tableX, headY, tableW, headH + items.length * rowH)
+
+  // 7. 하단 안내 문구
+  const footY = height - 22
+  ctx.fillStyle = '#94a3b8'
+  ctx.font = '11px Pretendard, "Malgun Gothic", sans-serif'
+  ctx.fillText('※ 원서 접수 시 대학별 공식 모집요강 및 전형 일정을 반드시 재확인하시기 바랍니다.', 40, footY)
+
+  return canvas
+}
+
+function downloadSlipAsPNG() {
+  const canvas = drawSlipToCanvas()
+  if (!canvas) return
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const link = document.createElement('a')
+  link.download = `${selectedStudent.value}_2026편입지원_${dateStr}.png`
+  link.href = canvas.toDataURL('image/png')
+  link.click()
+}
+
+async function copySlipToClipboard() {
+  const canvas = drawSlipToCanvas()
+  if (!canvas) return
+  try {
+    canvas.toBlob(async blob => {
+      if (!blob) return
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ])
+        copySlipSuccess.value = '이미지가 클립보드에 복사되었습니다! (Ctrl+V로 카톡/문서에 붙여넣기)'
+      } catch (clipErr) {
+        downloadSlipAsPNG()
+        copySlipSuccess.value = '클립보드 보안 제한으로 인해 PNG 파일로 자동 다운로드되었습니다.'
+      }
+      if (copySlipTimer) clearTimeout(copySlipTimer)
+      copySlipTimer = setTimeout(() => {
+        copySlipSuccess.value = ''
+      }, 3500)
+    }, 'image/png')
+  } catch (err) {
+    downloadSlipAsPNG()
+  }
+}
+
+async function copyTextList() {
+  const items = printDisplayList.value
+  if (!items || items.length === 0) return
+  const todayStr = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+  const lines = [
+    `[2026학년도 편입 지원 대학 · 학과 리스트]`,
+    `학생명: ${selectedStudent.value} (총 ${studentApplications.value.length}개교 지원)`,
+    `출력일자: ${todayStr}`,
+    '----------------------------------------'
+  ]
+  items.forEach((item, idx) => {
+    const num = String(idx + 1).padStart(2, '0')
+    let quota = ''
+    if (printIncludeQuota.value) {
+      if (item.isApplied && (item.genQuota !== null || item.bacQuota !== null)) {
+        quota = ` (일반 ${item.genQuota || 0} / 학사 ${item.bacQuota || 0})`
+      } else if (item.isApplied && item.memo) {
+        quota = ` (${item.memo})`
+      }
+    }
+    lines.push(`${num}. ${item.displayUniv} : ${item.displayMajor}${quota}`)
+  })
+  lines.push('----------------------------------------')
+  try {
+    await navigator.clipboard.writeText(lines.join('\n'))
+    copySlipSuccess.value = '텍스트가 복사되었습니다! (카카오톡에 바로 붙여넣기 가능)'
+    if (copySlipTimer) clearTimeout(copySlipTimer)
+    copySlipTimer = setTimeout(() => {
+      copySlipSuccess.value = ''
+    }, 3500)
+  } catch (err) {
+    console.error('클립보드 텍스트 복사 실패:', err)
+  }
+}
+
+function printSlip() {
+  window.print()
 }
 
 onMounted(async () => {
@@ -3830,6 +4450,478 @@ onMounted(async () => {
 .modal-footer { padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
 .btn-cancel { padding: 7px 14px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; font-size: 13px; cursor: pointer; }
 .btn-submit { padding: 7px 16px; border: none; background: #2563eb; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* =====================================================================
+   🖨️ 지원 대학 · 학과 리스트 출력 및 PNG 모달 스타일
+   ===================================================================== */
+.panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-open-print-modal {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+.btn-open-print-modal:hover:not(:disabled) {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+}
+.btn-open-print-modal:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f1f5f9;
+  color: #94a3b8;
+  border-color: #cbd5e1;
+}
+
+.app-cards-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.app-cards-subtitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+.btn-print-mini-action {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  background: #f8fafc;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-print-mini-action:hover {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+/* 출력 모달 크기 & 구조 */
+.slip-modal-box {
+  max-width: 840px !important;
+  width: 95% !important;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.slip-modal-header {
+  padding: 14px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.slip-modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.slip-header-icon {
+  font-size: 24px;
+}
+.slip-modal-title-wrap h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.slip-header-sub {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* 툴바 */
+.slip-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.toolbar-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+}
+.toolbar-toggle-btns {
+  display: inline-flex;
+  background: #e2e8f0;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+.toolbar-toggle-btns .toggle-btn {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.toolbar-toggle-btns .toggle-btn.active {
+  background: #ffffff;
+  color: #1e293b;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.toolbar-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.slip-modal-body {
+  padding: 18px 20px;
+  overflow-y: auto;
+  flex: 1;
+  background: #f1f5f9;
+}
+
+.copy-success-alert {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+/* 실제 인쇄용 상담표 시트 (Canvas 및 브라우저 인쇄 대상) */
+.slip-print-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.print-slip-sheet {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 24px 26px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 720px;
+  box-sizing: border-box;
+}
+
+.slip-header {
+  margin-bottom: 10px;
+}
+.slip-top-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.slip-category-pill {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #bfdbfe;
+}
+.slip-today-date {
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+.slip-sheet-title {
+  font-size: 21px;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0 0 10px 0;
+  letter-spacing: -0.4px;
+}
+
+.slip-meta-cards {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  flex-wrap: wrap;
+}
+.slip-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+.slip-meta-item .lbl {
+  color: #64748b;
+  font-weight: 600;
+}
+.slip-meta-item .val {
+  color: #0f172a;
+  font-weight: 800;
+}
+.slip-meta-item .val.count {
+  color: #2563eb;
+}
+
+.slip-order-guide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.slip-order-guide .guide-badge {
+  font-size: 10px;
+  font-weight: 800;
+  background: #7e22ce;
+  color: #ffffff;
+  padding: 1.5px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.slip-order-guide .guide-text {
+  font-size: 11px;
+  color: #6b21a8;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 표 스타일 */
+.slip-table-wrap {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.slip-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.slip-table th {
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 800;
+  padding: 8px 10px;
+  border-bottom: 1px solid #cbd5e1;
+  text-align: left;
+}
+.slip-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+.th-num, .td-num {
+  width: 44px;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 12px;
+}
+.th-univ, .td-univ {
+  width: 130px;
+  white-space: nowrap;
+}
+.td-univ strong {
+  font-size: 13.5px;
+  color: #0f172a;
+  font-weight: 800;
+}
+.th-sep, .td-sep {
+  width: 16px;
+  text-align: center;
+  color: #cbd5e1;
+  font-weight: 700;
+}
+.th-major, .td-major {
+  font-size: 13.5px;
+}
+.major-name.applied-txt {
+  font-weight: 800;
+  color: #1d4ed8;
+}
+.major-name.unapplied-txt {
+  color: #cbd5e1;
+  font-style: italic;
+}
+.th-quota, .td-quota {
+  width: 150px;
+  text-align: right;
+  font-size: 11.5px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.slip-row:nth-child(even) {
+  background: #fafbfc;
+}
+.slip-row:hover {
+  background: #eff6ff;
+}
+.slip-row.row-empty .td-univ strong {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.slip-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 8px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+.slip-footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.slip-footer-brand {
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+/* 모달 하단 버튼 액션 */
+.slip-modal-footer {
+  padding: 12px 20px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.footer-left-info .info-tip {
+  font-size: 11.5px;
+  color: #64748b;
+}
+.footer-right-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.btn-slip-action {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-slip-action:hover:not(.primary) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.btn-slip-action.primary {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+.btn-slip-action.primary:hover {
+  background: #1d4ed8;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+/* 브라우저 인쇄 모드 (@media print) */
+@media print {
+  body {
+    background: #ffffff !important;
+  }
+  .strategy-container,
+  .modal-header,
+  .slip-modal-toolbar,
+  .slip-modal-footer,
+  .close-btn {
+    display: none !important;
+  }
+  .slip-modal-backdrop {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+  .slip-modal-box {
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  .slip-modal-body {
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+  .slip-print-container {
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  .print-slip-sheet {
+    box-shadow: none !important;
+    border: 1px solid #94a3b8 !important;
+    max-width: 100% !important;
+    padding: 10mm 15mm !important;
+  }
+}
 
 /* ========================================================
    📱 원서 지원 관리 모바일 완벽 대응 (768px 이하)
