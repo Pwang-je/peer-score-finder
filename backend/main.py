@@ -1397,7 +1397,7 @@ def get_quota_departments(univ: str = "가천대학교"):
             "bac": d_bac,
             "applicants": dept_apps,
             "past_admissions": dept_past,
-            "is_closed": False
+            "is_closed": bool((d_gen is None or d_gen == 0) and (d_bac is None or d_bac == 0))
         })
 
     # 5) 현행 모집요강(recruit_quota)에 매칭되지 않은 과거 학과(미모집/개편 학과) 추출

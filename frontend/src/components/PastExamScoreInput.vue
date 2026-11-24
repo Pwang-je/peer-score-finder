@@ -178,7 +178,7 @@
                     max="200"
                     v-model.number="row.eng_score"
                     @input="onRowInput(row)"
-                    placeholder="점수"
+                    placeholder=""
                     class="score-input eng-input"
                   />
                   <span class="unit-text">점</span>
@@ -195,7 +195,7 @@
                     max="200"
                     v-model.number="row.math_score"
                     @input="onRowInput(row)"
-                    placeholder="점수"
+                    placeholder=""
                     class="score-input math-input"
                   />
                   <span class="unit-text">점</span>
@@ -213,7 +213,7 @@
                       max="300"
                       v-model.number="row.both_score"
                       @input="onRowInput(row)"
-                      placeholder="총점"
+                      placeholder=""
                       class="score-input both-input"
                     />
                     <span class="unit-text">점</span>
