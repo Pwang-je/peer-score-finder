@@ -1140,7 +1140,7 @@ function getSessionColorClass(session) {
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 160ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)), background-color 150ms ease, border-color 150ms ease, color 150ms ease;
   white-space: nowrap;
   position: relative;
   min-width: 120px;
@@ -1149,6 +1149,10 @@ function getSessionColorClass(session) {
 .tier-tab-btn:hover {
   background: #f8fafc;
   border-color: #94a3b8;
+}
+
+.tier-tab-btn:active {
+  transform: scale(0.97);
 }
 
 .tier-tab-btn.active {
@@ -1218,12 +1222,16 @@ function getSessionColorClass(session) {
   font-weight: 700;
   color: #334155;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 160ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)), background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
 .univ-chip-btn:hover {
   background: #f1f5f9;
   border-color: #94a3b8;
+}
+
+.univ-chip-btn:active {
+  transform: scale(0.97);
 }
 
 .univ-chip-btn.active {
@@ -1365,13 +1373,17 @@ function getSessionColorClass(session) {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 160ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)), background-color 150ms ease, box-shadow 150ms ease;
   box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
 .btn-save-all:hover:not(:disabled) {
   background: #1d4ed8;
   transform: translateY(-1px);
+}
+
+.btn-save-all:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btn-save-all:disabled {

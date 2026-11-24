@@ -3772,12 +3772,20 @@ onMounted(async () => {
   border: 1.5px solid #e2e8f0;
   border-radius: 8px;
   box-sizing: border-box;
-  transition: all 0.15s ease;
+  transition: transform 160ms var(--ease-out, ease-out), border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
 }
-.past-exam-tile:hover {
-  background: #ffffff;
-  border-color: #93c5fd;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+
+@media (hover: hover) and (pointer: fine) {
+  .past-exam-tile:hover {
+    background: #ffffff;
+    border-color: #93c5fd;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.08);
+  }
+}
+
+.past-exam-tile:active {
+  transform: scale(0.98);
 }
 
 .tile-top-row {
