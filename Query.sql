@@ -14,6 +14,19 @@ SET major = '반도체물리학과'
 WHERE year < 2026 AND univ = '가천대학교' AND major = '물리학과';
 
 
+# 전공변경
+# UPDATE peer_data
+# SET major = '바꿀전공'
+# WHERE univ = '대학'
+#   AND major = '이전전공';
+
+
+UPDATE peer_data
+SET major = '컴퓨터공학전공'
+WHERE univ = '가천대학교'
+  AND major = '컴퓨터공학과';
+
+
 # 특정 대학과 학과의 과거 합격생 정상 등록 여부 확인
 SELECT year, month, student_name, univ, major, total_score, math_total
 FROM peer_data
@@ -352,3 +365,44 @@ VALUES
   (2026, '건국대학교(서울)', '인문', '일어교육과', 0, 0);
 
 select peer_data.student_name, peer_data.major, peer_data.year from peer_data where major = '건축학부';
+
+-- 1) 과거 합격생 학과명을 2027 현행 모집단위명('전공')으로 변경
+UPDATE peer_data
+SET major = '시스템생명공학전공'
+WHERE univ = '건국대학교(서울)'
+  AND major = '시스템생명공학과';
+
+UPDATE peer_data
+SET major = '융합생명공학전공'
+WHERE univ = '건국대학교(서울)'
+  AND major = '융합생명공학과';
+
+-- 2) 혹시 recruit_quota에 구 학과명(0/0)으로 들어간 행이 있다면 정리
+DELETE FROM recruit_quota
+WHERE year = 2026
+  AND univ = '건국대학교(서울)'
+  AND major IN ('시스템생명공학과', '융합생명공학과');
+
+-- 1) 과거 합격생 학과명을 2027 현행 모집단위명('컴퓨터공학과')으로 변경
+UPDATE peer_data
+SET major = '컴퓨터공학과'
+WHERE univ = '가천대학교'
+  AND major = '컴퓨터공학전공';
+
+-- 2) recruit_quota에 구 학과명(0/0)으로 등록된 행이 있다면 정리
+DELETE FROM recruit_quota
+WHERE year = 2026
+  AND univ = '가천대학교'
+  AND major = '컴퓨터공학전공';
+
+
+-- (선택) 설비·소방학과 -> 설비·소방공학전공 통합
+UPDATE peer_data
+SET major = '설비·소방공학전공'
+WHERE univ = '가천대학교'
+  AND major = '설비·소방공학과';
+
+DELETE FROM recruit_quota
+WHERE year = 2026
+  AND univ = '가천대학교'
+  AND major = '설비·소방공학과';

@@ -182,7 +182,7 @@
                 :class="['toggle-btn', { active: printViewMode === 'all25' }]"
                 @click="printViewMode = 'all25'"
               >
-                25개 대학 전체 양식
+                주요 대학 전체 양식 ({{ TARGET_UNIV_ORDER_LIST.length }}개교)
               </button>
             </div>
           </div>
@@ -1239,7 +1239,7 @@
 
           <div v-else class="application-cards">
             <div
-              v-for="(app, idx) in studentApplications"
+              v-for="(app, idx) in sortedStudentApplications"
               :key="app.id"
               class="app-card"
             >
@@ -1437,33 +1437,45 @@ const todayFormattedStr = computed(() => {
   return `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`
 })
 
-// 25개 목표 대학 순서 정의 (서강대학교 ~ 서울여자대학교 순)
+// 목표 대학 순서 정의 (서성한 중경외시 건동홍 국숭세단 광명상가 인가경 여대 한성 항공 순)
 const TARGET_UNIV_ORDER_LIST = [
+  // 1. 서성한
   { name: '서강대학교', match: u => u.includes('서강') },
   { name: '성균관대학교', match: u => u.includes('성균관') },
   { name: '한양대학교', match: u => u.includes('한양') },
+  // 2. 중경외시
   { name: '중앙대학교', match: u => u.includes('중앙') },
   { name: '경희대학교', match: u => u.includes('경희') },
   { name: '한국외국어대학교', match: u => u.includes('한국외') || u.includes('외국어') },
   { name: '서울시립대학교', match: u => u.includes('시립') },
+  // 3. 건동홍
   { name: '건국대학교', match: u => u.includes('건국') },
   { name: '동국대학교', match: u => u.includes('동국') },
   { name: '홍익대학교', match: u => u.includes('홍익') },
+  // 4. 국숭세단
   { name: '국민대학교', match: u => u.includes('국민') },
   { name: '숭실대학교', match: u => u.includes('숭실') },
   { name: '세종대학교', match: u => u.includes('세종') },
   { name: '단국대학교', match: u => u.includes('단국') },
+  // 5. 광명상가
   { name: '광운대학교', match: u => u.includes('광운') },
   { name: '명지대학교', match: u => u.includes('명지') },
-  { name: '가천대학교', match: u => u.includes('가천') },
-  { name: '인하대학교', match: u => u.includes('인하') },
+  { name: '상명대학교', match: u => u.includes('상명') },
   { name: '가톨릭대학교', match: u => u.includes('가톨릭') },
+  // 6. 인가경
+  { name: '인하대학교', match: u => u.includes('인하') },
+  { name: '인천대학교', match: u => u.includes('인천') },
+  { name: '가천대학교', match: u => u.includes('가천') },
   { name: '경기대학교', match: u => u.includes('경기') },
+  // 7. 여대 라인 (이대, 숙대, 동덕여대, 덕성여대, 서울여대)
   { name: '이화여자대학교', match: u => u.includes('이화') },
   { name: '숙명여자대학교', match: u => u.includes('숙명') },
   { name: '동덕여자대학교', match: u => u.includes('동덕') },
   { name: '덕성여자대학교', match: u => u.includes('덕성') },
-  { name: '서울여자대학교', match: u => u.includes('서울여') || (u.includes('서울') && u.includes('여자')) }
+  { name: '서울여자대학교', match: u => u.includes('서울여') || (u.includes('서울') && u.includes('여자')) },
+  // 8. 한성, 항공
+  { name: '한성대학교', match: u => u.includes('한성') },
+  { name: '한국항공대학교', match: u => u.includes('항공') }
 ]
 
 function getUnivMeta(univName) {
@@ -1478,16 +1490,19 @@ function getUnivMeta(univName) {
   return { name: univName, rank: 900 }
 }
 
+// 담긴 원서 목록 정렬 (서성한 중경외시 건동홍 국숭세단 광명상가 인가경 여대 한성 항공 순)
+const sortedStudentApplications = computed(() => {
+  return [...studentApplications.value].sort((a, b) => {
+    const metaA = getUnivMeta(a.univ)
+    const metaB = getUnivMeta(b.univ)
+    if (metaA.rank !== metaB.rank) return metaA.rank - metaB.rank
+    return (a.univ || '').localeCompare(b.univ || '', 'ko')
+  })
+})
+
 const printDisplayList = computed(() => {
   if (printViewMode.value === 'applied') {
-    const sorted = [...studentApplications.value].sort((a, b) => {
-      const metaA = getUnivMeta(a.univ)
-      const metaB = getUnivMeta(b.univ)
-      if (metaA.rank !== metaB.rank) return metaA.rank - metaB.rank
-      return (a.univ || '').localeCompare(b.univ || '', 'ko')
-    })
-
-    return sorted.map((app, idx) => {
+    return sortedStudentApplications.value.map((app, idx) => {
       const meta = getUnivMeta(app.univ)
       return {
         id: app.id || idx,
