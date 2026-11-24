@@ -186,33 +186,6 @@
               </button>
             </div>
           </div>
-
-          <div class="toolbar-group">
-            <label class="toolbar-label">대학 표기:</label>
-            <div class="toolbar-toggle-btns">
-              <button
-                type="button"
-                :class="['toggle-btn', { active: printUnivNameMode === 'short' }]"
-                @click="printUnivNameMode = 'short'"
-              >
-                약칭 (예: 서강대)
-              </button>
-              <button
-                type="button"
-                :class="['toggle-btn', { active: printUnivNameMode === 'full' }]"
-                @click="printUnivNameMode = 'full'"
-              >
-                정식 명칭
-              </button>
-            </div>
-          </div>
-
-          <div class="toolbar-group">
-            <label class="toolbar-checkbox">
-              <input type="checkbox" v-model="printIncludeQuota" />
-              <span>전형/정원 표시</span>
-            </label>
-          </div>
         </div>
 
         <div class="modal-body slip-modal-body">
@@ -251,12 +224,6 @@
                 </div>
               </div>
 
-              <!-- 순서 안내 띠 -->
-              <div class="slip-order-guide">
-                <span class="guide-badge">대학 순위 정렬</span>
-                <span class="guide-text">서강대 → 성균관대 → 한양대 → 중앙대 → 경희대 → 외대 → 시립대 → 건국대 → 동국대 → 홍익대 → 국숭세단 → 광명가인가경 → 여대 라인 순</span>
-              </div>
-
               <!-- 지원 대학 : 지원 학과 리스트 테이블 -->
               <div class="slip-table-wrap">
                 <table class="slip-table">
@@ -266,7 +233,6 @@
                       <th class="th-univ">지원 학교</th>
                       <th class="th-sep"></th>
                       <th class="th-major">지원 학과</th>
-                      <th v-if="printIncludeQuota" class="th-quota">선발인원 / 전형</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -284,15 +250,6 @@
                         <span :class="['major-name', { 'applied-txt': row.isApplied, 'unapplied-txt': !row.isApplied }]">
                           {{ row.displayMajor }}
                         </span>
-                      </td>
-                      <td v-if="printIncludeQuota" class="td-quota">
-                        <span v-if="row.isApplied && (row.genQuota !== null || row.bacQuota !== null)" class="quota-text">
-                          일반 {{ row.genQuota || 0 }} / 학사 {{ row.bacQuota || 0 }}
-                        </span>
-                        <span v-else-if="row.isApplied && row.memo" class="quota-text">
-                          {{ row.memo }}
-                        </span>
-                        <span v-else class="quota-text empty">-</span>
                       </td>
                     </tr>
                   </tbody>
@@ -511,6 +468,80 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- 🏛️ [신규] 현행 미모집 / 개편 과거 학과 (과거 합격생 이력 별도 접이식 테이블) -->
+      <div v-if="closedDepartments.length > 0" class="closed-depts-accordion">
+        <button
+          type="button"
+          class="closed-depts-toggle-header"
+          @click="isClosedTab1Open = !isClosedTab1Open"
+        >
+          <div class="toggle-left">
+            <span class="icon">🏛️</span>
+            <span class="title">현행 미선발 / 개편 과거 학과 (과거 합격생 이력)</span>
+            <span class="badge">{{ closedDepartments.length }}개 학과</span>
+          </div>
+          <div class="toggle-right">
+            <span class="hint">{{ isClosedTab1Open ? '접기' : '과거 합격생 이력 펼치기' }}</span>
+            <span class="arrow">{{ isClosedTab1Open ? '▲' : '▼' }}</span>
+          </div>
+        </button>
+
+        <div v-if="isClosedTab1Open" class="closed-depts-body">
+          <div class="closed-banner">
+            <span class="info-icon">💡</span>
+            <span>
+              현행 모집요강에서 분리·통합되거나 미선발된 과거 학과들입니다.
+              현행 모집단위와 분리되어 관리되며, 과거 합격생 성적 참고용으로 제공됩니다. (정원 없음 / 원서 접수 불가)
+            </span>
+          </div>
+
+          <div class="table-wrapper closed-table-wrapper">
+            <table class="quota-table closed-quota-table">
+              <thead>
+                <tr>
+                  <th style="width: 65px;" class="text-center">계열</th>
+                  <th style="width: 220px;">과거 모집단위 (학과명)</th>
+                  <th style="width: 90px;" class="text-center">모집 상태</th>
+                  <th style="min-width: 280px;">지난 합격생 이력 (합격년도 / 전형 / 성적)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="dept in closedDepartments" :key="dept.id" class="closed-row">
+                  <td class="text-center font-medium">{{ dept.dept }}</td>
+                  <td>
+                    <strong class="closed-major-title">{{ dept.major }}</strong>
+                    <span class="closed-status-pill">현행 미선발</span>
+                  </td>
+                  <td class="text-center text-muted">선발 없음</td>
+                  <td>
+                    <div v-if="!dept.past_admissions || dept.past_admissions.length === 0" class="empty-applicant">-</div>
+                    <div v-else class="past-tag-list">
+                      <div
+                        v-for="(past, pIdx) in dept.past_admissions"
+                        :key="pIdx"
+                        class="past-student-tag"
+                      >
+                        <span class="tag-year">{{ String(past.year).slice(-2) }}'</span>
+                        <span :class="['tag-type', past.type === '학사' ? 'tag-bac' : 'tag-gen']">
+                          {{ past.type }}
+                        </span>
+                        <span class="tag-name">{{ past.student_name }}</span>
+                        <span class="tag-score">
+                          <template v-if="past.eng && past.eng !== '-'">영{{ past.eng }}</template>
+                          <template v-if="past.eng && past.eng !== '-' && past.math && past.math !== '-' && Number(past.math) > 0"> / </template>
+                          <template v-if="past.math && past.math !== '-' && Number(past.math) > 0">수{{ past.math }}</template>
+                          <template v-if="(!past.eng || past.eng === '-') && (!past.math || past.math === '-' || Number(past.math) <= 0)">-</template>
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -949,6 +980,89 @@
               조건에 맞는 학과가 없습니다.
             </div>
           </div>
+
+          <!-- 🏛️ [신규] 현행 미선발 / 개편 과거 학과 (과거 합격생 조회용 접이식 영역) -->
+          <div v-if="closedFormMajors.length > 0" class="closed-form-accordion">
+            <button
+              type="button"
+              class="closed-form-toggle-btn"
+              @click="isClosedTab2Open = !isClosedTab2Open"
+            >
+              <div class="btn-left">
+                <span class="icon">🏛️</span>
+                <span class="title">현행 미선발 / 개편 학과 (과거 합격생 조회)</span>
+                <span class="closed-count-badge">{{ closedFormMajors.length }}개</span>
+              </div>
+              <div class="btn-right">
+                <span class="hint">{{ isClosedTab2Open ? '접기' : '펼치기' }}</span>
+                <span class="arrow">{{ isClosedTab2Open ? '▲' : '▼' }}</span>
+              </div>
+            </button>
+
+            <div v-if="isClosedTab2Open" class="closed-form-content">
+              <div class="closed-form-notice">
+                <span>💡 현행 모집요강 미선발 학과 (원서 담기 불가 · 과거 합격생 성적 참고용)</span>
+              </div>
+
+              <div class="closed-form-list">
+                <div
+                  v-for="d in closedFormMajors"
+                  :key="d.id"
+                  class="closed-major-item"
+                >
+                  <div class="closed-item-main" @click="toggleClosedDetail(d.id)">
+                    <div class="major-left">
+                      <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
+                      <strong class="major-title">{{ d.major }}</strong>
+                      <span class="closed-tag">미모집</span>
+                    </div>
+
+                    <div class="major-right">
+                      <span class="past-mini highlight">
+                        과거 합격 {{ d.past_admissions.length }}명
+                      </span>
+                      <span
+                        class="pick-status-btn disabled"
+                        title="현행 미선발 학과이므로 원서에 담을 수 없습니다"
+                        @click.stop="alertClosedDepartment"
+                      >
+                        담기 불가
+                      </span>
+                      <span class="detail-chevron">
+                        {{ selectedClosedDeptId === d.id ? '▲' : '▼' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- 클릭 시 합격생 리스트 상세 펼치기 -->
+                  <div v-if="selectedClosedDeptId === d.id" class="closed-past-detail-box">
+                    <div class="past-detail-header">
+                      <span>🏆 {{ d.major }} 과거 합격생 성적 이력 (총 {{ d.past_admissions.length }}명)</span>
+                    </div>
+                    <div class="past-tag-list in-detail">
+                      <div
+                        v-for="(past, pIdx) in d.past_admissions"
+                        :key="pIdx"
+                        class="past-student-tag"
+                      >
+                        <span class="tag-year">{{ String(past.year).slice(-2) }}'</span>
+                        <span :class="['tag-type', past.type === '학사' ? 'tag-bac' : 'tag-gen']">
+                          {{ past.type }}
+                        </span>
+                        <span class="tag-name">{{ past.student_name }}</span>
+                        <span class="tag-score">
+                          <template v-if="past.eng && past.eng !== '-'">영{{ past.eng }}</template>
+                          <template v-if="past.eng && past.eng !== '-' && past.math && past.math !== '-' && Number(past.math) > 0"> / </template>
+                          <template v-if="past.math && past.math !== '-' && Number(past.math) > 0">수{{ past.math }}</template>
+                          <template v-if="(!past.eng || past.eng === '-') && (!past.math || past.math === '-' || Number(past.math) <= 0)">-</template>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 우측 패널: 학생 지원 현황 & 특이사항 비고 & 성적 유사 선배 합격 진학 대학 -->
@@ -1314,9 +1428,7 @@ const isLoadingSimilar = ref(false)
 
 // 7. 지원 대학:학과 리스트 인쇄 / PNG 저장 상태
 const showPrintSlipModal = ref(false)
-const printUnivNameMode = ref('short') // 'short' (약칭: 서강대) | 'full' (정식 명칭)
 const printViewMode = ref('applied') // 'applied' (지원한 대학만) | 'all25' (25개 전체 양식)
-const printIncludeQuota = ref(true) // 선발인원/전형 표시 여부
 const copySlipSuccess = ref('')
 let copySlipTimer = null
 
@@ -1325,47 +1437,45 @@ const todayFormattedStr = computed(() => {
   return `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`
 })
 
-// 25개 목표 대학 순서 정의 (서강대 ~ 서울여대 순)
+// 25개 목표 대학 순서 정의 (서강대학교 ~ 서울여자대학교 순)
 const TARGET_UNIV_ORDER_LIST = [
-  { shortName: '서강대', fullName: '서강대학교', match: u => u.includes('서강') },
-  { shortName: '성균관대', fullName: '성균관대학교', match: u => u.includes('성균관') },
-  { shortName: '한양대', fullName: '한양대학교', match: u => u.includes('한양') },
-  { shortName: '중앙대', fullName: '중앙대학교', match: u => u.includes('중앙') },
-  { shortName: '경희대', fullName: '경희대학교', match: u => u.includes('경희') },
-  { shortName: '한국외대', fullName: '한국외국어대학교', match: u => u.includes('한국외') || u.includes('외국어') },
-  { shortName: '시립대', fullName: '서울시립대학교', match: u => u.includes('시립') },
-  { shortName: '건국대', fullName: '건국대학교', match: u => u.includes('건국') },
-  { shortName: '동국대', fullName: '동국대학교', match: u => u.includes('동국') },
-  { shortName: '홍익대', fullName: '홍익대학교', match: u => u.includes('홍익') },
-  { shortName: '국민대', fullName: '국민대학교', match: u => u.includes('국민') },
-  { shortName: '숭실대', fullName: '숭실대학교', match: u => u.includes('숭실') },
-  { shortName: '세종대', fullName: '세종대학교', match: u => u.includes('세종') },
-  { shortName: '단국대', fullName: '단국대학교', match: u => u.includes('단국') },
-  { shortName: '광운대', fullName: '광운대학교', match: u => u.includes('광운') },
-  { shortName: '명지대', fullName: '명지대학교', match: u => u.includes('명지') },
-  { shortName: '가천대', fullName: '가천대학교', match: u => u.includes('가천') },
-  { shortName: '인하대', fullName: '인하대학교', match: u => u.includes('인하') },
-  { shortName: '가톨릭대', fullName: '가톨릭대학교', match: u => u.includes('가톨릭') },
-  { shortName: '경기대', fullName: '경기대학교', match: u => u.includes('경기') },
-  { shortName: '이화여대', fullName: '이화여자대학교', match: u => u.includes('이화') },
-  { shortName: '숙명여대', fullName: '숙명여자대학교', match: u => u.includes('숙명') },
-  { shortName: '동덕여대', fullName: '동덕여자대학교', match: u => u.includes('동덕') },
-  { shortName: '덕성여대', fullName: '덕성여자대학교', match: u => u.includes('덕성') },
-  { shortName: '서울여대', fullName: '서울여자대학교', match: u => u.includes('서울여') || (u.includes('서울') && u.includes('여자')) }
+  { name: '서강대학교', match: u => u.includes('서강') },
+  { name: '성균관대학교', match: u => u.includes('성균관') },
+  { name: '한양대학교', match: u => u.includes('한양') },
+  { name: '중앙대학교', match: u => u.includes('중앙') },
+  { name: '경희대학교', match: u => u.includes('경희') },
+  { name: '한국외국어대학교', match: u => u.includes('한국외') || u.includes('외국어') },
+  { name: '서울시립대학교', match: u => u.includes('시립') },
+  { name: '건국대학교', match: u => u.includes('건국') },
+  { name: '동국대학교', match: u => u.includes('동국') },
+  { name: '홍익대학교', match: u => u.includes('홍익') },
+  { name: '국민대학교', match: u => u.includes('국민') },
+  { name: '숭실대학교', match: u => u.includes('숭실') },
+  { name: '세종대학교', match: u => u.includes('세종') },
+  { name: '단국대학교', match: u => u.includes('단국') },
+  { name: '광운대학교', match: u => u.includes('광운') },
+  { name: '명지대학교', match: u => u.includes('명지') },
+  { name: '가천대학교', match: u => u.includes('가천') },
+  { name: '인하대학교', match: u => u.includes('인하') },
+  { name: '가톨릭대학교', match: u => u.includes('가톨릭') },
+  { name: '경기대학교', match: u => u.includes('경기') },
+  { name: '이화여자대학교', match: u => u.includes('이화') },
+  { name: '숙명여자대학교', match: u => u.includes('숙명') },
+  { name: '동덕여자대학교', match: u => u.includes('동덕') },
+  { name: '덕성여자대학교', match: u => u.includes('덕성') },
+  { name: '서울여자대학교', match: u => u.includes('서울여') || (u.includes('서울') && u.includes('여자')) }
 ]
 
 function getUnivMeta(univName) {
-  if (!univName) return { shortName: '', fullName: '', rank: 999 }
+  if (!univName) return { name: '', rank: 999 }
   const clean = univName.replace(/\s+/g, '')
   for (let i = 0; i < TARGET_UNIV_ORDER_LIST.length; i++) {
     const item = TARGET_UNIV_ORDER_LIST[i]
     if (item.match(clean)) {
-      return { shortName: item.shortName, fullName: univName, rank: i }
+      return { name: item.name, rank: i }
     }
   }
-  let short = univName.replace(/대학교|대학/g, '대').split('(')[0].trim()
-  if (!short.endsWith('대')) short += '대'
-  return { shortName: short, fullName: univName, rank: 900 }
+  return { name: univName, rank: 900 }
 }
 
 const printDisplayList = computed(() => {
@@ -1379,17 +1489,12 @@ const printDisplayList = computed(() => {
 
     return sorted.map((app, idx) => {
       const meta = getUnivMeta(app.univ)
-      const displayUniv = printUnivNameMode.value === 'short' ? meta.shortName : app.univ
       return {
         id: app.id || idx,
-        univOriginal: app.univ,
-        displayUniv,
+        displayUniv: app.univ,
         displayMajor: app.major,
         isApplied: true,
-        rank: meta.rank,
-        genQuota: app.gen_quota,
-        bacQuota: app.bac_quota,
-        memo: app.memo
+        rank: meta.rank
       }
     })
   } else {
@@ -1402,48 +1507,33 @@ const printDisplayList = computed(() => {
       if (apps.length > 0) {
         apps.forEach(app => {
           matchedAppIds.add(app.id)
-          const displayUniv = printUnivNameMode.value === 'short' ? spec.shortName : app.univ
           result.push({
             id: app.id,
-            univOriginal: app.univ,
-            displayUniv,
+            displayUniv: app.univ,
             displayMajor: app.major,
             isApplied: true,
-            rank: sIdx,
-            genQuota: app.gen_quota,
-            bacQuota: app.bac_quota,
-            memo: app.memo
+            rank: sIdx
           })
         })
       } else {
-        const displayUniv = printUnivNameMode.value === 'short' ? spec.shortName : spec.fullName
         result.push({
-          id: `empty-${spec.shortName}`,
-          univOriginal: spec.fullName,
-          displayUniv,
+          id: `empty-${spec.name}`,
+          displayUniv: spec.name,
           displayMajor: '-',
           isApplied: false,
-          rank: sIdx,
-          genQuota: null,
-          bacQuota: null,
-          memo: ''
+          rank: sIdx
         })
       }
     })
 
     appliedList.filter(a => !matchedAppIds.has(a.id)).forEach((app, idx) => {
       const meta = getUnivMeta(app.univ)
-      const displayUniv = printUnivNameMode.value === 'short' ? meta.shortName : app.univ
       result.push({
         id: app.id || `extra-${idx}`,
-        univOriginal: app.univ,
-        displayUniv,
+        displayUniv: app.univ,
         displayMajor: app.major,
         isApplied: true,
-        rank: 900 + idx,
-        genQuota: app.gen_quota,
-        bacQuota: app.bac_quota,
-        memo: app.memo
+        rank: 900 + idx
       })
     })
 
@@ -1457,10 +1547,31 @@ const filteredUnivListTab1 = computed(() => {
   return univList.value.filter(u => u.toLowerCase().includes(kw))
 })
 
+// 미모집/개편 과거 학과 관련 상태
+const isClosedTab1Open = ref(false)
+const isClosedTab2Open = ref(false)
+const selectedClosedDeptId = ref(null)
+
+function toggleClosedDetail(id) {
+  selectedClosedDeptId.value = selectedClosedDeptId.value === id ? null : id
+}
+
+function alertClosedDepartment() {
+  alert('해당 학과는 이번 모집요강에서 선발하지 않는 과거 학과이므로 원서에 담을 수 없습니다.')
+}
+
+// Tab 1: 현행 모집 학과만 상단 테이블에 표시
+const activeDepartments = computed(() => {
+  return departmentRows.value.filter(d => !d.is_closed && (deptFilter.value === 'ALL' || d.dept === deptFilter.value))
+})
+
+// Tab 1: 미모집/개편 과거 학과 (하단 접이식 테이블)
+const closedDepartments = computed(() => {
+  return departmentRows.value.filter(d => d.is_closed && (deptFilter.value === 'ALL' || d.dept === deptFilter.value))
+})
+
 const filteredDepartments = computed(() => {
-  return departmentRows.value.filter(d => {
-    return deptFilter.value === 'ALL' || d.dept === deptFilter.value
-  })
+  return activeDepartments.value
 })
 
 const filteredStudentList = computed(() => {
@@ -1469,9 +1580,22 @@ const filteredStudentList = computed(() => {
   return studentList.value.filter(s => s.includes(kw))
 })
 
+// Tab 2: 현행 모집 학과만 탐색 및 담기 목록에 표시
 const filteredFormMajors = computed(() => {
   const kw = majorKeyword.value.trim().toLowerCase()
   return formMajorList.value.filter(d => {
+    if (d.is_closed) return false
+    const matchDept = formDeptFilter.value === 'ALL' || d.dept === formDeptFilter.value
+    const matchKw = !kw || d.major.toLowerCase().includes(kw)
+    return matchDept && matchKw
+  })
+})
+
+// Tab 2: 미모집/개편 과거 학과 (과거 합격생 조회용 하단 접이식 목록)
+const closedFormMajors = computed(() => {
+  const kw = majorKeyword.value.trim().toLowerCase()
+  return formMajorList.value.filter(d => {
+    if (!d.is_closed) return false
     const matchDept = formDeptFilter.value === 'ALL' || d.dept === formDeptFilter.value
     const matchKw = !kw || d.major.toLowerCase().includes(kw)
     return matchDept && matchKw
@@ -1919,6 +2043,7 @@ async function fetchUnivDepartments(force = false) {
 async function selectFormUniv(univ) {
   formUniv.value = univ
   majorKeyword.value = ''
+  selectedClosedDeptId.value = null
   await fetchFormMajors()
   nextTick(() => {
     if (majorSearchInput.value) majorSearchInput.value.focus()
@@ -1950,6 +2075,10 @@ async function fetchStudentApplications() {
 }
 
 async function toggleApplication(deptItem) {
+  if (deptItem.is_closed) {
+    alert('해당 학과는 이번 모집요강에서 선발하지 않는 과거 학과이므로 원서에 담을 수 없습니다.')
+    return
+  }
   if (isSavingApp.value || !selectedStudent.value) return
 
   const existing = studentApplications.value.find(
@@ -2236,10 +2365,10 @@ function drawSlipToCanvas() {
   if (!items || items.length === 0) return null
 
   const scale = 2
-  const width = 720
-  const rowH = 42
+  const width = 640
+  const rowH = 38
   const headerH = 135
-  const footerH = 55
+  const footerH = 50
   const height = headerH + items.length * rowH + footerH
 
   const canvas = document.createElement('canvas')
@@ -2334,13 +2463,10 @@ function drawSlipToCanvas() {
 
   ctx.fillStyle = '#475569'
   ctx.font = 'bold 12px Pretendard, "Malgun Gothic", sans-serif'
-  ctx.fillText('No.', tableX + 12, headY + 19)
-  ctx.fillText('지원 학교', tableX + 50, headY + 19)
-  ctx.fillText(':', tableX + 172, headY + 19)
-  ctx.fillText('지원 학과', tableX + 192, headY + 19)
-  if (printIncludeQuota.value) {
-    ctx.fillText('선발인원 / 전형', tableX + 510, headY + 19)
-  }
+  ctx.fillText('No.', tableX + 14, headY + 19)
+  ctx.fillText('지원 학교', tableX + 54, headY + 19)
+  ctx.fillText(':', tableX + 215, headY + 19)
+  ctx.fillText('지원 학과', tableX + 235, headY + 19)
 
   // 6. 테이블 행 (Rows)
   const startRowY = headY + headH
@@ -2362,35 +2488,22 @@ function drawSlipToCanvas() {
     // No.
     ctx.fillStyle = item.isApplied ? '#64748b' : '#cbd5e1'
     ctx.font = '600 12px Pretendard, "Malgun Gothic", sans-serif'
-    ctx.fillText(String(idx + 1).padStart(2, '0'), tableX + 12, rY + 26)
+    ctx.fillText(String(idx + 1).padStart(2, '0'), tableX + 14, rY + 24)
 
     // 학교
     ctx.fillStyle = item.isApplied ? '#0f172a' : '#94a3b8'
-    ctx.font = item.isApplied ? 'bold 14px Pretendard, "Malgun Gothic", sans-serif' : '13px Pretendard, "Malgun Gothic", sans-serif'
-    ctx.fillText(item.displayUniv, tableX + 50, rY + 26)
+    ctx.font = item.isApplied ? 'bold 13.5px Pretendard, "Malgun Gothic", sans-serif' : '13px Pretendard, "Malgun Gothic", sans-serif'
+    ctx.fillText(item.displayUniv, tableX + 54, rY + 24)
 
     // 콜론 :
     ctx.fillStyle = '#cbd5e1'
     ctx.font = 'bold 13px Pretendard, "Malgun Gothic", sans-serif'
-    ctx.fillText(':', tableX + 172, rY + 26)
+    ctx.fillText(':', tableX + 215, rY + 24)
 
     // 학과
     ctx.fillStyle = item.isApplied ? '#1d4ed8' : '#cbd5e1'
-    ctx.font = item.isApplied ? 'bold 14px Pretendard, "Malgun Gothic", sans-serif' : '13px Pretendard, "Malgun Gothic", sans-serif'
-    ctx.fillText(item.displayMajor, tableX + 192, rY + 26)
-
-    // 정원 / 전형 정보
-    if (printIncludeQuota.value) {
-      ctx.fillStyle = item.isApplied ? '#64748b' : '#cbd5e1'
-      ctx.font = '11.5px Pretendard, "Malgun Gothic", sans-serif'
-      let quotaText = '-'
-      if (item.isApplied && (item.genQuota !== null || item.bacQuota !== null)) {
-        quotaText = `일반 ${item.genQuota || 0} / 학사 ${item.bacQuota || 0}`
-      } else if (item.isApplied && item.memo) {
-        quotaText = item.memo
-      }
-      ctx.fillText(quotaText, tableX + 510, rY + 26)
-    }
+    ctx.font = item.isApplied ? 'bold 13.5px Pretendard, "Malgun Gothic", sans-serif' : '13px Pretendard, "Malgun Gothic", sans-serif'
+    ctx.fillText(item.displayMajor, tableX + 235, rY + 24)
   })
 
   // 테이블 외곽 테두리
@@ -2399,7 +2512,7 @@ function drawSlipToCanvas() {
   ctx.strokeRect(tableX, headY, tableW, headH + items.length * rowH)
 
   // 7. 하단 안내 문구
-  const footY = height - 22
+  const footY = height - 20
   ctx.fillStyle = '#94a3b8'
   ctx.font = '11px Pretendard, "Malgun Gothic", sans-serif'
   ctx.fillText('※ 원서 접수 시 대학별 공식 모집요강 및 전형 일정을 반드시 재확인하시기 바랍니다.', 40, footY)
@@ -2454,15 +2567,7 @@ async function copyTextList() {
   ]
   items.forEach((item, idx) => {
     const num = String(idx + 1).padStart(2, '0')
-    let quota = ''
-    if (printIncludeQuota.value) {
-      if (item.isApplied && (item.genQuota !== null || item.bacQuota !== null)) {
-        quota = ` (일반 ${item.genQuota || 0} / 학사 ${item.bacQuota || 0})`
-      } else if (item.isApplied && item.memo) {
-        quota = ` (${item.memo})`
-      }
-    }
-    lines.push(`${num}. ${item.displayUniv} : ${item.displayMajor}${quota}`)
+    lines.push(`${num}. ${item.displayUniv} : ${item.displayMajor}`)
   })
   lines.push('----------------------------------------')
   try {
@@ -4709,34 +4814,6 @@ onMounted(async () => {
   color: #2563eb;
 }
 
-.slip-order-guide {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: #faf5ff;
-  border: 1px solid #e9d5ff;
-  border-radius: 6px;
-  margin-bottom: 12px;
-}
-.slip-order-guide .guide-badge {
-  font-size: 10px;
-  font-weight: 800;
-  background: #7e22ce;
-  color: #ffffff;
-  padding: 1.5px 5px;
-  border-radius: 3px;
-  white-space: nowrap;
-}
-.slip-order-guide .guide-text {
-  font-size: 11px;
-  color: #6b21a8;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* 표 스타일 */
 .slip-table-wrap {
   border: 1px solid #cbd5e1;
@@ -4770,7 +4847,7 @@ onMounted(async () => {
   font-size: 12px;
 }
 .th-univ, .td-univ {
-  width: 130px;
+  width: 170px;
   white-space: nowrap;
 }
 .td-univ strong {
@@ -4794,13 +4871,6 @@ onMounted(async () => {
 .major-name.unapplied-txt {
   color: #cbd5e1;
   font-style: italic;
-}
-.th-quota, .td-quota {
-  width: 150px;
-  text-align: right;
-  font-size: 11.5px;
-  color: #64748b;
-  white-space: nowrap;
 }
 
 .slip-row:nth-child(even) {
@@ -5432,5 +5502,271 @@ onMounted(async () => {
   .modal-footer {
     padding: 10px 14px;
   }
+}
+
+/* =====================================================================
+   🏛️ 현행 미모집 / 개편 과거 학과 (Tab 1 모집요강 하단 접이식 영역)
+   ===================================================================== */
+.closed-depts-accordion {
+  margin-top: 16px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.closed-depts-toggle-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  background: #f8fafc;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+.closed-depts-toggle-header:hover {
+  background: #f1f5f9;
+}
+
+.closed-depts-toggle-header .toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.closed-depts-toggle-header .icon {
+  font-size: 16px;
+}
+.closed-depts-toggle-header .title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+}
+.closed-depts-toggle-header .badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.closed-depts-toggle-header .toggle-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+.closed-depts-toggle-header .arrow {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.closed-depts-body {
+  border-top: 1px solid #e2e8f0;
+  padding: 14px 18px;
+  background: #ffffff;
+}
+
+.closed-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.closed-banner .info-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.closed-table-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.closed-quota-table .closed-row {
+  background: #fafbfc;
+}
+.closed-quota-table .closed-row:hover {
+  background: #f1f5f9;
+}
+.closed-major-title {
+  font-size: 13.5px;
+  color: #475569;
+}
+.closed-status-pill {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* =====================================================================
+   🏛️ 현행 미모집 / 개편 과거 학과 (Tab 2 탐색/담기 패널 하단 접이식 영역)
+   ===================================================================== */
+.closed-form-accordion {
+  margin-top: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.closed-form-toggle-btn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+.closed-form-toggle-btn:hover {
+  background: #f1f5f9;
+}
+
+.closed-form-toggle-btn .btn-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.closed-form-toggle-btn .icon {
+  font-size: 14px;
+}
+.closed-form-toggle-btn .title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #334155;
+}
+.closed-form-toggle-btn .closed-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 1.5px 6px;
+  border-radius: 10px;
+}
+
+.closed-form-toggle-btn .btn-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.closed-form-toggle-btn .arrow {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.closed-form-content {
+  border-top: 1px solid #e2e8f0;
+  padding: 10px;
+  background: #fcfdfe;
+}
+
+.closed-form-notice {
+  font-size: 11px;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.closed-form-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.closed-major-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.closed-item-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.closed-item-main:hover {
+  background: #f8fafc;
+}
+
+.closed-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #b91c1c;
+  background: #fee2e2;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+}
+
+.past-mini.highlight {
+  font-weight: 700;
+  color: #0369a1;
+  background: #e0f2fe;
+}
+
+.pick-status-btn.disabled {
+  background: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  border: 1px solid #e2e8f0 !important;
+  cursor: not-allowed !important;
+}
+
+.detail-chevron {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+.closed-past-detail-box {
+  background: #f8fafc;
+  border-top: 1px dashed #e2e8f0;
+  padding: 10px 12px;
+}
+
+.past-detail-header {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.past-tag-list.in-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 </style>
