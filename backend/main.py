@@ -1493,6 +1493,7 @@ async def upload_quota_excel(file: UploadFile = File(...)):
     df.columns = [str(c).strip().replace("\ufeff", "") for c in df.columns]
 
     col_map = {
+        "연도": "year", "학년도": "year", "입학년도": "year", "년도": "year",
         "대학": "univ", "학교": "univ", "대학명": "univ",
         "계열": "department",
         "학과": "major", "학과명": "major", "모집단위": "major",
@@ -1508,6 +1509,15 @@ async def upload_quota_excel(file: UploadFile = File(...)):
             detail=f"필수 컬럼 누락 (현재 컬럼: {list(df.columns)} / 필수: 대학, 계열, 학과명)"
         )
 
+    # 기본 연도 추출 (파일명에 2027 등이 있거나 컬럼에 있는 경우 대응)
+    default_year = 2026
+    year_in_filename = re.search(r'202[0-9]|2[0-9]{3}', filename)
+    if year_in_filename:
+        try:
+            default_year = int(year_in_filename.group())
+        except (ValueError, TypeError):
+            default_year = 2026
+
     df["general_quota"] = pd.to_numeric(df.get("general_quota", 0), errors="coerce").fillna(0).astype(int)
     df["bachelor_quota"] = pd.to_numeric(df.get("bachelor_quota", 0), errors="coerce").fillna(0).astype(int)
     df = df.dropna(subset=["univ", "department", "major"])
@@ -1519,7 +1529,18 @@ async def upload_quota_excel(file: UploadFile = File(...)):
         major_val = str(row["major"]).strip()
         if not univ_val or not major_val or univ_val == "nan" or major_val == "nan":
             continue
+
+        row_year = default_year
+        if "year" in row and pd.notna(row["year"]):
+            try:
+                y_val = int(float(str(row["year"]).replace("년", "").replace("학년도", "").strip()))
+                if 2020 <= y_val <= 2040:
+                    row_year = y_val
+            except (ValueError, TypeError):
+                row_year = default_year
+
         rows_to_insert.append((
+            row_year,
             univ_val,
             dept_val,
             major_val,
@@ -1537,7 +1558,7 @@ async def upload_quota_excel(file: UploadFile = File(...)):
 
         query = """
             INSERT INTO recruit_quota (year, univ, department, major, general_quota, bachelor_quota)
-            VALUES (2026, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 department = VALUES(department),
                 general_quota = VALUES(general_quota),
