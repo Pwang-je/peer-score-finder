@@ -4,7 +4,8 @@
     <header class="section-header">
       <div class="header-left">
         <h2 class="section-title">
-          <span class="icon">📝</span> 학생 기출 성적 직접 입력
+          <span class="icon"><Edit3 :size="18" :stroke-width="2" /></span>
+          <span>학생 기출 성적 직접 입력</span>
         </h2>
         <p class="section-subtitle">
           종이 성적표를 보며 2020~2026년도 기출 점수를 대학별/세션별로 직접 입력하고 저장합니다.
@@ -123,8 +124,15 @@
             :disabled="isSavingBatch || !hasModifiedRows"
             :class="['btn-save-all', { modified: hasModifiedRows }]"
           >
-            <span v-if="isSavingBatch" class="spinner">⏳ 저장 중...</span>
-            <span v-else>💾 {{ currentUniv.name }} 전체 저장 <kbd class="kbd-hint">Ctrl+S</kbd></span>
+            <span v-if="isSavingBatch" class="btn-spinner-wrap" style="display: inline-flex; align-items: center; gap: 6px;">
+              <Loader2 class="spin" :size="13" />
+              <span>저장 중...</span>
+            </span>
+            <span v-else style="display: inline-flex; align-items: center; gap: 6px;">
+              <Save :size="13" :stroke-width="2" />
+              <span>{{ currentUniv.name }} 전체 저장</span>
+              <kbd class="kbd-hint">Ctrl+S</kbd>
+            </span>
           </button>
         </div>
       </div>
@@ -244,7 +252,10 @@
 
               <!-- 7. 저장 상태 인디케이터 -->
               <td class="td-status">
-                <span v-if="row.justSaved" class="status-pill saved">✓ 저장완료</span>
+                <span v-if="row.justSaved" class="status-pill saved" style="display: inline-flex; align-items: center; gap: 3px;">
+                  <Check :size="12" :stroke-width="2.5" />
+                  <span>저장완료</span>
+                </span>
                 <span v-else-if="row.isModified" class="status-pill unsaved">수정됨</span>
                 <span v-else-if="hasAnyScore(row)" class="status-pill registered">등록됨</span>
                 <span v-else class="status-pill empty">미입력</span>
@@ -258,7 +269,9 @@
                   :class="['btn-row-save', { active: row.isModified }]"
                   title="해당 년도 점수 저장"
                 >
-                  <span v-if="row.isSaving">⏳</span>
+                  <span v-if="row.isSaving" style="display: inline-flex; align-items: center; justify-content: center;">
+                    <Loader2 class="spin" :size="12" />
+                  </span>
                   <span v-else>저장</span>
                 </button>
                 <button
@@ -287,8 +300,14 @@
           :disabled="isSavingBatch || !hasModifiedRows"
           :class="['btn-save-all', { modified: hasModifiedRows }]"
         >
-          <span v-if="isSavingBatch">⏳ 저장 중...</span>
-          <span v-else>💾 전체 일괄 저장 (Ctrl+S)</span>
+          <span v-if="isSavingBatch" class="btn-spinner-wrap" style="display: inline-flex; align-items: center; gap: 6px;">
+            <Loader2 class="spin" :size="13" />
+            <span>저장 중...</span>
+          </span>
+          <span v-else style="display: inline-flex; align-items: center; gap: 6px;">
+            <Save :size="14" :stroke-width="2" />
+            <span>전체 일괄 저장 (Ctrl+S)</span>
+          </span>
         </button>
       </div>
     </main>
@@ -296,7 +315,7 @@
     <!-- 학생 미선택 시 안내 카드 -->
     <div v-else-if="!selectedStudent" class="empty-guide-card">
       <div class="guide-content">
-        <span class="guide-icon">👤</span>
+        <span class="guide-icon"><User :size="28" :stroke-width="1.8" /></span>
         <h3>학생을 먼저 선택해 주세요</h3>
         <p>상단의 학생 선택 드롭다운 또는 빠른 검색창에서 기출 성적을 입력할 학생을 선택하세요.</p>
       </div>
@@ -306,6 +325,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Edit3, Save, Check, User, Loader2 } from 'lucide-vue-next'
 
 const API_BASE = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
   ? 'http://127.0.0.1:8000'
@@ -1736,9 +1756,20 @@ function getSessionColorClass(session) {
 }
 
 .guide-icon {
-  font-size: 40px;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
   margin-bottom: 12px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin {
+  animation: spin 1s linear infinite;
+  display: inline-block;
 }
 
 .empty-guide-card h3 {

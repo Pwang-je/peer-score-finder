@@ -49,7 +49,10 @@
         <div v-if="showUploadModal" class="modal-backdrop" @click.self="closeUploadModal">
           <div class="modal-card">
             <div class="modal-header">
-              <h3>📂 성적 엑셀/CSV 사전 검증 및 적재</h3>
+              <h3 style="display: flex; align-items: center; gap: 8px;">
+                <FileSpreadsheet :size="18" :stroke-width="2" />
+                <span>성적 엑셀/CSV 사전 검증 및 적재</span>
+              </h3>
               <button @click="closeUploadModal" class="modal-close-btn">&times;</button>
             </div>
 
@@ -67,7 +70,7 @@
                 <input type="file" ref="excelFileInput" @change="handleFileChange" accept=".xlsx, .xls, .csv"
                        class="file-input-hidden" id="excelFile">
                 <label for="excelFile" class="file-drop-label">
-                  <span class="file-icon">📄</span>
+                  <span class="file-icon"><FileText :size="32" :stroke-width="1.6" /></span>
                   <span v-if="!selectedFile" class="file-txt">여기를 클릭하여 파일을 선택하세요 (.xlsx, .csv)</span>
                   <span v-else class="file-txt selected">{{ selectedFile.name }} ({{
                       (selectedFile.size / 1024).toFixed(1)
@@ -89,8 +92,9 @@
 
               <!-- 동명이인 충돌 알림 -->
               <div v-if="validationReport.duplicate_count > 0" class="alert-block warning">
-                <div class="alert-title">
-                  <span>⚠️ 동명이인 충돌 {{ validationReport.duplicate_count }}건 감지</span>
+                <div class="alert-title" style="display: flex; align-items: center; gap: 6px;">
+                  <AlertTriangle :size="15" :stroke-width="2" />
+                  <span>동명이인 충돌 {{ validationReport.duplicate_count }}건 감지</span>
                 </div>
                 <p class="alert-desc">동일 연도/월에 이름이 같아 덮어쓰기 위험이 있습니다.</p>
                 <div class="dup-scroll-list">
@@ -108,8 +112,9 @@
 
               <!-- 계열 및 정보 누락 알림 -->
               <div v-if="validationReport.issues.missing_department > 0" class="alert-block info">
-                <div class="alert-title">
-                  <span>ℹ️ 계열(department) 미기재 {{ validationReport.issues.missing_department }}건 발견</span>
+                <div class="alert-title" style="display: flex; align-items: center; gap: 6px;">
+                  <Info :size="15" :stroke-width="2" />
+                  <span>계열(department) 미기재 {{ validationReport.issues.missing_department }}건 발견</span>
                 </div>
                 <p class="alert-desc">
                   해당 학생의 다른 월 합격/응시 기록을 바탕으로 <strong>{{ validationReport.issues.auto_fixable_department }}건</strong> 자동 복구
@@ -123,8 +128,9 @@
 
               <!-- 완전 무결할 때 -->
               <div v-if="validationReport.duplicate_count === 0 && validationReport.issues.missing_department === 0"
-                   class="alert-block success">
-                ✅ 데이터 충돌이나 누락 없이 완벽합니다. 즉시 적재 가능합니다.
+                   class="alert-block success" style="display: flex; align-items: center; gap: 6px;">
+                <CheckCircle2 :size="16" :stroke-width="2" />
+                <span>데이터 충돌이나 누락 없이 완벽합니다. 즉시 적재 가능합니다.</span>
               </div>
 
               <div v-if="uploadStatusMsg" :class="['upload-msg-box', uploadStatusType]" style="margin-top: 12px;">
@@ -365,7 +371,8 @@
                 class="btn-go-input-tab"
                 title="기출 성적 직접 입력 탭으로 이동"
               >
-                ✏️ 기출 점수 입력·수정
+                <Edit3 :size="13" :stroke-width="2" />
+                <span>기출 점수 입력·수정</span>
               </button>
 
               <button
@@ -385,17 +392,17 @@
 
           <!-- 학생 미선택 안내 -->
           <div v-else-if="!form.student_name" class="past-exams-empty-guide">
-            <span class="guide-icon">👤</span>
+            <span class="guide-icon"><User :size="24" :stroke-width="1.8" /></span>
             <p>위 <strong>MODE 01 [26년도 성적 불러오기]</strong>에서 학생을 선택하면, 해당 학생의 2020~2026년도 기출 점수 표가 이곳에 표시됩니다.</p>
           </div>
 
           <!-- 등록된 기출 성적이 없을 때 -->
           <div v-else-if="studentPastExams.length === 0" class="past-exams-empty-guide">
-            <span class="guide-icon">ℹ️</span>
+            <span class="guide-icon"><Info :size="24" :stroke-width="1.8" /></span>
             <p>
               <strong>{{ form.student_name }}</strong> 학생의 등록된 기출 점수가 없습니다.
               <button @click="currentMainView = 'past_exam'" class="link-inline-btn">
-                [기출 성적 직접 입력] 탭에서 점수를 등록하세요 ➔
+                [기출 성적 직접 입력] 탭에서 점수를 등록하세요 →
               </button>
             </p>
           </div>
@@ -602,7 +609,7 @@
           <!-- 🌟 실제 응시 월 다차원 매칭 안내 배너 -->
           <div v-if="result.match_mode === 'multi_month'" class="matching-mode-banner">
             <div class="mode-badge-wrap">
-              <span class="mode-icon">📊</span>
+              <span class="mode-icon"><BarChart2 :size="15" :stroke-width="2" /></span>
               <span class="mode-title">실제 응시 월 종합 매칭 분석</span>
               <span class="mode-desc">
                 단일 월 평균이 아닌 <strong>실제 응시한 {{ result.tested_months.join(', ') }}월</strong> 전체 성적 추이(문법/어휘/논리/독해<template v-if="result.is_natural">/수학</template>)를 1:1로 종합 매칭한 결과입니다.
@@ -611,7 +618,7 @@
           </div>
           <div v-else-if="result.match_mode === 'single_month'" class="matching-mode-banner single">
             <div class="mode-badge-wrap">
-              <span class="mode-icon">📌</span>
+              <span class="mode-icon"><Bookmark :size="15" :stroke-width="2" /></span>
               <span class="mode-title">{{ currentMonth }}월 단일 시험 매칭</span>
               <span class="mode-desc">선택된 {{ currentMonth }}월 시험 성적을 기준으로 매칭된 결과입니다.</span>
             </div>
@@ -620,7 +627,7 @@
           <!-- 🌟 [신규] 취약/강점 파트 자동 진단 배지 바 -->
           <div v-if="result.diagnostic_tags && result.diagnostic_tags.length" class="diagnostic-banner">
             <div class="diag-label">
-              <span class="diag-icon">🎯</span>
+              <span class="diag-icon"><Target :size="15" :stroke-width="2" /></span>
               <strong>지난 합격생 대비:</strong>
             </div>
             <div class="diag-tags-wrap">
@@ -763,6 +770,18 @@ import {Chart, registerables} from 'chart.js';
 import ApplicationStrategy from "./components/ApplicationStrategy.vue";
 import PastExamScoreInput from "./components/PastExamScoreInput.vue";
 import { ref } from 'vue'
+import {
+  FileSpreadsheet,
+  FileText,
+  AlertTriangle,
+  CheckCircle2,
+  Edit3,
+  User,
+  Info,
+  BarChart2,
+  Bookmark,
+  Target
+} from 'lucide-vue-next';
 
 Chart.register(...registerables);
 
@@ -818,7 +837,17 @@ const UNIVERSITY_TIERS = [
 export default {
   components: {
     ApplicationStrategy,
-    PastExamScoreInput
+    PastExamScoreInput,
+    FileSpreadsheet,
+    FileText,
+    AlertTriangle,
+    CheckCircle2,
+    Edit3,
+    User,
+    Info,
+    BarChart2,
+    Bookmark,
+    Target
   },
   data() {
     return {
@@ -1962,6 +1991,9 @@ export default {
 }
 
 .btn-go-input-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   font-size: 12.5px;
   font-weight: 700;
@@ -2001,9 +2033,11 @@ export default {
 }
 
 .past-exams-empty-guide .guide-icon {
-  font-size: 24px;
-  display: block;
-  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  color: #94a3b8;
 }
 
 .link-inline-btn {

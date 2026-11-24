@@ -15,7 +15,8 @@
 
       <div class="header-right-actions">
         <button @click="showQuotaModal = true" class="btn-upload-quota">
-          📂 모집요강 엑셀 등록
+          <FileSpreadsheet :size="14" :stroke-width="2" />
+          <span>모집요강 엑셀 등록</span>
         </button>
 
         <div class="tab-controls">
@@ -23,13 +24,15 @@
             :class="['tab-btn', currentTab === 'univ' ? 'active' : '']"
             @click="currentTab = 'univ'"
           >
-            🏫 학교별 모집요강
+            <School :size="15" :stroke-width="2" />
+            <span>학교별 모집요강</span>
           </button>
           <button
             :class="['tab-btn', currentTab === 'student' ? 'active' : '']"
             @click="currentTab = 'student'"
           >
-            👤 학생별 지원 현황
+            <User :size="15" :stroke-width="2" />
+            <span>학생별 지원 현황</span>
           </button>
         </div>
       </div>
@@ -39,7 +42,10 @@
     <div v-if="showQuotaModal" class="modal-backdrop" @click.self="showQuotaModal = false">
       <div class="modal-box">
         <div class="modal-header">
-          <h3>📊 대학별 모집요강 엑셀 일괄 업로드</h3>
+          <h3 style="display: flex; align-items: center; gap: 8px;">
+            <FileSpreadsheet :size="18" :stroke-width="2" />
+            <span>대학별 모집요강 엑셀 일괄 업로드</span>
+          </h3>
           <button @click="showQuotaModal = false" class="close-btn">&times;</button>
         </div>
         <div class="modal-body">
@@ -73,7 +79,10 @@
     <div v-if="showPastExamExcelModal" class="modal-backdrop" @click.self="showPastExamExcelModal = false">
       <div class="modal-box">
         <div class="modal-header">
-          <h3>📊 기출문제 성적 엑셀 일괄 업로드</h3>
+          <h3 style="display: flex; align-items: center; gap: 8px;">
+            <FileSpreadsheet :size="18" :stroke-width="2" />
+            <span>기출문제 성적 엑셀 일괄 업로드</span>
+          </h3>
           <button @click="showPastExamExcelModal = false" class="close-btn">&times;</button>
         </div>
         <div class="modal-body">
@@ -128,7 +137,8 @@
           </div>
           <div class="template-download-row">
             <button @click="downloadPastExamTemplate" type="button" class="btn-template-dl">
-              📥 양식 엑셀 파일 다운로드 (.xlsx)
+              <Download :size="14" :stroke-width="2" />
+              <span>양식 엑셀 파일 다운로드 (.xlsx)</span>
             </button>
           </div>
           <div class="file-upload-row">
@@ -154,7 +164,7 @@
       <div class="modal-box slip-modal-box">
         <div class="modal-header slip-modal-header">
           <div class="slip-modal-title-wrap">
-            <span class="slip-header-icon">🖨️</span>
+            <span class="slip-header-icon"><Printer :size="20" :stroke-width="1.8" /></span>
             <div>
               <h3>지원 대학 · 학과 리스트 출력 및 PNG 저장</h3>
               <p class="slip-header-sub">
@@ -272,20 +282,27 @@
 
         <div class="modal-footer slip-modal-footer">
           <div class="footer-left-info">
-            <span class="info-tip">💡 PNG 이미지를 저장하거나 출력하여 학생 상담 및 원서 접수 시 활용하세요.</span>
+            <span class="info-tip" style="display: flex; align-items: center; gap: 6px;">
+              <Info :size="14" :stroke-width="2" />
+              <span>PNG 이미지를 저장하거나 출력하여 학생 상담 및 원서 접수 시 활용하세요.</span>
+            </span>
           </div>
           <div class="footer-right-actions">
             <button @click="copyTextList" class="btn-slip-action text" title="카카오톡 전송용 텍스트 복사">
-              💬 텍스트 복사
+              <MessageSquare :size="13" :stroke-width="2" />
+              <span>텍스트 복사</span>
             </button>
             <button @click="copySlipToClipboard" class="btn-slip-action copy" title="클립보드에 이미지 복사 (Ctrl+V)">
-              📋 이미지 복사
+              <Copy :size="13" :stroke-width="2" />
+              <span>이미지 복사</span>
             </button>
             <button @click="printSlip" class="btn-slip-action print" title="브라우저 인쇄">
-              🖨️ 프린트 (인쇄)
+              <Printer :size="13" :stroke-width="2" />
+              <span>프린트 (인쇄)</span>
             </button>
             <button @click="downloadSlipAsPNG" class="btn-slip-action primary" title="고화질 PNG 이미지 파일로 다운로드">
-              📥 PNG 이미지 저장
+              <Download :size="13" :stroke-width="2" />
+              <span>PNG 이미지 저장</span>
             </button>
           </div>
         </div>
@@ -352,7 +369,8 @@
           </div>
           <div class="eligibility-actions">
             <button v-if="!isEditingEligibility" @click="startEditEligibility" class="btn-edit-elig">
-              ✏️ 자격 수정
+              <Edit3 :size="13" :stroke-width="2" />
+              <span>자격 수정</span>
             </button>
             <template v-else>
               <button @click="cancelEditEligibility" class="btn-cancel-sm">취소</button>
@@ -381,7 +399,7 @@
 
       <!-- 3) 모집단위 테이블 -->
       <div class="table-wrapper">
-        <div class="mobile-scroll-hint">👈 좌우로 넘겨서 전체 모집인원 및 지원현황을 확인하세요 👉</div>
+        <div class="mobile-scroll-hint">← 좌우로 스크롤하여 전체 모집인원 및 지원현황을 확인하세요 →</div>
         <div v-if="isLoadingDepts" class="table-loading-overlay">
           데이터 불러오는 중...
         </div>
@@ -478,7 +496,7 @@
           @click="isClosedTab1Open = !isClosedTab1Open"
         >
           <div class="toggle-left">
-            <span class="icon">🏛️</span>
+            <span class="icon"><Archive :size="16" :stroke-width="2" /></span>
             <span class="title">현행 미선발 / 개편 과거 학과 (과거 합격생 이력)</span>
             <span class="badge">{{ closedDepartments.length }}개 학과</span>
           </div>
@@ -490,7 +508,7 @@
 
         <div v-if="isClosedTab1Open" class="closed-depts-body">
           <div class="closed-banner">
-            <span class="info-icon">💡</span>
+            <span class="info-icon"><Info :size="15" :stroke-width="2" /></span>
             <span>
               현행 모집요강에서 분리·통합되거나 미선발된 과거 학과들입니다.
               현행 모집단위와 분리되어 관리되며, 과거 합격생 성적 참고용으로 제공됩니다. (정원 없음 / 원서 접수 불가)
@@ -696,7 +714,7 @@
                   class="btn-excel-upload-exam"
                   title="엑셀로 기출 성적 일괄 등록"
                 >
-                  📥
+                  <Upload :size="13" :stroke-width="2" />
                 </button>
                 <button
                   @click="showAddPastExamModal = !showAddPastExamModal"
@@ -918,8 +936,8 @@
                       평균 {{ sc.avg_score }}점
                     </span>
                     <span v-else class="exam-avg-display empty">평균 미등록</span>
-                    <span v-if="sc.memo" class="exam-memo-chip" :title="`메모: ${sc.memo}`">
-                      💬
+                    <span v-if="sc.memo" class="exam-memo-chip" :title="`메모: ${sc.memo}`" style="display: inline-flex; align-items: center; justify-content: center;">
+                      <MessageSquare :size="11" :stroke-width="2" />
                     </span>
                   </div>
                 </div>
@@ -995,7 +1013,7 @@
               @click="isClosedTab2Open = !isClosedTab2Open"
             >
               <div class="btn-left">
-                <span class="icon">🏛️</span>
+                <span class="icon"><Archive :size="16" :stroke-width="2" /></span>
                 <span class="title">현행 미선발 / 개편 학과 (과거 합격생 조회)</span>
                 <span class="closed-count-badge">{{ closedFormMajors.length }}개</span>
               </div>
@@ -1007,7 +1025,10 @@
 
             <div v-if="isClosedTab2Open" class="closed-form-content">
               <div class="closed-form-notice">
-                <span>💡 현행 모집요강 미선발 학과 (원서 담기 불가 · 과거 합격생 성적 참고용)</span>
+                <span style="display: inline-flex; align-items: center; gap: 6px;">
+                  <Info :size="14" :stroke-width="2" />
+                  <span>현행 모집요강 미선발 학과 (원서 담기 불가 · 과거 합격생 성적 참고용)</span>
+                </span>
               </div>
 
               <div class="closed-form-list">
@@ -1043,7 +1064,10 @@
                   <!-- 클릭 시 합격생 리스트 상세 펼치기 -->
                   <div v-if="selectedClosedDeptId === d.id" class="closed-past-detail-box">
                     <div class="past-detail-header">
-                      <span>🏆 {{ d.major }} 과거 합격생 성적 이력 (총 {{ d.past_admissions.length }}명)</span>
+                      <span style="display: inline-flex; align-items: center; gap: 6px;">
+                        <Award :size="15" :stroke-width="2" />
+                        <span>{{ d.major }} 과거 합격생 성적 이력 (총 {{ d.past_admissions.length }}명)</span>
+                      </span>
                     </div>
                     <div class="past-tag-list in-detail">
                       <div
@@ -1075,7 +1099,10 @@
         <div class="panel list-panel">
           <div class="panel-header">
             <div class="panel-header-left">
-              <h3 class="panel-title">📋 {{ selectedStudent }} 학생 지원 정보</h3>
+              <h3 class="panel-title" style="display: flex; align-items: center; gap: 6px;">
+                <ClipboardList :size="16" :stroke-width="2" />
+                <span>{{ selectedStudent }} 학생 지원 정보</span>
+              </h3>
               <span class="count-tag">총 {{ studentApplications.length }}개교</span>
             </div>
             <button
@@ -1084,7 +1111,8 @@
               class="btn-open-print-modal"
               title="지원 대학:학과 리스트를 PNG 이미지로 저장하거나 인쇄합니다"
             >
-              🖨️ 지원표 출력 / PNG
+              <Printer :size="13" :stroke-width="2" />
+              <span>지원표 출력 / PNG</span>
             </button>
           </div>
 
@@ -1175,7 +1203,7 @@
           <div class="student-note-card">
             <div class="note-card-header">
               <div class="note-title-wrap">
-                <span class="note-icon">📝</span>
+                <span class="note-icon"><FileEdit :size="15" :stroke-width="2" /></span>
                 <span class="note-title">{{ selectedStudent }} 특이사항 & 비고</span>
               </div>
               <div class="note-actions">
@@ -1203,7 +1231,7 @@
           <div class="saved-memo-card">
             <div class="saved-memo-header">
               <div class="saved-memo-title-wrap">
-                <span class="saved-icon">📌</span>
+                <span class="saved-icon"><Pin :size="15" :stroke-width="2" /></span>
                 <span class="saved-title">저장된 메모</span>
                 <span v-if="savedNoteUpdatedAt" class="saved-date">({{ savedNoteUpdatedAt }} 기준)</span>
               </div>
@@ -1235,7 +1263,8 @@
               class="btn-print-mini-action"
               title="지원 대학:학과 리스트 PNG 저장 및 인쇄"
             >
-              🖼️ PNG 저장 · 인쇄
+              <Printer :size="12" :stroke-width="2" />
+              <span>PNG 저장 · 인쇄</span>
             </button>
           </div>
 
@@ -1270,7 +1299,7 @@
           <div class="similar-seniors-section">
             <div class="similar-header">
               <div class="similar-title-wrap">
-                <span class="similar-icon">💡</span>
+                <span class="similar-icon"><Sparkles :size="16" :stroke-width="2" /></span>
                 <h4 class="similar-title">성적 유사 지난 합격생 진학 대학</h4>
                 <span class="similar-badge">
                   {{ similarSeniorsTarget?.is_natural ? '자연계열 지난 합격생' : '인문계열 지난 합격생' }} 매칭
@@ -1338,6 +1367,24 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
+import {
+  FileSpreadsheet,
+  School,
+  User,
+  Upload,
+  Download,
+  Printer,
+  Info,
+  MessageSquare,
+  Copy,
+  Edit3,
+  Archive,
+  Award,
+  ClipboardList,
+  FileEdit,
+  Pin,
+  Sparkles
+} from 'lucide-vue-next'
 
 const currentTab = ref('univ')
 
@@ -2699,6 +2746,9 @@ onMounted(async () => {
 }
 
 .btn-upload-quota {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
@@ -2723,6 +2773,9 @@ onMounted(async () => {
 }
 
 .tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 600;
@@ -2818,6 +2871,9 @@ onMounted(async () => {
 }
 
 .btn-edit-elig {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 600;
@@ -4691,6 +4747,9 @@ onMounted(async () => {
   color: #475569;
 }
 .btn-print-mini-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   font-weight: 700;
   padding: 3px 8px;
