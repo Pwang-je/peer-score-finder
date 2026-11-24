@@ -426,7 +426,7 @@
           </div>
 
           <!-- 🌟 [핵심] 사진의 엑셀 스타일 매트릭스 표 (가로: 학교이름, 세로: 년도) -->
-          <div v-else-if="!isPastExamFolded" class="excel-matrix-wrapper">
+          <div v-if="studentPastExams.length > 0 && !isPastExamFolded" class="excel-matrix-wrapper">
             <div v-if="matrixUnivColumns.length === 0" class="matrix-tier-empty">
               <span>해당 라인({{ matrixTierFilter }})에 등록된 대학 기출 성적이 없습니다. 상단의 [전체 대학 보기]를 누르면 모든 대학 컬럼이 표시됩니다.</span>
             </div>
