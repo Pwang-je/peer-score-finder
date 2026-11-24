@@ -14,10 +14,19 @@
       >
         원서 지원 현황
       </button>
+      <button
+        @click="currentMainView = 'past_exam'"
+        :class="['mode-nav-btn', { active: currentMainView === 'past_exam' }]"
+      >
+        기출 성적 직접 입력
+      </button>
     </div>
 
     <!-- 화면 A: 신규 원서 지원 현황 및 전략 관리 컴포넌트 -->
     <ApplicationStrategy v-if="currentMainView === 'strategy'" />
+
+    <!-- 화면 C: 학생 기출 성적 직접 입력 컴포넌트 -->
+    <PastExamScoreInput v-else-if="currentMainView === 'past_exam'" />
 
     <!-- 화면 B: 기존 Peer Analyzer 성적 및 지원 가능 대학 분석 대시보드 -->
     <template v-else>
@@ -548,6 +557,7 @@
 import axios from 'axios';
 import {Chart, registerables} from 'chart.js';
 import ApplicationStrategy from "./components/ApplicationStrategy.vue";
+import PastExamScoreInput from "./components/PastExamScoreInput.vue";
 import { ref } from 'vue'
 
 Chart.register(...registerables);
@@ -557,7 +567,8 @@ const API_BASE_URL = 'https://peer-score-finder.onrender.com';
 
 export default {
   components: {
-    ApplicationStrategy
+    ApplicationStrategy,
+    PastExamScoreInput
   },
   data() {
     return {

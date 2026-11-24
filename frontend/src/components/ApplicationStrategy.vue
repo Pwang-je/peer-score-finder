@@ -879,6 +879,9 @@
                 >
                   <div class="tile-top-row">
                     <span class="exam-year-tag">{{ String(sc.exam_year).slice(-2) }}' 기출</span>
+                    <span v-if="sc.univ && sc.univ.includes('(')" class="exam-session-badge">
+                      {{ sc.univ.match(/\(([^)]+)\)/)?.[1] }}
+                    </span>
                     <span :class="['exam-subj-badge', getSubjClass(sc.subject_type)]">
                       {{ sc.subject_type || '영어' }}
                     </span>
@@ -3751,6 +3754,17 @@ onMounted(async () => {
   padding: 1px 5px;
   border-radius: 4px;
   white-space: nowrap;
+}
+
+.exam-session-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
 }
 
 .exam-subj-badge {

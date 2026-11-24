@@ -9,7 +9,7 @@ from tidb_db import DB_CONFIG
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 
 app = FastAPI()
@@ -1798,6 +1798,24 @@ class PastExamScoreCreate(BaseModel):
     memo: Optional[str] = ""
 
 
+class PastExamScoreBatchItem(BaseModel):
+    univ: str
+    exam_year: int
+    subject_type: str  # '영어' | '수학' | '영+수'
+    my_score: Optional[float] = None
+    avg_score: Optional[float] = None
+    eng_score: Optional[float] = None
+    math_score: Optional[float] = None
+    percentile: Optional[str] = ""
+    memo: Optional[str] = ""
+    delete: Optional[bool] = False
+
+
+class PastExamScoreBatchSave(BaseModel):
+    student_name: str
+    items: List[PastExamScoreBatchItem]
+
+
 @app.get("/api/student-past-exams")
 def get_student_past_exams(student_name: str, univ: Optional[str] = None):
     conn = get_db_connection()
@@ -1901,6 +1919,69 @@ def delete_student_past_exam(score_id: int):
     cursor.close()
     conn.close()
     return {"status": "success", "message": "기출 점수 삭제 완료"}
+
+
+@app.post("/api/student-past-exams/batch")
+def save_student_past_exams_batch(data: PastExamScoreBatchSave):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    saved_count = 0
+    deleted_count = 0
+
+    for item in data.items:
+        subj = item.subject_type or "영어"
+        if item.delete or item.my_score is None:
+            cursor.execute("""
+                DELETE FROM student_past_exam_scores
+                WHERE student_name = %s AND univ = %s AND exam_year = %s AND subject_type = %s;
+            """, (data.student_name, item.univ, item.exam_year, subj))
+            if cursor.rowcount > 0:
+                deleted_count += 1
+        else:
+            my_score = float(item.my_score)
+            if subj == "영+수" and (my_score == 0 or my_score is None) and (item.eng_score or item.math_score):
+                my_score = (item.eng_score or 0) + (item.math_score or 0)
+            score_gap = None
+            if item.avg_score is not None and item.avg_score > 0:
+                score_gap = round(my_score - float(item.avg_score), 2)
+
+            cursor.execute("""
+                INSERT INTO student_past_exam_scores 
+                (student_name, univ, exam_year, subject_type, my_score, avg_score, score_gap, eng_score, math_score, percentile, memo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    my_score = VALUES(my_score),
+                    avg_score = VALUES(avg_score),
+                    score_gap = VALUES(score_gap),
+                    eng_score = VALUES(eng_score),
+                    math_score = VALUES(math_score),
+                    percentile = VALUES(percentile),
+                    memo = VALUES(memo),
+                    updated_at = CURRENT_TIMESTAMP;
+            """, (
+                data.student_name,
+                item.univ,
+                item.exam_year,
+                subj,
+                my_score,
+                item.avg_score,
+                score_gap,
+                item.eng_score,
+                item.math_score,
+                item.percentile or "",
+                item.memo or ""
+            ))
+            saved_count += 1
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {
+        "status": "success",
+        "message": f"{data.student_name} 학생 기출 성적 저장 완료 (반영: {saved_count}건, 삭제: {deleted_count}건)",
+        "saved_count": saved_count,
+        "deleted_count": deleted_count
+    }
 
 
 @app.post("/api/student-past-exams/upload-excel")
