@@ -215,7 +215,7 @@
             <div class="form-row">
               <div class="input-wrap">
                 <label>학생 선택</label>
-                <select v-model="form.student_name" @change="loadStudentScore" class="modern-select">
+                <select v-model="form.student_name" @change="onStudentSelectChange" class="modern-select">
                   <option value="" disabled selected>학생을 선택해 주세요</option>
                   <option v-for="(name, idx) in allStudents" :key="idx" :value="name">
                     {{ name }}
@@ -305,6 +305,162 @@
             <div class="manual-total-line">
               <span>직접 입력 점수 합계</span>
               <span class="total-number">{{ inputTotalSummary }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 🌟 [신규] 선택한 학생의 모든 기출고사 성적 패널 -->
+        <section class="student-past-exams-panel">
+          <div class="past-exams-header">
+            <div class="header-title-group">
+              <span class="panel-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </span>
+              <div class="title-text-wrap">
+                <div class="main-title-row">
+                  <h3 class="panel-title">
+                    {{ form.student_name ? `${form.student_name} 학생 기출고사 전체 성적` : '선택한 학생의 전체 기출 성적' }}
+                  </h3>
+                  <span v-if="studentPastExams.length > 0" class="score-total-chip">
+                    총 {{ studentPastExams.length }}건 등록됨
+                  </span>
+                </div>
+                <p class="panel-subtitle">
+                  학생이 응시한 대학별 기출고사 성적 및 시험 평균 대비 격차를 한눈에 확인합니다.
+                </p>
+              </div>
+            </div>
+
+            <!-- 우측 액션 버튼 및 필터 -->
+            <div class="header-action-group" v-if="form.student_name">
+              <div v-if="pastExamUnivList.length > 1" class="univ-filter-pills">
+                <button
+                  type="button"
+                  :class="['filter-pill-btn', { active: pastExamUnivFilter === 'ALL' }]"
+                  @click="pastExamUnivFilter = 'ALL'"
+                >
+                  전체 ({{ studentPastExams.length }})
+                </button>
+                <button
+                  v-for="u in pastExamUnivList"
+                  :key="u.name"
+                  type="button"
+                  :class="['filter-pill-btn', { active: pastExamUnivFilter === u.name }]"
+                  @click="pastExamUnivFilter = u.name"
+                >
+                  {{ u.name }} ({{ u.count }})
+                </button>
+              </div>
+
+              <button
+                type="button"
+                @click="currentMainView = 'past_exam'"
+                class="btn-go-input-tab"
+                title="기출 성적 직접 입력 탭으로 이동"
+              >
+                ✏️ 기출 점수 입력·수정
+              </button>
+
+              <button
+                type="button"
+                @click="isPastExamFolded = !isPastExamFolded"
+                class="btn-fold-toggle"
+              >
+                {{ isPastExamFolded ? '펼치기 ▼' : '접기 ▲' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 로딩 상태 -->
+          <div v-if="isLoadingPastExams" class="past-exams-loading">
+            기출 성적을 불러오는 중입니다...
+          </div>
+
+          <!-- 학생 미선택 안내 -->
+          <div v-else-if="!form.student_name" class="past-exams-empty-guide">
+            <span class="guide-icon">👤</span>
+            <p>위 <strong>MODE 01 [26년도 성적 불러오기]</strong>에서 학생을 선택하면, 해당 학생의 2020~2026년도 전체 기출 점수가 이곳에 표시됩니다.</p>
+          </div>
+
+          <!-- 등록된 기출 성적이 없을 때 -->
+          <div v-else-if="studentPastExams.length === 0" class="past-exams-empty-guide">
+            <span class="guide-icon">ℹ️</span>
+            <p>
+              <strong>{{ form.student_name }}</strong> 학생의 등록된 기출 점수가 없습니다.
+              <button @click="currentMainView = 'past_exam'" class="link-inline-btn">
+                [기출 성적 직접 입력] 탭에서 점수를 등록하세요 ➔
+              </button>
+            </p>
+          </div>
+
+          <!-- 기출 성적 목록 (대학별 그룹화 카드/타일) -->
+          <div v-else-if="!isPastExamFolded" class="past-exams-content">
+            <div
+              v-for="grp in filteredPastExamGroups"
+              :key="grp.univName"
+              class="univ-past-group"
+            >
+              <div class="group-univ-bar">
+                <div class="univ-info">
+                  <span class="univ-badge">🏛️</span>
+                  <strong class="univ-name">{{ grp.univName }}</strong>
+                  <span class="univ-count">총 {{ grp.scores.length }}회</span>
+                </div>
+                <div v-if="grp.avgScore" class="univ-avg-tag">
+                  평균: <strong>{{ grp.avgScore }}</strong>점
+                </div>
+              </div>
+
+              <!-- 해당 대학의 기출 타일 그리드 -->
+              <div class="group-tiles-grid">
+                <div
+                  v-for="sc in grp.scores"
+                  :key="sc.id"
+                  class="exam-tile-card"
+                >
+                  <div class="tile-header">
+                    <span class="year-label">{{ String(sc.exam_year).slice(-2) }}' 기출</span>
+                    <span v-if="extractSession(sc.univ)" class="session-label">
+                      {{ extractSession(sc.univ) }}
+                    </span>
+                    <span :class="['subj-label', getSubjBadgeClass(sc.subject_type)]">
+                      {{ sc.subject_type || '영어' }}
+                    </span>
+                  </div>
+
+                  <div class="tile-score-body">
+                    <div class="score-main">
+                      <span class="score-val">{{ sc.my_score }}</span>
+                      <span class="score-unit">점</span>
+                    </div>
+                    <div
+                      v-if="sc.score_gap !== null && sc.score_gap !== undefined"
+                      :class="['score-gap-badge', sc.score_gap >= 0 ? 'plus' : 'minus']"
+                      :title="`기출 평균 대비 ${sc.score_gap >= 0 ? '+' : ''}${sc.score_gap}점`"
+                    >
+                      {{ sc.score_gap >= 0 ? '+' + sc.score_gap : sc.score_gap }}점
+                    </div>
+                  </div>
+
+                  <!-- 영+수 세부 점수 표시 -->
+                  <div v-if="sc.subject_type === '영+수' && (sc.eng_score !== null || sc.math_score !== null)" class="tile-subscore">
+                    영 {{ sc.eng_score ?? '-' }} · 수 {{ sc.math_score ?? '-' }}
+                  </div>
+
+                  <div class="tile-footer">
+                    <span v-if="sc.avg_score" class="avg-label">평균 {{ sc.avg_score }}점</span>
+                    <span v-else class="avg-label empty">평균 미등록</span>
+                    <span v-if="sc.memo" class="memo-icon" :title="`메모: ${sc.memo}`">💬</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -563,7 +719,9 @@ import { ref } from 'vue'
 Chart.register(...registerables);
 
 // 백엔드 URL 기본 상수로 선언 (로컬 테스트 시 http://127.0.0.1:8000 으로 변경 가능)
-const API_BASE_URL = 'https://peer-score-finder.onrender.com';
+const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+  ? 'http://127.0.0.1:8000'
+  : 'https://peer-score-finder.onrender.com';
 
 export default {
   components: {
@@ -612,7 +770,13 @@ export default {
       studentDBData: {grammar: '-', vocabulary: '-', logic: '-', reading: '-', math_total: '-', total_score: '-'},
       currentAnalysisScores: {grammar: 0, vocabulary: 0, logic: 0, reading: 0, math: 0},
       result: null,
-      chartInstances: {}
+      chartInstances: {},
+
+      // 🌟 선택한 학생의 기출고사 성적 데이터 상태
+      studentPastExams: [],
+      isLoadingPastExams: false,
+      pastExamUnivFilter: 'ALL',
+      isPastExamFolded: false
     };
   },
   computed: {
@@ -633,6 +797,42 @@ export default {
         const m = Number(this.form.math_total) || 0;
         return (engTotal > 0 || m > 0) ? `영어 ${(Math.round(engTotal * 10) / 10).toFixed(1)}점 + 수학 ${m.toFixed(1)}점` : '- 점';
       }
+    },
+    pastExamUnivList() {
+      if (!this.studentPastExams || !this.studentPastExams.length) return [];
+      const counts = {};
+      for (const sc of this.studentPastExams) {
+        const baseUniv = sc.univ ? sc.univ.split('(')[0].trim() : '기타';
+        counts[baseUniv] = (counts[baseUniv] || 0) + 1;
+      }
+      return Object.keys(counts).map(name => ({
+        name,
+        count: counts[name]
+      }));
+    },
+    filteredPastExamGroups() {
+      if (!this.studentPastExams || !this.studentPastExams.length) return [];
+      const groupsMap = {};
+      for (const sc of this.studentPastExams) {
+        const baseUniv = sc.univ ? sc.univ.split('(')[0].trim() : '기타';
+        if (!groupsMap[baseUniv]) {
+          groupsMap[baseUniv] = {
+            univName: baseUniv,
+            scores: []
+          };
+        }
+        groupsMap[baseUniv].scores.push(sc);
+      }
+      let list = Object.values(groupsMap).map(g => {
+        g.scores.sort((a, b) => b.exam_year - a.exam_year);
+        const total = g.scores.reduce((acc, cur) => acc + (Number(cur.my_score) || 0), 0);
+        g.avgScore = g.scores.length ? (total / g.scores.length).toFixed(1) : null;
+        return g;
+      });
+      if (this.pastExamUnivFilter !== 'ALL') {
+        list = list.filter(g => g.univName === this.pastExamUnivFilter);
+      }
+      return list;
     }
   },
   watch: {
@@ -649,6 +849,13 @@ export default {
         this.debounceTimer = setTimeout(() => {
           this.fetchPrediction(true);
         }, 400);
+      }
+    },
+    'form.student_name'(newVal) {
+      if (newVal) {
+        this.fetchStudentPastExams(newVal);
+      } else {
+        this.studentPastExams = [];
       }
     }
   },
@@ -759,6 +966,40 @@ export default {
       } catch (e) {
         console.error("전체 학생 명단 로드 실패:", e);
       }
+    },
+    onStudentSelectChange() {
+      this.loadStudentScore();
+      if (this.form.student_name) {
+        this.fetchStudentPastExams(this.form.student_name);
+      }
+    },
+    async fetchStudentPastExams(studentName) {
+      if (!studentName) {
+        this.studentPastExams = [];
+        return;
+      }
+      this.isLoadingPastExams = true;
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/student-past-exams`, {
+          params: { student_name: studentName }
+        });
+        this.studentPastExams = res.data?.scores || [];
+      } catch (err) {
+        console.error("기출 성적 조회 실패:", err);
+        this.studentPastExams = [];
+      } finally {
+        this.isLoadingPastExams = false;
+      }
+    },
+    extractSession(univ) {
+      if (!univ) return '';
+      const match = univ.match(/\(([^)]+)\)/);
+      return match ? match[1] : '';
+    },
+    getSubjBadgeClass(subj) {
+      if (subj === '수학') return 'subj-math';
+      if (subj === '영+수') return 'subj-both';
+      return 'subj-eng';
     },
     async loadStudentScore() {
       if (!this.form.student_name || !this.form.month) return;
@@ -1426,6 +1667,359 @@ export default {
   font-size: 15px;
   font-weight: 800;
   color: #2563eb;
+}
+
+/* ========================================================
+   선택한 학생의 전체 기출고사 성적 패널
+   ======================================================== */
+.student-past-exams-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.past-exams-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.panel-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #eff6ff;
+  border-radius: 10px;
+  font-size: 18px;
+}
+
+.main-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.score-total-chip {
+  font-size: 11.5px;
+  font-weight: 700;
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid #bfdbfe;
+}
+
+.panel-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 4px 0 0 0;
+}
+
+.header-action-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.univ-filter-pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.filter-pill-btn {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-pill-btn:hover {
+  background: #f1f5f9;
+}
+
+.filter-pill-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.btn-go-input-tab {
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-go-input-tab:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.btn-fold-toggle {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.past-exams-loading,
+.past-exams-empty-guide {
+  padding: 24px 16px;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px dashed #cbd5e1;
+  color: #64748b;
+  font-size: 13.5px;
+}
+
+.past-exams-empty-guide .guide-icon {
+  font-size: 24px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.link-inline-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0 4px;
+}
+
+.past-exams-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.univ-past-group {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.group-univ-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.univ-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.univ-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.univ-count {
+  font-size: 11.5px;
+  color: #64748b;
+  background: #ffffff;
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.univ-avg-tag {
+  font-size: 12px;
+  color: #475569;
+}
+
+.univ-avg-tag strong {
+  color: #2563eb;
+}
+
+.group-tiles-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.exam-tile-card {
+  flex: 0 0 auto;
+  width: 148px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.exam-tile-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+.tile-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.year-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #334155;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.session-label {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.subj-label {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.subj-label.subj-eng {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.subj-label.subj-math {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+.subj-label.subj-both {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.tile-score-body {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.score-main {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.score-val {
+  font-size: 18px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.score-unit {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.score-gap-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+
+.score-gap-badge.plus {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.score-gap-badge.minus {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.tile-subscore {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 4px;
+  background: #f8fafc;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.tile-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed #f1f5f9;
+}
+
+.avg-label.empty {
+  color: #cbd5e1;
+}
+
+.memo-icon {
+  font-size: 12px;
+  cursor: help;
 }
 
 /* ========================================================

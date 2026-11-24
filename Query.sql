@@ -406,3 +406,21 @@ DELETE FROM recruit_quota
 WHERE year = 2026
   AND univ = '가천대학교'
   AND major = '설비·소방공학과';
+
+-- 1) 의류학과: 일반 0명, 학사 1명으로 수정
+UPDATE recruit_quota
+SET general_quota = 0,
+    bachelor_quota = 1
+WHERE year = 2026
+  AND univ = '숙명여자대학교'
+  AND major = '의류학과';
+
+-- 2) 식품영양학과: 일반 2명, 학사 1명으로 수정
+UPDATE recruit_quota
+SET general_quota = 2,
+    bachelor_quota = 1
+WHERE year = 2026
+  AND univ = '숙명여자대학교'
+  AND major = '식품영양학과';
+
+select peer_data.student_name from peer_data where univ = '숙명여자대학교' and major = '화공생명공학부';

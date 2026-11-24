@@ -973,8 +973,11 @@
                 <span v-if="d.past_admissions && d.past_admissions.length > 0" class="past-mini">
                   합격 {{ d.past_admissions.length }}
                 </span>
-                <span :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]">
-                  {{ isMajorApplied(d.univ, d.major) ? '담김 ✓' : '+ 담기' }}
+                <span
+                  :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]"
+                  :title="isMajorApplied(d.univ, d.major) ? '담김 (클릭 시 취소)' : '원서 담기'"
+                >
+                  {{ isMajorApplied(d.univ, d.major) ? '✓' : '+' }}
                 </span>
               </div>
             </div>
@@ -4077,9 +4080,14 @@ onMounted(async () => {
 
 .past-mini { font-size: 11px; font-weight: 600; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; }
 .pick-status-btn {
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 800;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
   background: #f8fafc;

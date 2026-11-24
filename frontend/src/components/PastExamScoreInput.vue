@@ -1543,6 +1543,13 @@ function getSessionColorClass(session) {
   outline: none;
   text-align: right;
   padding-right: 22px;
+  -moz-appearance: textfield;
+}
+
+.score-input::-webkit-outer-spin-button,
+.score-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .score-input:focus {
