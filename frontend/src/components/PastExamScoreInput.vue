@@ -47,8 +47,70 @@
           <span class="stu-badge">{{ selectedStudent }} 학생</span>
           <span class="score-count-badge">등록된 기출 점수: <strong>{{ studentScoreCount }}</strong>건</span>
         </div>
+
+        <!-- 🌟 2020~2026 한 시트 엑셀 일괄 다운로드/업로드 버튼 -->
+        <div class="excel-header-actions">
+          <button @click="downloadTemplate" class="btn-excel-template" title="2020~2026 전체 대학 기출 점수 엑셀 템플릿 다운로드">
+            📥 엑셀 양식 다운로드
+          </button>
+          <button @click="openExcelModal" class="btn-excel-upload" title="기출 점수 엑셀 일괄 업로드">
+            📂 엑셀 일괄 업로드
+          </button>
+        </div>
       </div>
     </header>
+
+    <!-- 🌟 엑셀 일괄 업로드 모달 -->
+    <div v-if="showExcelUploadModal" class="modal-backdrop" @click.self="showExcelUploadModal = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>📊 2020~2026 기출고사 성적 엑셀 일괄 업로드</h3>
+          <button @click="showExcelUploadModal = false" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="excel-guide-banner">
+            <p class="banner-title">💡 <strong>한 시트에서 전체 학교 · 전체 년도(2020~2026) 일괄 등록</strong></p>
+            <p class="banner-desc">
+              1. <strong>[엑셀 양식 다운로드]</strong>로 전체 주요 대학(서성한~항공대)이 포함된 템플릿을 받으세요.<br>
+              2. <strong>과목 구분(영어 / 수학 / 영+수)</strong>을 확인하고, 2020년~2026년 열에 점수를 입력하세요.<br>
+              3. 완성된 엑셀 파일을 아래에 업로드하면 수십 개의 점수가 한 번에 등록됩니다!
+            </p>
+          </div>
+
+          <div class="upload-field-row">
+            <label class="field-label">기본 적용 학생 (파일 내에 이름이 없을 때 적용)</label>
+            <select v-model="uploadTargetStudent" class="modal-student-select">
+              <option value="">(파일의 '학생 이름' 컬럼 우선 사용)</option>
+              <option v-for="stu in studentList" :key="stu" :value="stu">{{ stu }} 학생</option>
+            </select>
+          </div>
+
+          <div class="file-picker-box">
+            <input
+              type="file"
+              ref="excelFileInput"
+              accept=".xlsx, .xls, .csv"
+              id="pastExamExcelFile"
+              class="file-hidden-input"
+            />
+            <label for="pastExamExcelFile" class="file-picker-label">
+              <span class="upload-icon">📄</span>
+              <span class="upload-prompt">엑셀 파일(.xlsx, .xls, .csv)을 선택하세요</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="downloadTemplate" class="btn-modal-sub">📥 양식 다시 받기</button>
+          <div class="modal-right-btns">
+            <button @click="showExcelUploadModal = false" class="btn-modal-cancel">취소</button>
+            <button @click="handleExcelUpload" :disabled="isUploadingExcel" class="btn-modal-submit">
+              <span v-if="isUploadingExcel">⏳ 업로드 처리 중...</span>
+              <span v-else>🚀 기출 성적 일괄 반영</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 2. 대학 라인(그룹) 탭 바 -->
     <nav class="tier-nav-bar">
@@ -468,6 +530,56 @@ const rows = ref([])
 const isSavingBatch = ref(false)
 const statusMessage = ref('')
 const statusType = ref('success')
+
+// 🌟 엑셀 다운로드 / 일괄 업로드 관련 상태
+const showExcelUploadModal = ref(false)
+const excelFileInput = ref(null)
+const isUploadingExcel = ref(false)
+const uploadTargetStudent = ref('')
+
+function downloadTemplate() {
+  window.open(`${API_BASE}/api/student-past-exams/sample-template`, '_blank')
+}
+
+function openExcelModal() {
+  uploadTargetStudent.value = selectedStudent.value || ''
+  showExcelUploadModal.value = true
+}
+
+async function handleExcelUpload() {
+  const fileEl = excelFileInput.value
+  if (!fileEl || !fileEl.files || fileEl.files.length === 0) {
+    alert('업로드할 엑셀 파일을 선택해 주세요.')
+    return
+  }
+  const formData = new FormData()
+  formData.append('file', fileEl.files[0])
+  if (uploadTargetStudent.value) {
+    formData.append('default_student', uploadTargetStudent.value)
+  }
+
+  isUploadingExcel.value = true
+  try {
+    const res = await fetch(`${API_BASE}/api/student-past-exams/upload-excel`, {
+      method: 'POST',
+      body: formData
+    })
+    const result = await res.json()
+    if (res.ok) {
+      alert(result.message)
+      showExcelUploadModal.value = false
+      fileEl.value = ''
+      await loadStudentPastExams()
+    } else {
+      alert(result.detail || '기출 엑셀 업로드 중 오류가 발생했습니다.')
+    }
+  } catch (err) {
+    console.error('기출 엑셀 업로드 에러:', err)
+    alert('서버 통신 중 오류가 발생했습니다.')
+  } finally {
+    isUploadingExcel.value = false
+  }
+}
 
 // =========================================================================
 // 3. Computed 계산식
@@ -1908,5 +2020,251 @@ function getSessionColorClass(session) {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* ========================================================
+   엑셀 일괄 다운로드/업로드 버튼 & 모달 스타일
+   ======================================================== */
+.excel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.btn-excel-template {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-excel-template:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.btn-excel-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  background: #2563eb;
+  color: #ffffff;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+}
+
+.btn-excel-upload:hover {
+  background: #1d4ed8;
+}
+
+/* 모달 */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 580px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 24px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-close-btn:hover {
+  color: #0f172a;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.excel-guide-banner {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.banner-title {
+  margin: 0 0 6px 0;
+  font-size: 13.5px;
+  color: #1e40af;
+}
+
+.banner-desc {
+  margin: 0;
+  font-size: 12.5px;
+  color: #3b82f6;
+  line-height: 1.6;
+}
+
+.upload-field-row {
+  margin-bottom: 16px;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.modal-student-select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  outline: none;
+}
+
+.file-picker-box {
+  margin-top: 10px;
+}
+
+.file-hidden-input {
+  display: none;
+}
+
+.file-picker-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px;
+  background: #f8fafc;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-picker-label:hover {
+  background: #f1f5f9;
+  border-color: #2563eb;
+}
+
+.upload-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.upload-prompt {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-modal-sub {
+  padding: 8px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #16a34a;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.modal-right-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-modal-cancel {
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #64748b;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-modal-submit {
+  padding: 8px 18px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #ffffff;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-modal-submit:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-modal-submit:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
 }
 </style>

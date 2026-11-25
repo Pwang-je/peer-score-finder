@@ -2015,114 +2015,170 @@ async def upload_past_exam_excel(
 
     student_col = find_col(['학생 이름', '학생이름', '학생', '이름', 'student_name'])
     univ_col = find_col(['대학명', '대학', '학교명', '학교', '대학교', 'univ'])
-    year_col = find_col(['기출 년도', '기출년도', '년도', '연도', '기출연도', 'exam_year', 'year'])
     subj_col = find_col(['구분', '과목', '과목구분', '과목명', 'subject', 'subject_type'])
-    score_col = find_col(['내 총점', '내총점', '총점', '내점수', '내 점수', '점수', 'score', 'my_score'])
-    avg_col = find_col(['평균', '평균점수', 'avg', 'avg_score'])
-    eng_col = find_col(['영어점수', '영어 점수', '영어', 'eng_score'])
-    math_col = find_col(['수학점수', '수학 점수', '수학', 'math_score'])
     memo_col = find_col(['메모', '비고', 'memo'])
+
+    # 🌟 가로형 년도 컬럼 감지 (예: 2020, 2021 ... 2026, 2020년, 20' 등)
+    year_cols = []
+    for c in df.columns:
+        m = re.search(r'(20[12]\d)|\b([12]\d)년|([12]\d)\'', str(c))
+        if m:
+            if m.group(1):
+                yr = int(m.group(1))
+            else:
+                yr = 2000 + int(m.group(2) or m.group(3))
+            if 2018 <= yr <= 2030:
+                year_cols.append((c, yr))
+
+    # 1. 가로형(와이드) 년도 컬럼 방식 (2개 이상의 년도 컬럼이 존재하는 경우)
+    is_wide_year_format = len(year_cols) >= 2
 
     inserted_count = 0
     skipped_count = 0
     records = []
 
-    for _, row in df.iterrows():
-        # 1. 학생 이름
-        s_name = str(row[student_col]).strip() if student_col and pd.notna(row[student_col]) else ""
-        if not s_name or s_name in ['nan', 'None']:
-            s_name = (default_student or "").strip()
-        if not s_name:
-            skipped_count += 1
-            continue
+    if is_wide_year_format:
+        # 가로형 년도 컬럼 처리
+        for _, row in df.iterrows():
+            s_name = str(row[student_col]).strip() if student_col and pd.notna(row[student_col]) else ""
+            if not s_name or s_name in ['nan', 'None']:
+                s_name = (default_student or "").strip()
+            if not s_name:
+                skipped_count += 1
+                continue
 
-        # 2. 대학명 및 년도 파싱 (예: "22 건국대" 처리 포함)
-        u_name = str(row[univ_col]).strip() if univ_col and pd.notna(row[univ_col]) else ""
-        y_val = row[year_col] if year_col and pd.notna(row[year_col]) else None
+            u_name = str(row[univ_col]).strip() if univ_col and pd.notna(row[univ_col]) else ""
+            if not u_name or u_name in ['nan', 'None']:
+                u_name = (default_univ or "").strip()
+            if not u_name:
+                skipped_count += 1
+                continue
 
-        # 대학명 컬럼에 "22 건국대", "2023 단국대" 처럼 연도가 포함되어 있는 경우 자동 분리
-        if u_name:
-            m_year_univ = re.match(r"^(\d{2,4})\s*(.+)$", u_name)
-            if m_year_univ:
-                if not y_val or pd.isna(y_val):
-                    y_val = m_year_univ.group(1)
-                u_name = m_year_univ.group(2).strip()
+            # 과목 구분
+            raw_subj = str(row[subj_col]).strip() if subj_col and pd.notna(row[subj_col]) else ""
+            if ("영" in raw_subj and "수" in raw_subj) or "영수" in raw_subj:
+                subj_type = "영+수"
+            elif "수" in raw_subj or "자연" in raw_subj or "math" in raw_subj.lower():
+                subj_type = "수학"
+            else:
+                subj_type = "영어"
 
-        if not u_name or u_name in ['nan', 'None']:
-            u_name = (default_univ or "").strip()
-        if not u_name:
-            skipped_count += 1
-            continue
+            memo = str(row[memo_col]).strip() if memo_col and pd.notna(row[memo_col]) else ""
+            if memo in ['nan', 'None']:
+                memo = ""
 
-        # 3. 년도 파싱
-        exam_year = None
-        if y_val is not None and not pd.isna(y_val):
-            try:
-                y_num = int(float(re.sub(r"[^\d.]", "", str(y_val))))
-                if y_num < 100:
-                    exam_year = 2000 + y_num
-                else:
-                    exam_year = y_num
-            except Exception:
-                pass
-        if not exam_year:
-            skipped_count += 1
-            continue
+            for col_name, yr_val in year_cols:
+                val = row[col_name]
+                if pd.isna(val) or val is None or str(val).strip() == "" or str(val).strip() in ['-', 'nan', 'None']:
+                    continue
+                try:
+                    num_str = re.sub(r"[^\d.]", "", str(val))
+                    if not num_str:
+                        continue
+                    score = float(num_str)
+                except Exception:
+                    continue
 
-        # 4. 과목 구분 (영어 / 수학 / 영+수)
-        raw_subj = str(row[subj_col]).strip() if subj_col and pd.notna(row[subj_col]) else ""
-        if ("영" in raw_subj and "수" in raw_subj) or "영수" in raw_subj:
-            subj_type = "영+수"
-        elif "수" in raw_subj or "자연" in raw_subj or "math" in raw_subj.lower():
-            subj_type = "수학"
-        else:
-            subj_type = "영어"
+                eng_score = score if subj_type == "영어" else None
+                math_score = score if subj_type == "수학" else None
+                records.append((s_name, u_name, yr_val, subj_type, score, None, None, eng_score, math_score, memo))
 
-        # 5. 점수
-        eng_score = None
-        math_score = None
-        if eng_col and pd.notna(row[eng_col]):
-            try: eng_score = float(re.sub(r"[^\d.]", "", str(row[eng_col])))
-            except Exception: pass
-        if math_col and pd.notna(row[math_col]):
-            try: math_score = float(re.sub(r"[^\d.]", "", str(row[math_col])))
-            except Exception: pass
+    else:
+        # 2. 기존 단일 행(행별 년도) 방식
+        year_col = find_col(['기출 년도', '기출년도', '년도', '연도', '기출연도', 'exam_year', 'year'])
+        score_col = find_col(['내 총점', '내총점', '총점', '내점수', '내 점수', '점수', 'score', 'my_score'])
+        avg_col = find_col(['평균', '평균점수', 'avg', 'avg_score'])
+        eng_col = find_col(['영어점수', '영어 점수', '영어', 'eng_score'])
+        math_col = find_col(['수학점수', '수학 점수', '수학', 'math_score'])
 
-        my_score = None
-        if score_col and pd.notna(row[score_col]):
-            try: my_score = float(re.sub(r"[^\d.]", "", str(row[score_col])))
-            except Exception: pass
-        
-        if my_score is None:
-            if eng_score is not None and math_score is not None:
-                my_score = eng_score + math_score
-            elif eng_score is not None:
-                my_score = eng_score
-            elif math_score is not None:
-                my_score = math_score
-        
-        if my_score is None:
-            skipped_count += 1
-            continue
+        for _, row in df.iterrows():
+            s_name = str(row[student_col]).strip() if student_col and pd.notna(row[student_col]) else ""
+            if not s_name or s_name in ['nan', 'None']:
+                s_name = (default_student or "").strip()
+            if not s_name:
+                skipped_count += 1
+                continue
 
-        # 6. 평균 점수 & 차이
-        avg_score = None
-        if avg_col and pd.notna(row[avg_col]):
-            try: avg_score = float(re.sub(r"[^\d.]", "", str(row[avg_col])))
-            except Exception: pass
-        
-        score_gap = None
-        if avg_score is not None and avg_score > 0:
-            score_gap = round(my_score - avg_score, 2)
+            u_name = str(row[univ_col]).strip() if univ_col and pd.notna(row[univ_col]) else ""
+            y_val = row[year_col] if year_col and pd.notna(row[year_col]) else None
 
-        # 7. 메모
-        memo = str(row[memo_col]).strip() if memo_col and pd.notna(row[memo_col]) else ""
-        if memo in ['nan', 'None']: memo = ""
+            if u_name:
+                m_year_univ = re.match(r"^(\d{2,4})\s*(.+)$", u_name)
+                if m_year_univ:
+                    if not y_val or pd.isna(y_val):
+                        y_val = m_year_univ.group(1)
+                    u_name = m_year_univ.group(2).strip()
 
-        records.append((s_name, u_name, exam_year, subj_type, my_score, avg_score, score_gap, eng_score, math_score, memo))
+            if not u_name or u_name in ['nan', 'None']:
+                u_name = (default_univ or "").strip()
+            if not u_name:
+                skipped_count += 1
+                continue
+
+            exam_year = None
+            if y_val is not None and not pd.isna(y_val):
+                try:
+                    y_num = int(float(re.sub(r"[^\d.]", "", str(y_val))))
+                    if y_num < 100:
+                        exam_year = 2000 + y_num
+                    else:
+                        exam_year = y_num
+                except Exception:
+                    pass
+            if not exam_year:
+                skipped_count += 1
+                continue
+
+            raw_subj = str(row[subj_col]).strip() if subj_col and pd.notna(row[subj_col]) else ""
+            if ("영" in raw_subj and "수" in raw_subj) or "영수" in raw_subj:
+                subj_type = "영+수"
+            elif "수" in raw_subj or "자연" in raw_subj or "math" in raw_subj.lower():
+                subj_type = "수학"
+            else:
+                subj_type = "영어"
+
+            eng_score = None
+            math_score = None
+            if eng_col and pd.notna(row[eng_col]):
+                try: eng_score = float(re.sub(r"[^\d.]", "", str(row[eng_col])))
+                except Exception: pass
+            if math_col and pd.notna(row[math_col]):
+                try: math_score = float(re.sub(r"[^\d.]", "", str(row[math_col])))
+                except Exception: pass
+
+            my_score = None
+            if score_col and pd.notna(row[score_col]):
+                try: my_score = float(re.sub(r"[^\d.]", "", str(row[score_col])))
+                except Exception: pass
+            
+            if my_score is None:
+                if eng_score is not None and math_score is not None:
+                    my_score = eng_score + math_score
+                elif eng_score is not None:
+                    my_score = eng_score
+                elif math_score is not None:
+                    my_score = math_score
+            
+            if my_score is None:
+                skipped_count += 1
+                continue
+
+            avg_score = None
+            if avg_col and pd.notna(row[avg_col]):
+                try: avg_score = float(re.sub(r"[^\d.]", "", str(row[avg_col])))
+                except Exception: pass
+            
+            score_gap = None
+            if avg_score is not None and avg_score > 0:
+                score_gap = round(my_score - avg_score, 2)
+
+            memo = str(row[memo_col]).strip() if memo_col and pd.notna(row[memo_col]) else ""
+            if memo in ['nan', 'None']: memo = ""
+
+            records.append((s_name, u_name, exam_year, subj_type, my_score, avg_score, score_gap, eng_score, math_score, memo))
 
     if not records:
-        raise HTTPException(status_code=400, detail="유효한 기출 성적 행을 찾을 수 없습니다. (학생이름, 기출년도, 점수 확인 필요)")
+        raise HTTPException(status_code=400, detail="유효한 기출 성적 행을 찾을 수 없습니다. (학생이름, 기출년도/년도컬럼, 점수 확인 필요)")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -2152,21 +2208,54 @@ async def upload_past_exam_excel(
 
 @app.get("/api/student-past-exams/sample-template")
 def download_past_exam_template():
-    sample_data = [
-        {"학생 이름": "김도현", "대학명": "건국대학교", "기출 년도": 2024, "구분(영어/수학/영+수)": "영어", "내 총점": 72.5, "평균": 58.0, "메모": "인문 영어 기출"},
-        {"학생 이름": "김도현", "대학명": "건국대학교", "기출 년도": 2024, "구분(영어/수학/영+수)": "수학", "내 총점": 68.0, "평균": 55.0, "메모": "자연 수학 기출"},
-        {"학생 이름": "김도현", "대학명": "아주대학교", "기출 년도": 2023, "구분(영어/수학/영+수)": "영+수", "내 총점": 145.0, "평균": 130.0, "메모": "영수 통합 기출"},
-        {"학생 이름": "김도현", "대학명": "세종대학교", "기출 년도": 2022, "구분(영어/수학/영+수)": "수학", "내 총점": 85.0, "평균": 70.0, "메모": "수학 100% 전형"}
+    # 전체 학교 및 세션 목록
+    template_universities = [
+        # 서성한
+        "서강대학교", "성균관대학교", "한양대학교",
+        # 중경외시
+        "중앙대학교", "경희대학교", "한국외국어대학교(T1 A형)", "한국외국어대학교(T2 B형)", "서울시립대학교",
+        # 건동홍
+        "건국대학교", "동국대학교", "홍익대학교",
+        # 국숭세단
+        "국민대학교", "숭실대학교", "세종대학교", "단국대학교(오전)", "단국대학교(오후)",
+        # 광명가
+        "광운대학교", "명지대학교(오전)", "명지대학교(오후)", "가톨릭대학교", "상명대학교",
+        # 인가경
+        "인하대학교", "인천대학교", "가천대학교(A형)", "가천대학교(B형)", "경기대학교",
+        # 여대라인
+        "이화여자대학교", "숙명여자대학교(A형)", "숙명여자대학교(B형)", "동덕여자대학교",
+        "덕성여자대학교(1교시)", "덕성여자대학교(2교시)", "덕성여자대학교(3교시)",
+        "서울여자대학교(오전)", "서울여자대학교(오후)",
+        # 한성/항공
+        "한성대학교", "한국항공대학교"
     ]
-    df = pd.DataFrame(sample_data)
+
+    sample_rows = []
+    # 예시 학생명 (홍길동 예시 1행 + 빈 입력용 행들)
+    for idx, univ in enumerate(template_universities):
+        sample_rows.append({
+            "학생 이름": "홍길동" if idx == 0 else "",
+            "대학명": univ,
+            "과목 구분(영어/수학/영+수)": "영어",
+            "2020년": 75.0 if idx == 0 else None,
+            "2021년": 68.0 if idx == 0 else None,
+            "2022년": 82.5 if idx == 0 else None,
+            "2023년": None,
+            "2024년": None,
+            "2025년": None,
+            "2026년": None,
+            "비고": "인문 영어 기출" if idx == 0 else ""
+        })
+
+    df = pd.DataFrame(sample_rows)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='기출성적양식')
+        df.to_excel(writer, index=False, sheet_name='기출성적입력')
     output.seek(0)
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=past_exam_template.xlsx"}
+        headers={"Content-Disposition": "attachment; filename=past_exam_all_years_template.xlsx"}
     )
 
 

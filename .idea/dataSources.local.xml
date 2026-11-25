@@ -22,7 +22,6 @@
       <database-info product="MySQL" version="8.0.11-TiDB-v8.5.3-serverless" jdbc-version="4.2" driver-name="MySQL Connector/J" driver-version="mysql-connector-j-26.7.0 (Revision: 559f62df01d4f618440da174ff45ba87f7b3b2a8)" dbms="TIDB" exact-version="8.5.3" exact-driver-version="26.7">
         <extra-name-characters>$</extra-name-characters>
         <identifier-quote-string>`</identifier-quote-string>
-        <jdbc-catalog-is-schema>true</jdbc-catalog-is-schema>
       </database-info>
       <case-sensitivity plain-identifiers="mixed" quoted-identifiers="mixed" />
       <secret-storage>master_key</secret-storage>
