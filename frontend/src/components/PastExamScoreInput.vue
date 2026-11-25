@@ -48,40 +48,64 @@
           <span class="score-count-badge">등록된 기출 점수: <strong>{{ studentScoreCount }}</strong>건</span>
         </div>
 
-        <!-- 🌟 2020~2026 한 시트 엑셀 일괄 다운로드/업로드 버튼 -->
+        <!-- 🌟 2020~2026 기출 엑셀 다운로드 / 일괄 등록 버튼 -->
         <div class="excel-header-actions">
           <button @click="downloadTemplate" class="btn-excel-template" title="2020~2026 전체 대학 기출 점수 엑셀 템플릿 다운로드">
-            📥 엑셀 양식 다운로드
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>기출 양식 다운로드</span>
           </button>
           <button @click="openExcelModal" class="btn-excel-upload" title="기출 점수 엑셀 일괄 업로드">
-            📂 엑셀 일괄 업로드
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span>기출 엑셀 일괄 등록</span>
           </button>
         </div>
       </div>
     </header>
 
-    <!-- 🌟 엑셀 일괄 업로드 모달 -->
+    <!-- 🌟 기출 엑셀 일괄 등록 모달 -->
     <div v-if="showExcelUploadModal" class="modal-backdrop" @click.self="showExcelUploadModal = false">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>📊 2020~2026 기출고사 성적 엑셀 일괄 업로드</h3>
-          <button @click="showExcelUploadModal = false" class="modal-close-btn">&times;</button>
+          <div class="modal-title-group">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <h3 class="modal-title">기출고사 성적 엑셀 일괄 등록</h3>
+          </div>
+          <button @click="showExcelUploadModal = false" class="modal-close-btn" aria-label="닫기">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <div class="excel-guide-banner">
-            <p class="banner-title">💡 <strong>한 시트에서 전체 학교 · 전체 년도(2020~2026) 일괄 등록</strong></p>
-            <p class="banner-desc">
-              1. <strong>[엑셀 양식 다운로드]</strong>로 전체 주요 대학(서성한~항공대)이 포함된 템플릿을 받으세요.<br>
-              2. <strong>과목 구분(영어 / 수학 / 영+수)</strong>을 확인하고, 2020년~2026년 열에 점수를 입력하세요.<br>
-              3. 완성된 엑셀 파일을 아래에 업로드하면 수십 개의 점수가 한 번에 등록됩니다!
-            </p>
+            <span class="guide-badge">안내</span>
+            <div class="banner-text">
+              <p class="banner-title">2020~2026년도 전체 학교 기출 점수를 한 번에 등록합니다.</p>
+              <p class="banner-desc">
+                [기출 양식 다운로드] 템플릿의 각 학교 행에 점수를 입력한 뒤 업로드해 주세요. 과목 구분(영어, 수학, 영+수)에 맞춰 자동으로 등록됩니다.
+              </p>
+            </div>
           </div>
 
           <div class="upload-field-row">
-            <label class="field-label">기본 적용 학생 (파일 내에 이름이 없을 때 적용)</label>
+            <label class="field-label">기본 적용 학생 선택 <span class="field-hint">(파일 내 학생명이 누락된 행에 적용)</span></label>
             <select v-model="uploadTargetStudent" class="modal-student-select">
-              <option value="">(파일의 '학생 이름' 컬럼 우선 사용)</option>
-              <option v-for="stu in studentList" :key="stu" :value="stu">{{ stu }} 학생</option>
+              <option value="">파일에 기재된 학생 이름 사용</option>
+              <option v-for="stu in studentList" :key="stu" :value="stu">{{ stu }}</option>
             </select>
           </div>
 
@@ -92,20 +116,33 @@
               accept=".xlsx, .xls, .csv"
               id="pastExamExcelFile"
               class="file-hidden-input"
+              @change="onExcelFileSelected"
             />
             <label for="pastExamExcelFile" class="file-picker-label">
-              <span class="upload-icon">📄</span>
-              <span class="upload-prompt">엑셀 파일(.xlsx, .xls, .csv)을 선택하세요</span>
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#64748b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span class="upload-prompt" v-if="!selectedExcelFileName">클릭하여 엑셀 파일(.xlsx, .csv) 선택</span>
+              <span class="upload-filename" v-else>{{ selectedExcelFileName }}</span>
             </label>
           </div>
         </div>
         <div class="modal-footer">
-          <button @click="downloadTemplate" class="btn-modal-sub">📥 양식 다시 받기</button>
+          <button @click="downloadTemplate" class="btn-modal-sub">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>양식 다운로드</span>
+          </button>
           <div class="modal-right-btns">
             <button @click="showExcelUploadModal = false" class="btn-modal-cancel">취소</button>
             <button @click="handleExcelUpload" :disabled="isUploadingExcel" class="btn-modal-submit">
-              <span v-if="isUploadingExcel">⏳ 업로드 처리 중...</span>
-              <span v-else>🚀 기출 성적 일괄 반영</span>
+              <span v-if="isUploadingExcel">등록 중...</span>
+              <span v-else>일괄 등록</span>
             </button>
           </div>
         </div>
@@ -534,6 +571,7 @@ const statusType = ref('success')
 // 🌟 엑셀 다운로드 / 일괄 업로드 관련 상태
 const showExcelUploadModal = ref(false)
 const excelFileInput = ref(null)
+const selectedExcelFileName = ref('')
 const isUploadingExcel = ref(false)
 const uploadTargetStudent = ref('')
 
@@ -543,7 +581,14 @@ function downloadTemplate() {
 
 function openExcelModal() {
   uploadTargetStudent.value = selectedStudent.value || ''
+  selectedExcelFileName.value = ''
+  if (excelFileInput.value) excelFileInput.value.value = ''
   showExcelUploadModal.value = true
+}
+
+function onExcelFileSelected(e) {
+  const file = e.target.files?.[0]
+  selectedExcelFileName.value = file ? file.name : ''
 }
 
 async function handleExcelUpload() {
@@ -2023,7 +2068,7 @@ function getSessionColorClass(session) {
 }
 
 /* ========================================================
-   엑셀 일괄 다운로드/업로드 버튼 & 모달 스타일
+   엑셀 일괄 다운로드/업로드 버튼 & 모달 스타일 (Emil Design Eng)
    ======================================================== */
 .excel-header-actions {
   display: flex;
@@ -2036,52 +2081,61 @@ function getSessionColorClass(session) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 700;
-  background: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
+  padding: 7px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: transform 160ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out;
   white-space: nowrap;
 }
 
 .btn-excel-template:hover {
-  background: #dcfce7;
-  border-color: #86efac;
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.btn-excel-template:active {
+  transform: scale(0.97);
 }
 
 .btn-excel-upload {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 700;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
   background: #2563eb;
   color: #ffffff;
   border: 1px solid #2563eb;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+  transition: transform 160ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out;
+  white-space: nowrap;
 }
 
 .btn-excel-upload:hover {
   background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.btn-excel-upload:active {
+  transform: scale(0.97);
 }
 
 /* 모달 */
 .modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(15, 23, 42, 0.6);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2091,65 +2145,112 @@ function getSessionColorClass(session) {
 
 .modal-card {
   background: #ffffff;
-  border-radius: 16px;
-  max-width: 580px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  max-width: 540px;
   width: 100%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  transform-origin: center;
+  animation: modalEnter 200ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 24px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 16px 22px;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.modal-header h3 {
+.modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-title {
   margin: 0;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 700;
   color: #0f172a;
 }
 
 .modal-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
-  font-size: 24px;
+  padding: 4px;
   color: #94a3b8;
   cursor: pointer;
-  line-height: 1;
+  border-radius: 6px;
+  transition: transform 160ms ease-out, color 160ms ease-out, background-color 160ms ease-out;
 }
 
 .modal-close-btn:hover {
   color: #0f172a;
+  background: #f1f5f9;
+}
+
+.modal-close-btn:active {
+  transform: scale(0.95);
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 20px 22px;
 }
 
 .excel-guide-banner {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  padding: 14px 16px;
+  display: flex;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
   margin-bottom: 18px;
 }
 
+.guide-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  height: fit-content;
+  white-space: nowrap;
+}
+
+.banner-text {
+  flex: 1;
+}
+
 .banner-title {
-  margin: 0 0 6px 0;
-  font-size: 13.5px;
-  color: #1e40af;
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .banner-desc {
   margin: 0;
-  font-size: 12.5px;
-  color: #3b82f6;
-  line-height: 1.6;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
 }
 
 .upload-field-row {
@@ -2158,21 +2259,34 @@ function getSessionColorClass(session) {
 
 .field-label {
   display: block;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12.5px;
+  font-weight: 600;
   color: #334155;
   margin-bottom: 6px;
+}
+
+.field-hint {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: #94a3b8;
 }
 
 .modal-student-select {
   width: 100%;
   padding: 8px 12px;
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #ffffff;
   outline: none;
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.modal-student-select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .file-picker-box {
@@ -2188,48 +2302,70 @@ function getSessionColorClass(session) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 28px 16px;
-  background: #f8fafc;
-  border: 2px dashed #cbd5e1;
-  border-radius: 12px;
+  gap: 8px;
+  padding: 24px 16px;
+  background: #fafafa;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 160ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out;
 }
 
 .file-picker-label:hover {
-  background: #f1f5f9;
-  border-color: #2563eb;
+  background: #f8fafc;
+  border-color: #3b82f6;
 }
 
-.upload-icon {
-  font-size: 32px;
-  margin-bottom: 8px;
+.file-picker-label:active {
+  transform: scale(0.99);
 }
 
 .upload-prompt {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.upload-filename {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  word-break: break-all;
 }
 
 .modal-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 14px 22px;
   background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #f1f5f9;
 }
 
 .btn-modal-sub {
-  padding: 8px 12px;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #16a34a;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: transform 160ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out;
+}
+
+.btn-modal-sub:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.btn-modal-sub:active {
+  transform: scale(0.97);
 }
 
 .modal-right-btns {
@@ -2238,33 +2374,54 @@ function getSessionColorClass(session) {
 }
 
 .btn-modal-cancel {
-  padding: 8px 16px;
-  font-size: 13.5px;
-  font-weight: 700;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
   color: #64748b;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer;
+  transition: transform 160ms ease-out, background-color 160ms ease-out, color 160ms ease-out;
+}
+
+.btn-modal-cancel:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.btn-modal-cancel:active {
+  transform: scale(0.97);
 }
 
 .btn-modal-submit {
-  padding: 8px 18px;
-  font-size: 13.5px;
-  font-weight: 800;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
   color: #ffffff;
   background: #2563eb;
-  border: none;
-  border-radius: 6px;
+  border: 1px solid #2563eb;
+  border-radius: 7px;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+  transition: transform 160ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out;
 }
 
 .btn-modal-submit:hover:not(:disabled) {
   background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.btn-modal-submit:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btn-modal-submit:disabled {
-  background: #cbd5e1;
+  background: #e2e8f0;
+  border-color: #e2e8f0;
+  color: #94a3b8;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 </style>
