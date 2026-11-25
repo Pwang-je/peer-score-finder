@@ -1497,9 +1497,11 @@ const TARGET_UNIV_ORDER_LIST = [
   { name: '성균관대학교', match: u => u.includes('성균관') },
   { name: '한양대학교', match: u => u.includes('한양') },
   // 2. 중경외시
+  { name: '중앙대학교(다빈치)', match: u => u.includes('중앙') && (u.includes('다빈치') || u.includes('안성')) },
   { name: '중앙대학교', match: u => u.includes('중앙') },
   { name: '경희대학교', match: u => u.includes('경희') },
-  { name: '한국외국어대학교', match: u => u.includes('한국외') || u.includes('외국어') },
+  { name: '한국외국어대학교(글로벌)', match: u => (u.includes('한국외') || u.includes('외국어') || u.includes('외대')) && u.includes('글로벌') },
+  { name: '한국외국어대학교', match: u => u.includes('한국외') || u.includes('외국어') || u.includes('외대') },
   { name: '서울시립대학교', match: u => u.includes('시립') },
   // 3. 건동홍
   { name: '건국대학교', match: u => u.includes('건국') },
@@ -1510,6 +1512,7 @@ const TARGET_UNIV_ORDER_LIST = [
   { name: '숭실대학교', match: u => u.includes('숭실') },
   { name: '세종대학교', match: u => u.includes('세종') },
   { name: '단국대학교', match: u => u.includes('단국') },
+  { name: '서울과학기술대학교', match: u => u.includes('과기') || u.includes('과학기술') },
   // 5. 광명상가
   { name: '광운대학교', match: u => u.includes('광운') },
   { name: '명지대학교', match: u => u.includes('명지') },
@@ -1529,7 +1532,10 @@ const TARGET_UNIV_ORDER_LIST = [
   { name: '서울여자대학교', match: u => u.includes('서울여') || (u.includes('서울') && u.includes('여자')) },
   // 8. 한성, 항공
   { name: '한성대학교', match: u => u.includes('한성') },
-  { name: '한국항공대학교', match: u => u.includes('항공') }
+  { name: '한국항공대학교', match: u => u.includes('항공') },
+  // 9. 산기, 수원
+  { name: '한국공학대학교', match: u => u.includes('공학대') || u.includes('한국공학') || u.includes('산기대') || u.includes('산업기술') },
+  { name: '수원대학교', match: u => u.includes('수원') }
 ]
 
 function getUnivMeta(univName) {

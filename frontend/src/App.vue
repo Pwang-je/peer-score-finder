@@ -800,7 +800,7 @@ const UNIVERSITY_TIERS = [
   {
     tier: '중경외시',
     name: '중앙 · 경희 · 한국외대 · 시립대',
-    univs: ['중앙대학교', '경희대학교', '한국외국어대학교(T1 A형)', '한국외국어대학교(T2 B형)', '서울시립대학교']
+    univs: ['중앙대학교', '중앙대학교(다빈치)', '경희대학교', '한국외국어대학교(T1 A형)', '한국외국어대학교(T2 B형)', '한국외국어대학교(글로벌)', '서울시립대학교']
   },
   {
     tier: '건동홍',
@@ -809,8 +809,8 @@ const UNIVERSITY_TIERS = [
   },
   {
     tier: '국숭세단',
-    name: '국민 · 숭실 · 세종 · 단국',
-    univs: ['국민대학교', '숭실대학교', '세종대학교', '단국대학교', '단국대학교(오전)', '단국대학교(오후)']
+    name: '국민 · 숭실 · 세종 · 단국 · 서울과기',
+    univs: ['국민대학교', '숭실대학교', '세종대학교', '단국대학교', '단국대학교(오전)', '단국대학교(오후)', '서울과학기술대학교']
   },
   {
     tier: '광명가',
@@ -831,6 +831,11 @@ const UNIVERSITY_TIERS = [
     tier: '한성·항공',
     name: '한성 · 항공',
     univs: ['한성대학교', '한국항공대학교']
+  },
+  {
+    tier: '산기·수원',
+    name: '한국공학 · 수원',
+    univs: ['한국공학대학교', '수원대학교']
   }
 ];
 
@@ -926,15 +931,16 @@ export default {
       if (!this.studentPastExams || !this.studentPastExams.length) return [];
       const standardOrder = [
         '서강대학교', '성균관대학교', '한양대학교',
-        '중앙대학교', '경희대학교', '한국외국어대학교(T1 A형)', '한국외국어대학교(T2 B형)', '서울시립대학교',
+        '중앙대학교', '중앙대학교(다빈치)', '경희대학교', '한국외국어대학교(T1 A형)', '한국외국어대학교(T2 B형)', '한국외국어대학교(글로벌)', '서울시립대학교',
         '건국대학교', '동국대학교', '홍익대학교',
-        '국민대학교', '숭실대학교', '세종대학교', '단국대학교(오전)', '단국대학교(오후)', '단국대학교',
-        '광운대학교', '명지대학교(오전)', '명지대학교(오후)', '명지대학교', '가톨릭대학교', '상명대학교',
+        '국민대학교', '숭실대학교', '세종대학교', '단국대학교(오전)', '단국대학교(오후)', '단국대학교', '서울과학기술대학교',
+        '광운대학교', '명지대학교', '명지대학교(오전)', '명지대학교(오후)', '가톨릭대학교', '상명대학교',
         '인하대학교', '인천대학교', '가천대학교(A형)', '가천대학교(B형)', '가천대학교', '경기대학교',
         '이화여자대학교', '숙명여자대학교(A형)', '숙명여자대학교(B형)', '숙명여자대학교', '동덕여자대학교',
         '덕성여자대학교(1교시)', '덕성여자대학교(2교시)', '덕성여자대학교(3교시)', '덕성여자대학교',
         '서울여자대학교(오전)', '서울여자대학교(오후)', '서울여자대학교',
-        '한성대학교', '한국항공대학교'
+        '한성대학교', '한국항공대학교',
+        '한국공학대학교', '수원대학교'
       ];
       const set = new Set();
       for (const sc of this.studentPastExams) {
@@ -957,15 +963,16 @@ export default {
     matrixUnivColumns() {
       const standardOrder = [
         '서강대학교', '성균관대학교', '한양대학교',
-        '중앙대학교', '경희대학교', '한국외국어대학교(T1 A형)', '한국외국어대학교(T2 B형)', '서울시립대학교',
+        '중앙대학교', '중앙대학교(다빈치)', '경희대학교', '한국외국어대학교(T1 A형)', '한국외국어대학교(T2 B형)', '한국외국어대학교(글로벌)', '서울시립대학교',
         '건국대학교', '동국대학교', '홍익대학교',
-        '국민대학교', '숭실대학교', '세종대학교', '단국대학교(오전)', '단국대학교(오후)',
-        '광운대학교', '명지대학교(오전)', '명지대학교(오후)', '가톨릭대학교', '상명대학교',
+        '국민대학교', '숭실대학교', '세종대학교', '단국대학교(오전)', '단국대학교(오후)', '서울과학기술대학교',
+        '광운대학교', '명지대학교', '명지대학교(오전)', '명지대학교(오후)', '가톨릭대학교', '상명대학교',
         '인하대학교', '인천대학교', '가천대학교(A형)', '가천대학교(B형)', '경기대학교',
         '이화여자대학교', '숙명여자대학교(A형)', '숙명여자대학교(B형)', '동덕여자대학교',
         '덕성여자대학교(1교시)', '덕성여자대학교(2교시)', '덕성여자대학교(3교시)',
         '서울여자대학교(오전)', '서울여자대학교(오후)',
-        '한성대학교', '한국항공대학교'
+        '한성대학교', '한국항공대학교',
+        '한국공학대학교', '수원대학교'
       ];
 
       let baseList = [];
@@ -1178,22 +1185,32 @@ export default {
     },
     getCellScores(year, univName) {
       if (!this.studentPastExams || !this.studentPastExams.length) return [];
+      const yr = Number(year);
       return this.studentPastExams.filter(s => {
-        if (Number(s.exam_year) !== Number(year)) return false;
+        if (Number(s.exam_year) !== yr) return false;
         if (s.univ === univName) return true;
         const sNorm = (s.univ || '').replace(/\s+/g, '');
         const uNorm = (univName || '').replace(/\s+/g, '');
-        return sNorm === uNorm;
+        if (sNorm === uNorm) return true;
+
+        // 명지대학교 호환 처리: 2024년 이하는 단일 공통, 2025년 이상은 오전/오후
+        if (sNorm.includes('명지') && uNorm.includes('명지')) {
+          if (yr <= 2024 && (univName === '명지대학교' || s.univ === '명지대학교')) {
+            return true;
+          }
+          if (yr >= 2025 && univName === '명지대학교(오전)' && s.univ === '명지대학교') {
+            return true;
+          }
+        }
+        return false;
       });
     },
     getColumnSummary(univName) {
       if (!this.studentPastExams || !this.studentPastExams.length) return null;
-      const matches = this.studentPastExams.filter(s => {
-        if (s.univ === univName) return true;
-        const sNorm = (s.univ || '').replace(/\s+/g, '');
-        const uNorm = (univName || '').replace(/\s+/g, '');
-        return sNorm === uNorm;
-      });
+      const matches = [];
+      for (const yr of this.matrixYears) {
+        matches.push(...this.getCellScores(yr, univName));
+      }
       if (!matches.length) return null;
       const total = matches.reduce((acc, cur) => acc + (Number(cur.my_score) || 0), 0);
       return {
@@ -1203,6 +1220,9 @@ export default {
     },
     formatMatrixUnivTitle(univ) {
       if (!univ) return { name: '', session: '' };
+      if (univ === '명지대학교') {
+        return { name: '명지대학교', session: '20~24년 공통' };
+      }
       const match = univ.match(/^(.*?)\((.*?)\)$/);
       if (match) {
         return { name: match[1], session: match[2] };

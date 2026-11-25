@@ -174,7 +174,10 @@
         :class="['univ-chip-btn', { active: currentUniv.name === u.name }]"
       >
         <span class="univ-chip-name">{{ u.name }}</span>
-        <span v-if="u.sessions.length > 1" class="split-indicator-pill">
+        <span v-if="u.name === '명지대학교'" class="split-indicator-pill">
+          25년~ 오전/오후
+        </span>
+        <span v-else-if="u.sessions.length > 1" class="split-indicator-pill">
           {{ u.sessions.length }}개 세션
         </span>
         <span v-if="getUnivScoreCount(u.name) > 0" class="univ-score-count">
@@ -194,7 +197,7 @@
           </h3>
           <!-- 다중 세션 대학인 경우 세션 필터 탭 제공 -->
           <div v-if="currentUniv.sessions.length > 1" class="session-filter-group">
-            <span class="filter-caption">시험 세션:</span>
+            <span class="filter-caption">{{ currentUniv.name === '명지대학교' ? '25~26년 세션:' : '시험 세션:' }}</span>
             <button
               @click="activeSessionFilter = 'ALL'"
               :class="['session-btn', { active: activeSessionFilter === 'ALL' }]"
@@ -478,8 +481,10 @@ const UNIVERSITY_GROUPS = [
     name: '중앙 · 경희 · 한국외대 · 시립대',
     universities: [
       { name: '중앙대학교', sessions: ['공통'] },
+      { name: '중앙대학교(다빈치)', sessions: ['공통'] },
       { name: '경희대학교', sessions: ['공통'] },
       { name: '한국외국어대학교', sessions: ['T1 A형', 'T2 B형'] },
+      { name: '한국외국어대학교(글로벌)', sessions: ['공통'] },
       { name: '서울시립대학교', sessions: ['공통'] }
     ]
   },
@@ -494,12 +499,13 @@ const UNIVERSITY_GROUPS = [
   },
   {
     tier: '국숭세단',
-    name: '국민 · 숭실 · 세종 · 단국',
+    name: '국민 · 숭실 · 세종 · 단국 · 서울과기',
     universities: [
       { name: '국민대학교', sessions: ['공통'] },
       { name: '숭실대학교', sessions: ['공통'] },
       { name: '세종대학교', sessions: ['공통'] },
-      { name: '단국대학교', sessions: ['오전', '오후'] }
+      { name: '단국대학교', sessions: ['오전', '오후'] },
+      { name: '서울과학기술대학교', sessions: ['공통'] }
     ]
   },
   {
@@ -540,6 +546,14 @@ const UNIVERSITY_GROUPS = [
     universities: [
       { name: '한성대학교', sessions: ['공통'] },
       { name: '한국항공대학교', sessions: ['공통'] }
+    ]
+  },
+  {
+    tier: '산기·수원',
+    name: '한국공학 · 수원',
+    universities: [
+      { name: '한국공학대학교', sessions: ['공통'] },
+      { name: '수원대학교', sessions: ['공통'] }
     ]
   }
 ]
@@ -658,7 +672,14 @@ const visibleRows = computed(() => {
   if (activeSessionFilter.value === 'ALL') {
     return rows.value
   }
-  return rows.value.filter(r => r.session === activeSessionFilter.value)
+  return rows.value.filter(r => {
+    if (r.session === activeSessionFilter.value) return true
+    // 명지대학교의 경우 2024년 이하는 단일(공통) 세션이므로 '오전' 필터 선택 시에도 함께 표시
+    if (currentUniv.value?.name === '명지대학교' && r.session === '공통' && activeSessionFilter.value === '오전') {
+      return true
+    }
+    return false
+  })
 })
 
 // 년도별로 행들을 묶어 다중 세션 대학을 깔끔하게 그룹핑
@@ -769,6 +790,14 @@ function selectUniversity(univ) {
   rebuildRows()
 }
 
+function getSessionsForUnivAndYear(univ, year) {
+  if (univ.name === '명지대학교') {
+    // 25년도부터 오전/오후로 분리, 24년까지는 단일 공통(영어 또는 영+수)
+    return year >= 2025 ? ['오전', '오후'] : ['공통']
+  }
+  return univ.sessions || ['공통']
+}
+
 function getUnivKeyForSession(univName, session) {
   if (!session || session === '공통') {
     return univName
@@ -784,20 +813,35 @@ function rebuildRows() {
 
   const newRows = []
   const univName = currentUniv.value.name
-  const sessions = currentUniv.value.sessions
 
   for (const year of EXAM_YEARS) {
-    for (const session of sessions) {
+    const sessionsForYear = getSessionsForUnivAndYear(currentUniv.value, year)
+    for (const session of sessionsForYear) {
       const univKey = getUnivKeyForSession(univName, session)
 
       // DB 레코드 매칭: 정확히 일치하거나, 단일 세션 대학인 경우 이름 호환
       const matchingScores = rawStudentPastExams.value.filter(s => {
         if (s.exam_year !== year) return false
         if (s.univ === univKey) return true
-        // 공통 세션인 경우 괄호 없는 이름 매칭
-        if (session === '공통' && (s.univ === univName || s.univ.startsWith(univName + '(') === false && s.univ.includes(univName.replace('대학교', '')))) {
-          return true
+        
+        // 공통 세션인 경우 괄호 없는 이름 매칭 (예: '명지대학교', '명지대')
+        if (session === '공통') {
+          if (s.univ === univName || (!s.univ.includes('(') && s.univ.includes(univName.replace('대학교', '')))) {
+            return true
+          }
+          // 혹시 2024년 이하인데 DB에 '명지대학교(오전)'으로 저장된 경우도 호환 매칭
+          if (univName === '명지대학교' && year <= 2024 && s.univ.startsWith('명지대')) {
+            return true
+          }
         }
+
+        // 명지대학교 2025년도 이상: DB에 세션 없이 '명지대학교'로 저장된 레거시 데이터는 '오전' 세션에 매칭
+        if (univName === '명지대학교' && year >= 2025 && session === '오전') {
+          if (s.univ === '명지대학교' || s.univ === '명지대') {
+            return true
+          }
+        }
+
         return false
       })
 

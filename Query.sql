@@ -424,3 +424,102 @@ WHERE year = 2026
   AND major = '식품영양학과';
 
 select peer_data.student_name from peer_data where univ = '숙명여자대학교' and major = '화공생명공학부';
+
+DELETE FROM recruit_quota
+WHERE year = 2026
+  AND univ = '경기대학교';
+
+-- 1) 현재 DB에 적재된 경기대학교 과거 합격생 univ / department / major 분포 확인
+SELECT univ, department, major, COUNT(*) AS cnt
+FROM peer_data
+WHERE univ LIKE '경기%'
+GROUP BY univ, department, major
+ORDER BY department, cnt DESC;
+
+-- 2) 구(舊) 학과명 및 학부 병기 명칭 -> 2027 현행 모집단위 매핑 (조회 결과 확인 후 실행)
+UPDATE peer_data
+SET major = '산업경영공학과'
+WHERE univ = '경기대학교'
+  AND major = '산업경영정보공학과';
+
+UPDATE peer_data
+SET major = '컴퓨터공학전공'
+WHERE univ = '경기대학교'
+  AND major IN ('AI컴퓨터공학부 컴퓨터공학전공', '컴퓨터공학과');
+
+-- 학부명 접두어가 붙어 저장된 과거 데이터 정리 (단, 요강에 학부명이 포함된 인공지능·SW안전보안 제외)
+UPDATE peer_data
+SET major = TRIM(
+  REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+    major,
+    '글로벌어문학부 ', ''),
+    '디자인비즈학부 ', ''),
+    'Fine Arts학부 ', ''),
+    '스포츠과학부 ', ''),
+    '공공안전학부 ', ''),
+    '휴먼서비스학부 ', ''),
+    '공공인재학부 ', ''),
+    '경제학부 ', ''),
+    '경영학부 ', ''),
+    '바이오융합학부 ', ''),
+    '신소재화학공학부 ', '')
+)
+WHERE univ = '경기대학교'
+  AND major LIKE '%학부 %';
+
+UPDATE peer_data
+SET major = TRIM(REPLACE(REPLACE(major, '스마트시티공학부 ', ''), '호텔외식경영학부 ', ''))
+WHERE univ = '경기대학교'
+  AND (major LIKE '스마트시티공학부 %' OR major LIKE '호텔외식경영학부 %');
+
+-- 3) 매칭 누락 여부 최종 검증 SQL
+SELECT
+    p.student_name,
+    p.univ,
+    p.department,
+    p.major,
+    p.year,
+    CASE WHEN rq.id IS NULL THEN '❌ 매칭실패' ELSE '✅ 연결됨' END AS 상태
+FROM (
+    SELECT DISTINCT student_name, univ, department, major, year
+    FROM peer_data
+    WHERE univ LIKE '경기%'
+) p
+LEFT JOIN recruit_quota rq
+  ON rq.year = 2026
+ AND rq.univ = p.univ
+ AND CONCAT(
+       CASE WHEN p.department LIKE '일반%' THEN '일반' ELSE '학사' END,
+       rq.department
+     ) = p.department
+ AND REGEXP_REPLACE(REPLACE(REPLACE(REPLACE(p.major, '*', ''), '·', ''), ' ', ''), '(학전공|학과|학부|전공|과)$', '')
+   = REGEXP_REPLACE(REPLACE(REPLACE(REPLACE(rq.major, '*', ''), '·', ''), ' ', ''), '(학전공|학과|학부|전공|과)$', '')
+ORDER BY 상태 ASC, p.department, p.major;
+
+SELECT year, univ, COUNT(*) AS 학과수, SUM(general_quota) AS 일반합계, SUM(bachelor_quota) AS 학사합계
+FROM recruit_quota
+WHERE univ LIKE '%경기%'
+GROUP BY year, univ;
+
+UPDATE recruit_quota
+SET year = 2026
+WHERE univ = '경기대학교'
+  AND year = 2027;
+
+-- 1) 앞의 '전자공학부 ' 제거하여 현행 모집단위명과 일치시키기
+UPDATE peer_data
+SET major = '나노·반도체전공'
+WHERE univ = '경기대학교'
+  AND major LIKE '%나노·반도체전공%';
+
+-- 2) 인문으로 잘못 들어간 행을 자연계열로 보정
+UPDATE peer_data
+SET department = '일반자연'
+WHERE univ = '경기대학교'
+  AND major = '나노·반도체전공'
+  AND department = '일반인문';
+
+UPDATE peer_data
+SET major = '호텔경영전공'
+WHERE univ = '경기대학교'
+  AND major = '호텔외식호텔경영전공';

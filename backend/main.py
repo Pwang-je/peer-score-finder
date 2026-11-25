@@ -2079,9 +2079,17 @@ async def upload_past_exam_excel(
                 except Exception:
                     continue
 
+                curr_u_name = u_name
+                # 명지대학교 년도별 세션 정규화: 2024년 이하는 '명지대학교', 2025년 이상은 '명지대학교(오전)'
+                if "명지" in curr_u_name:
+                    if yr_val <= 2024:
+                        curr_u_name = "명지대학교"
+                    elif yr_val >= 2025 and curr_u_name == "명지대학교":
+                        curr_u_name = "명지대학교(오전)"
+
                 eng_score = score if subj_type == "영어" else None
                 math_score = score if subj_type == "수학" else None
-                records.append((s_name, u_name, yr_val, subj_type, score, None, None, eng_score, math_score, memo))
+                records.append((s_name, curr_u_name, yr_val, subj_type, score, None, None, eng_score, math_score, memo))
 
     else:
         # 2. 기존 단일 행(행별 년도) 방식
@@ -2129,6 +2137,13 @@ async def upload_past_exam_excel(
                 skipped_count += 1
                 continue
 
+            curr_u_name = u_name
+            if "명지" in curr_u_name:
+                if exam_year <= 2024:
+                    curr_u_name = "명지대학교"
+                elif exam_year >= 2025 and curr_u_name == "명지대학교":
+                    curr_u_name = "명지대학교(오전)"
+
             raw_subj = str(row[subj_col]).strip() if subj_col and pd.notna(row[subj_col]) else ""
             if ("영" in raw_subj and "수" in raw_subj) or "영수" in raw_subj:
                 subj_type = "영+수"
@@ -2175,7 +2190,7 @@ async def upload_past_exam_excel(
             memo = str(row[memo_col]).strip() if memo_col and pd.notna(row[memo_col]) else ""
             if memo in ['nan', 'None']: memo = ""
 
-            records.append((s_name, u_name, exam_year, subj_type, my_score, avg_score, score_gap, eng_score, math_score, memo))
+            records.append((s_name, curr_u_name, exam_year, subj_type, my_score, avg_score, score_gap, eng_score, math_score, memo))
 
     if not records:
         raise HTTPException(status_code=400, detail="유효한 기출 성적 행을 찾을 수 없습니다. (학생이름, 기출년도/년도컬럼, 점수 확인 필요)")
@@ -2213,13 +2228,13 @@ def download_past_exam_template():
         # 서성한
         "서강대학교", "성균관대학교", "한양대학교",
         # 중경외시
-        "중앙대학교", "경희대학교", "한국외국어대학교(T1 A형)", "한국외국어대학교(T2 B형)", "서울시립대학교",
+        "중앙대학교", "중앙대학교(다빈치)", "경희대학교", "한국외국어대학교(T1 A형)", "한국외국어대학교(T2 B형)", "한국외국어대학교(글로벌)", "서울시립대학교",
         # 건동홍
         "건국대학교", "동국대학교", "홍익대학교",
         # 국숭세단
-        "국민대학교", "숭실대학교", "세종대학교", "단국대학교(오전)", "단국대학교(오후)",
+        "국민대학교", "숭실대학교", "세종대학교", "단국대학교(오전)", "단국대학교(오후)", "서울과학기술대학교",
         # 광명가
-        "광운대학교", "명지대학교(오전)", "명지대학교(오후)", "가톨릭대학교", "상명대학교",
+        "광운대학교", "명지대학교", "명지대학교(오전)", "명지대학교(오후)", "가톨릭대학교", "상명대학교",
         # 인가경
         "인하대학교", "인천대학교", "가천대학교(A형)", "가천대학교(B형)", "경기대학교",
         # 여대라인
@@ -2227,7 +2242,9 @@ def download_past_exam_template():
         "덕성여자대학교(1교시)", "덕성여자대학교(2교시)", "덕성여자대학교(3교시)",
         "서울여자대학교(오전)", "서울여자대학교(오후)",
         # 한성/항공
-        "한성대학교", "한국항공대학교"
+        "한성대학교", "한국항공대학교",
+        # 산기/수원
+        "한국공학대학교", "수원대학교"
     ]
 
     sample_rows = []
