@@ -503,7 +503,7 @@ GROUP BY year, univ;
 
 UPDATE recruit_quota
 SET year = 2026
-WHERE univ = '경기대학교'
+WHERE univ = '국민대학교'
   AND year = 2027;
 
 -- 1) 앞의 '전자공학부 ' 제거하여 현행 모집단위명과 일치시키기
@@ -523,3 +523,73 @@ UPDATE peer_data
 SET major = '호텔경영전공'
 WHERE univ = '경기대학교'
   AND major = '호텔외식호텔경영전공';
+
+DELETE FROM recruit_quota
+WHERE year = 2026
+  AND univ = '국민대학교';
+
+-- 1) 현재 DB에 적재된 국민대학교 과거 합격생 분포 확인
+SELECT univ, department, major, COUNT(*) AS cnt
+FROM peer_data
+WHERE univ LIKE '국민%'
+GROUP BY univ, department, major
+ORDER BY department, cnt DESC;
+
+-- 2) 학부명 접두어 제거 및 개편 학과명 매핑 예시
+UPDATE peer_data
+SET major = TRIM(
+  REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+    major,
+    '한국어문학부 ', ''),
+    '영어영문학부 ', ''),
+    '미디어·광고학부 ', ''),
+    '동아시아국제학부 ', ''),
+    '법학부 ', ''),
+    '경영학부 ', ''),
+    '경영정보학부 ', ''),
+    '신소재공학부 ', ''),
+    '기계공학부 ', ''),
+    '전자공학부 ', '')
+)
+WHERE univ = '국민대학교'
+  AND major LIKE '%학부 %';
+
+UPDATE peer_data
+SET major = TRIM(REPLACE(REPLACE(REPLACE(major, '건설시스템공학부 ', ''), '소프트웨어학부 ', ''), '인공지능학부 ', ''))
+WHERE univ = '국민대학교'
+  AND (major LIKE '건설시스템공학부 %' OR major LIKE '소프트웨어학부 %' OR major LIKE '인공지능학부 %');
+
+-- 건축학부 세부전공 명칭 통일
+UPDATE peer_data
+SET major = '건축설계전공(5년제)'
+WHERE univ = '국민대학교'
+  AND major IN ('건축설계전공', '건축학부 건축설계전공');
+
+UPDATE peer_data
+SET major = '건축학전공(4년제)'
+WHERE univ = '국민대학교'
+  AND major IN ('건축학전공', '건축학부 건축학전공');
+
+-- 3) 매칭 누락 여부 최종 검증 SQL
+SELECT
+    p.student_name,
+    p.univ,
+    p.department,
+    p.major,
+    p.year,
+    CASE WHEN rq.id IS NULL THEN '❌ 매칭실패' ELSE '✅ 연결됨' END AS 상태
+FROM (
+    SELECT DISTINCT student_name, univ, department, major, year
+    FROM peer_data
+    WHERE univ LIKE '국민%'
+) p
+LEFT JOIN recruit_quota rq
+  ON rq.year = 2026
+ AND rq.univ = p.univ
+ AND CONCAT(
+       CASE WHEN p.department LIKE '일반%' THEN '일반' ELSE '학사' END,
+       rq.department
+     ) = p.department
+ AND REGEXP_REPLACE(REPLACE(REPLACE(REPLACE(p.major, '*', ''), '·', ''), ' ', ''), '(학전공|학과|학부|전공|과)$', '')
+   = REGEXP_REPLACE(REPLACE(REPLACE(REPLACE(rq.major, '*', ''), '·', ''), ' ', ''), '(학전공|학과|학부|전공|과)$', '')
+ORDER BY 상태 ASC, p.department, p.major;

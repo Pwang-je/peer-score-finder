@@ -1,0 +1,130 @@
+@import url("https://cdn.jsdelivr.net/gh/sun-typeface/SUIT/fonts/static/woff2/SUIT.css");
+
+:root {
+  /* Emil Kowalski: Strong custom easing curves */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+html, body, #app,
+.dashboard-root, .strategy-container,
+button, input, select, textarea, table {
+  font-family: "SUIT", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  letter-spacing: -0.015em;
+}
+
+/* ========================================================
+   ✨ Emil Kowalski Design Engineering Interaction Polish
+   ======================================================== */
+
+/* 1. Buttons must feel responsive to press with scale(0.97) */
+button,
+.btn,
+.mode-nav-btn,
+.admin-upload-btn,
+.toggle-btn,
+.matrix-tier-btn,
+.toggle-chip,
+.tab-btn,
+.applied-quick-chip,
+.pick-status-btn,
+.btn-fold,
+.btn-fold-exam,
+.btn-toggle-add-exam,
+.btn-excel-upload-exam,
+.btn-save,
+.btn-submit,
+.btn-cancel,
+.btn-autosum,
+.btn-matrix-action,
+.session-btn,
+.univ-select-btn,
+.tier-btn {
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active:not(:disabled),
+.btn:active:not(.disabled),
+.mode-nav-btn:active,
+.admin-upload-btn:active,
+.toggle-btn:active,
+.matrix-tier-btn:active,
+.toggle-chip:active,
+.tab-btn:active,
+.applied-quick-chip:active,
+.pick-status-btn:active:not(.disabled),
+.btn-fold:active,
+.btn-fold-exam:active,
+.btn-toggle-add-exam:active,
+.btn-excel-upload-exam:active,
+.btn-save:active:not(:disabled),
+.btn-submit:active:not(:disabled),
+.btn-cancel:active,
+.btn-autosum:active,
+.btn-matrix-action:active,
+.session-btn:active,
+.univ-select-btn:active,
+.tier-btn:active {
+  transform: scale(0.97);
+}
+
+/* Disabled buttons never scale */
+button:disabled,
+button[disabled],
+.disabled,
+.pick-status-btn.disabled {
+  transform: none !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+}
+
+/* 2. Modals scale in smoothly from 0.96 (never scale(0)) */
+.modal-backdrop,
+.slip-modal-backdrop {
+  animation: emilFadeIn 180ms ease-out forwards;
+}
+
+.modal-card,
+.modal-box,
+.slip-modal-box {
+  animation: emilModalIn 200ms var(--ease-out) forwards;
+  transform-origin: center center;
+}
+
+@keyframes emilFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes emilModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 3. Smooth focus rings */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+/* 4. Accessibility: prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
