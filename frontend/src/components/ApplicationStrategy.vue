@@ -257,7 +257,7 @@
                       </td>
                       <td class="td-sep">:</td>
                       <td class="td-major">
-                        <span :class="['major-name', { 'applied-txt': row.isApplied, 'unapplied-txt': !row.isApplied }]">
+                        <span :class="['major-name', { 'applied-txt': row.isApplied, 'unapplied-txt': !row.isApplied, 'closed-app-txt': row.is_closed }]">
                           {{ row.displayMajor }}
                         </span>
                       </td>
@@ -951,6 +951,17 @@
             </div>
           </div>
 
+          <!-- 🔄 학과 변경 진행 중 안내 바 -->
+          <div v-if="changingAppTarget" class="change-major-guide-bar">
+            <div class="guide-bar-left">
+              <span class="guide-badge">🔄 학과 변경 모드</span>
+              <span class="guide-text">
+                <strong>[{{ changingAppTarget.univ }}]</strong> 기존 <strong>'{{ changingAppTarget.major }}'</strong>을(를) 대체할 학과를 선택하세요.
+              </span>
+            </div>
+            <button @click="cancelChangeMajor" class="btn-cancel-change">변경 취소 ✕</button>
+          </div>
+
           <div class="major-filter-row">
             <div class="major-search-wrap">
               <input
@@ -1258,6 +1269,19 @@
             </div>
           </div>
 
+          <!-- 🚨 2026 모집요강 미선발 학과 감지 경고 배너 -->
+          <div v-if="closedApplicationsCount > 0" class="closed-apps-alert-box">
+            <div class="alert-icon-col">🚨</div>
+            <div class="alert-content-col">
+              <div class="alert-title">
+                2026 모집요강 기준 <strong>미선발 학과 {{ closedApplicationsCount }}건 감지</strong>
+              </div>
+              <div class="alert-desc">
+                요강 발표 전 사전 담아둔 학과 중 올해 선발인원이 없습니다. <strong>[학과 변경 ➔]</strong>을 눌러 다른 학과로 변경해주세요.
+              </div>
+            </div>
+          </div>
+
           <!-- 담긴 원서 목록 -->
           <div v-if="studentApplications.length > 0" class="app-cards-top-bar">
             <span class="app-cards-subtitle">담긴 원서 목록 ({{ studentApplications.length }}개교)</span>
@@ -1279,14 +1303,37 @@
             <div
               v-for="(app, idx) in sortedStudentApplications"
               :key="app.id"
-              class="app-card"
+              :class="['app-card', { 'is-closed-alert': app.is_closed, 'is-target-changing': changingAppTarget && changingAppTarget.id === app.id }]"
             >
               <div class="card-num">{{ idx + 1 }}</div>
               <div class="card-content" @click="jumpToFormUniv(app.univ)" title="클릭하면 좌측에서 해당 대학 열기">
-                <div class="card-univ">{{ app.univ }}</div>
-                <div class="card-major">{{ app.major }}</div>
+                <div class="card-univ-row">
+                  <span class="card-univ">{{ app.univ }}</span>
+                  <span v-if="app.is_closed" class="badge-app-status closed">🚨 26년 미선발</span>
+                  <span v-else-if="!app.is_quota_released" class="badge-app-status pending">⏳ 요강 발표전</span>
+                  <span v-else class="badge-app-status confirmed">✓ 모집확정</span>
+                </div>
+                <div class="card-major-row">
+                  <div class="card-major" :class="{ 'closed-major-text': app.is_closed }">{{ app.major }}</div>
+                  <button
+                    v-if="app.is_closed"
+                    @click.stop="startChangeMajor(app)"
+                    class="btn-change-major-action"
+                    title="선발 중인 다른 학과로 즉시 변경"
+                  >
+                    학과 변경 ➔
+                  </button>
+                </div>
                 <div class="card-meta">
-                  <span>선발정원: 일반 {{ app.gen_quota }}명 / 학사 {{ app.bac_quota }}명</span>
+                  <span v-if="app.is_closed" class="quota-warning-text">
+                    ⚠️ 2026 선발인원 없음 (일반 0명 / 학사 0명)
+                  </span>
+                  <span v-else-if="!app.is_quota_released" class="quota-pending-text">
+                    모집정원 미정 (2026 요강 발표 대기중)
+                  </span>
+                  <span v-else>
+                    선발정원: 일반 {{ app.gen_quota }}명 / 학사 {{ app.bac_quota }}명
+                  </span>
                   <div v-if="getUnivExamSummary(app.univ)" class="card-exam-tag">
                     <span class="exam-tag-label">기출:</span> {{ getUnivExamSummary(app.univ) }}
                   </div>
@@ -1557,6 +1604,26 @@ const sortedStudentApplications = computed(() => {
   })
 })
 
+const closedApplicationsCount = computed(() => {
+  return studentApplications.value.filter(a => a.is_closed).length
+})
+
+const changingAppTarget = ref(null)
+
+function startChangeMajor(app) {
+  changingAppTarget.value = app
+  selectFormUniv(app.univ)
+  nextTick(() => {
+    if (majorSearchInput.value) {
+      majorSearchInput.value.focus()
+    }
+  })
+}
+
+function cancelChangeMajor() {
+  changingAppTarget.value = null
+}
+
 const printDisplayList = computed(() => {
   if (printViewMode.value === 'applied') {
     return sortedStudentApplications.value.map((app, idx) => {
@@ -1564,8 +1631,9 @@ const printDisplayList = computed(() => {
       return {
         id: app.id || idx,
         displayUniv: app.univ,
-        displayMajor: app.major,
+        displayMajor: app.is_closed ? `${app.major} (올해 미선발)` : app.major,
         isApplied: true,
+        is_closed: app.is_closed,
         rank: meta.rank
       }
     })
@@ -1582,8 +1650,9 @@ const printDisplayList = computed(() => {
           result.push({
             id: app.id,
             displayUniv: app.univ,
-            displayMajor: app.major,
+            displayMajor: app.is_closed ? `${app.major} (올해 미선발)` : app.major,
             isApplied: true,
+            is_closed: app.is_closed,
             rank: sIdx
           })
         })
@@ -1593,6 +1662,7 @@ const printDisplayList = computed(() => {
           displayUniv: spec.name,
           displayMajor: '-',
           isApplied: false,
+          is_closed: false,
           rank: sIdx
         })
       }
@@ -1603,8 +1673,9 @@ const printDisplayList = computed(() => {
       result.push({
         id: app.id || `extra-${idx}`,
         displayUniv: app.univ,
-        displayMajor: app.major,
+        displayMajor: app.is_closed ? `${app.major} (올해 미선발)` : app.major,
         isApplied: true,
+        is_closed: app.is_closed,
         rank: 900 + idx
       })
     })
@@ -2052,6 +2123,7 @@ async function fetchAllowedStudents() {
 
 async function selectStudent(name) {
   if (!name) return
+  changingAppTarget.value = null
   selectedStudent.value = name
   await Promise.all([
     fetchStudentApplications(),
@@ -2157,6 +2229,44 @@ async function toggleApplication(deptItem) {
     return
   }
   if (isSavingApp.value || !selectedStudent.value) return
+
+  // 🔄 학과 변경 모드 진행 중인 경우: 기존 원서 제거 후 새 학과로 자동 교체
+  if (changingAppTarget.value) {
+    const oldApp = changingAppTarget.value
+    if (oldApp.univ !== deptItem.univ) {
+      if (!confirm(`현재 [${oldApp.univ} - ${oldApp.major}] 학과 변경 중입니다.\n[${deptItem.univ} - ${deptItem.major}] 학과로 대체 변경하시겠습니까?`)) {
+        return
+      }
+    }
+    isSavingApp.value = true
+    try {
+      await fetch(`${API_BASE}/api/applications/${oldApp.id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE}/api/applications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_name: selectedStudent.value,
+          univ: deptItem.univ,
+          major: deptItem.major
+        })
+      })
+      if (res.ok) {
+        delete deptCache[oldApp.univ]
+        delete deptCache[deptItem.univ]
+        changingAppTarget.value = null
+        await fetchStudentApplications()
+        if (selectedUniv.value === deptItem.univ) await fetchUnivDepartments(true)
+        if (formUniv.value === deptItem.univ) await fetchFormMajors(true)
+        alert(`[${deptItem.univ}] 지원 학과가 '${oldApp.major}'에서 '${deptItem.major}'(으)로 성공적으로 변경되었습니다.`)
+      }
+    } catch (err) {
+      console.error('학과 변경 실패:', err)
+      alert('학과 변경 중 오류가 발생했습니다.')
+    } finally {
+      isSavingApp.value = false
+    }
+    return
+  }
 
   const existing = studentApplications.value.find(
     a => a.univ === deptItem.univ && a.major === deptItem.major
@@ -2592,7 +2702,11 @@ function drawSlipToCanvas() {
     ctx.fillText(':', tableX + 215, rY + 24)
 
     // 학과
-    ctx.fillStyle = item.isApplied ? '#1d4ed8' : '#cbd5e1'
+    if (item.is_closed) {
+      ctx.fillStyle = '#dc2626'
+    } else {
+      ctx.fillStyle = item.isApplied ? '#1d4ed8' : '#cbd5e1'
+    }
     ctx.font = item.isApplied ? 'bold 13.5px Pretendard, "Malgun Gothic", sans-serif' : '13px Pretendard, "Malgun Gothic", sans-serif'
     ctx.fillText(item.displayMajor, tableX + 235, rY + 24)
   })
@@ -4497,6 +4611,85 @@ onMounted(async () => {
   padding: 2px 0;
 }
 
+/* 🔄 학과 변경 모드 가이드 바 */
+.change-major-guide-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #eff6ff;
+  border: 1.5px solid #3b82f6;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  gap: 10px;
+}
+.guide-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #1e3a8a;
+  flex: 1;
+}
+.guide-badge {
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.guide-text {
+  line-height: 1.35;
+}
+.btn-cancel-change {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-cancel-change:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+/* 🚨 미선발 학과 감지 배너 */
+.closed-apps-alert-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fef2f2;
+  border: 1.5px solid #f87171;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+.alert-icon-col {
+  font-size: 20px;
+  line-height: 1;
+}
+.alert-content-col {
+  flex: 1;
+}
+.alert-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #991b1b;
+  margin-bottom: 2px;
+}
+.alert-desc {
+  font-size: 11.5px;
+  color: #b91c1c;
+  line-height: 1.4;
+}
+
 .empty-list-box { padding: 40px 20px; text-align: center; font-size: 13px; color: #94a3b8; line-height: 1.6; }
 .application-cards { display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; }
 .app-card {
@@ -4507,12 +4700,89 @@ onMounted(async () => {
   border-radius: 8px;
   background: #f8fafc;
   gap: 12px;
+  transition: all 0.15s ease;
+}
+.app-card.is-closed-alert {
+  border: 1.5px solid #f87171;
+  background: #fff5f5;
+}
+.app-card.is-target-changing {
+  border: 2px solid #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 .card-num { font-size: 13px; font-weight: 800; color: #2563eb; width: 20px; text-align: center; }
 .card-content { flex: 1; cursor: pointer; }
+.card-univ-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
 .card-univ { font-size: 12px; font-weight: 700; color: #2563eb; }
-.card-major { font-size: 13.5px; font-weight: 700; color: #0f172a; margin: 2px 0; }
+.card-major-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px 0;
+}
+.card-major { font-size: 13.5px; font-weight: 700; color: #0f172a; }
+.card-major.closed-major-text {
+  color: #b91c1c;
+  font-weight: 700;
+  text-decoration: line-through;
+}
+.badge-app-status {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.badge-app-status.closed {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+.badge-app-status.pending {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+.badge-app-status.confirmed {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.btn-change-major-action {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2.5px 8px;
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.btn-change-major-action:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
 .card-meta { font-size: 11px; color: #64748b; }
+.quota-warning-text {
+  color: #dc2626;
+  font-weight: 700;
+}
+.quota-pending-text {
+  color: #b45309;
+}
+.major-name.closed-app-txt {
+  color: #dc2626 !important;
+  font-weight: 700;
+}
 .btn-remove {
   width: 26px;
   height: 26px;

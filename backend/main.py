@@ -341,23 +341,15 @@ def get_all_students_2026():
     try:
         cursor = conn.cursor()
         if ALLOWED_STUDENTS:
-            format_strings = ','.join(['%s'] * len(ALLOWED_STUDENTS))
-            query = f"""
-                SELECT DISTINCT student_name 
-                FROM peer_data 
-                WHERE year = 2026 AND student_name IN ({format_strings})
-                ORDER BY student_name ASC
-            """
-            cursor.execute(query, tuple(ALLOWED_STUDENTS))
-        else:
-            query = """
-                SELECT DISTINCT student_name
-                FROM peer_data
-                WHERE year = 2026 AND student_name != '' AND student_name IS NOT NULL
-                ORDER BY student_name ASC
-            """
-            cursor.execute(query)
+            return sorted(list(set(ALLOWED_STUDENTS)))
 
+        query = """
+            SELECT DISTINCT student_name
+            FROM peer_data
+            WHERE year = 2026 AND student_name != '' AND student_name IS NOT NULL
+            ORDER BY student_name ASC
+        """
+        cursor.execute(query)
         rows = cursor.fetchall()
         return [row[0] for row in rows]
     except Exception as e:
@@ -1587,8 +1579,10 @@ def get_student_applications(student_name: str):
                           a.univ,
                           a.major,
                           a.memo,
+                          q.id                          AS quota_id,
                           COALESCE(q.general_quota, 0)  AS gen_quota,
-                          COALESCE(q.bachelor_quota, 0) AS bac_quota
+                          COALESCE(q.bachelor_quota, 0) AS bac_quota,
+                          (SELECT COUNT(*) FROM recruit_quota rq WHERE rq.year = 2026 AND rq.univ = a.univ) AS univ_quota_count
                    FROM student_applications a
                             LEFT JOIN recruit_quota q
                                       ON a.year = q.year AND a.univ = q.univ AND a.major = q.major
@@ -1602,13 +1596,26 @@ def get_student_applications(student_name: str):
 
     cards = []
     for r in rows:
+        q_id = r[4] if isinstance(r, tuple) else r["quota_id"]
+        g_quota = r[5] if isinstance(r, tuple) else r["gen_quota"]
+        b_quota = r[6] if isinstance(r, tuple) else r["bac_quota"]
+        u_count = r[7] if isinstance(r, tuple) else r["univ_quota_count"]
+
+        is_released = bool(u_count and u_count > 0)
+        has_quota = bool((g_quota and g_quota > 0) or (b_quota and b_quota > 0))
+        # 대학의 2026 모집요강이 등록되어 있으나 해당 학과가 미선발(정원 0명 또는 미개설)인 경우
+        is_closed = bool(is_released and (not q_id or not has_quota))
+
         cards.append({
             "id": r[0] if isinstance(r, tuple) else r["id"],
             "univ": r[1] if isinstance(r, tuple) else r["univ"],
             "major": r[2] if isinstance(r, tuple) else r["major"],
             "memo": r[3] if isinstance(r, tuple) else r["memo"],
-            "gen_quota": r[4] if isinstance(r, tuple) else r["gen_quota"],
-            "bac_quota": r[5] if isinstance(r, tuple) else r["bac_quota"],
+            "gen_quota": g_quota,
+            "bac_quota": b_quota,
+            "is_quota_released": is_released,
+            "has_quota": has_quota,
+            "is_closed": is_closed
         })
     return cards
 
