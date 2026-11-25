@@ -481,10 +481,8 @@ const UNIVERSITY_GROUPS = [
     name: '중앙 · 경희 · 한국외대 · 시립대',
     universities: [
       { name: '중앙대학교', sessions: ['공통'] },
-      { name: '중앙대학교(다빈치)', sessions: ['공통'] },
       { name: '경희대학교', sessions: ['공통'] },
       { name: '한국외국어대학교', sessions: ['T1 A형', 'T2 B형'] },
-      { name: '한국외국어대학교(글로벌)', sessions: ['공통'] },
       { name: '서울시립대학교', sessions: ['공통'] }
     ]
   },
@@ -499,13 +497,12 @@ const UNIVERSITY_GROUPS = [
   },
   {
     tier: '국숭세단',
-    name: '국민 · 숭실 · 세종 · 단국 · 서울과기',
+    name: '국민 · 숭실 · 세종 · 단국',
     universities: [
       { name: '국민대학교', sessions: ['공통'] },
       { name: '숭실대학교', sessions: ['공통'] },
       { name: '세종대학교', sessions: ['공통'] },
-      { name: '단국대학교', sessions: ['오전', '오후'] },
-      { name: '서울과학기술대학교', sessions: ['공통'] }
+      { name: '단국대학교', sessions: ['오전', '오후'] }
     ]
   },
   {
@@ -546,14 +543,6 @@ const UNIVERSITY_GROUPS = [
     universities: [
       { name: '한성대학교', sessions: ['공통'] },
       { name: '한국항공대학교', sessions: ['공통'] }
-    ]
-  },
-  {
-    tier: '산기·수원',
-    name: '한국공학 · 수원',
-    universities: [
-      { name: '한국공학대학교', sessions: ['공통'] },
-      { name: '수원대학교', sessions: ['공통'] }
     ]
   }
 ]
