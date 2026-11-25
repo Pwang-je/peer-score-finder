@@ -944,7 +944,10 @@
               </div>
             </div>
             <div v-else-if="!isLoadingPastExams && !isPastExamFolded" class="no-past-exam">
-              <span>{{ selectedStudent ? `${selectedStudent} 학생의 ${formUniv} 기출 점수 기록이 없습니다.` : '학생을 선택하면 기출 점수가 표시됩니다.' }}</span>
+              <span v-if="formUniv.includes('단국') && formUniv.includes('천안')">
+                단국대학교(천안)은 별도의 기출 시험이 없습니다. (기출 점수는 죽전 캠퍼스에만 해당합니다)
+              </span>
+              <span v-else>{{ selectedStudent ? `${selectedStudent} 학생의 ${formUniv} 기출 점수 기록이 없습니다.` : '학생을 선택하면 기출 점수가 표시됩니다.' }}</span>
             </div>
           </div>
 
@@ -1683,8 +1686,13 @@ const appliedUnivList = computed(() => {
 
 const currentUnivPastExams = computed(() => {
   if (!formUniv.value) return []
+  // 단국대학교(천안)은 기출문제가 없으므로 기출 점수를 노출하지 않음 (죽전만 노출)
+  if (formUniv.value.includes('단국') && formUniv.value.includes('천안')) {
+    return []
+  }
   const uClean = formUniv.value.replace(/대학교|대학/g, '').split('(')[0].trim()
   return studentPastExams.value.filter(s => {
+    if (s.univ && s.univ.includes('천안')) return false
     const sUniv = (s.univ || '').replace(/대학교|대학/g, '').split('(')[0].trim()
     return s.univ === formUniv.value || sUniv === uClean || formUniv.value.includes(sUniv) || s.univ.includes(uClean)
   }).sort((a, b) => b.exam_year - a.exam_year)
@@ -2400,8 +2408,13 @@ function getSubjClass(subj) {
 
 function getUnivExamSummary(univ) {
   if (!univ) return ''
+  // 단국대학교(천안)은 기출점수가 없음 (죽전만 노출)
+  if (univ.includes('단국') && univ.includes('천안')) {
+    return ''
+  }
   const uClean = univ.replace(/대학교|대학/g, '').split('(')[0].trim()
   const matches = studentPastExams.value.filter(s => {
+    if (s.univ && s.univ.includes('천안')) return false
     const sUniv = (s.univ || '').replace(/대학교|대학/g, '').split('(')[0].trim()
     return s.univ === univ || sUniv === uClean || univ.includes(sUniv) || s.univ.includes(uClean)
   }).sort((a, b) => b.exam_year - a.exam_year)
