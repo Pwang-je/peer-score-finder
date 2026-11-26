@@ -1240,14 +1240,14 @@
                   :disabled="isSavingNote"
                   class="btn-save-note"
                 >
-                  {{ isSavingNote ? '저장 중...' : '메모 저장' }}
+                  {{ isSavingNote ? '저장 중...' : (savedStudentNote ? '메모 수정 저장' : '메모 저장') }}
                 </button>
               </div>
             </div>
             <div class="note-card-body">
               <textarea
                 v-model="studentNoteText"
-                placeholder=""
+                placeholder="학생 상담 메모를 입력하세요 (저장된 메모를 직접 수정하여 다시 저장할 수 있습니다)"
                 rows="2"
                 class="student-note-textarea"
               ></textarea>
@@ -1262,15 +1262,25 @@
                 <span class="saved-title">저장된 메모</span>
                 <span v-if="savedNoteUpdatedAt" class="saved-date">({{ savedNoteUpdatedAt }} 기준)</span>
               </div>
-              <button
-                v-if="savedStudentNote && savedStudentNote.trim()"
-                @click="deleteSavedNote"
-                :disabled="isDeletingNote"
-                class="btn-delete-memo"
-                title="저장된 메모 삭제"
-              >
-                {{ isDeletingNote ? '삭제 중...' : '메모 삭제' }}
-              </button>
+              <div style="display: flex; gap: 6px;">
+                <button
+                  v-if="savedStudentNote && savedStudentNote.trim() && studentNoteText !== savedStudentNote"
+                  @click="studentNoteText = savedStudentNote"
+                  class="btn-reload-memo"
+                  title="입력창을 기존 저장된 메모 내용으로 되돌립니다"
+                >
+                  원래대로
+                </button>
+                <button
+                  v-if="savedStudentNote && savedStudentNote.trim()"
+                  @click="deleteSavedNote"
+                  :disabled="isDeletingNote"
+                  class="btn-delete-memo"
+                  title="저장된 메모 삭제"
+                >
+                  {{ isDeletingNote ? '삭제 중...' : '메모 삭제' }}
+                </button>
+              </div>
             </div>
             <div class="saved-memo-body">
               <div v-if="savedStudentNote && savedStudentNote.trim()" class="saved-memo-text">
@@ -1919,8 +1929,8 @@ async function fetchStudentNote() {
   try {
     const res = await fetch(`${API_BASE}/api/student-notes?student_name=${encodeURIComponent(selectedStudent.value)}`)
     const data = await res.json()
-    // 💡 [사용자 요청 2] 새로고침/학생 변경 시 입력창은 언제나 빈칸으로 대기
-    studentNoteText.value = ''
+    // 💡 기존 저장된 메모를 입력창에 기본으로 불러와 바로 수정 가능하도록 설정
+    studentNoteText.value = data.memo || ''
     savedStudentNote.value = data.memo || ''
     savedNoteUpdatedAt.value = data.updated_at || ''
     studentProfile.value = {
@@ -1938,7 +1948,11 @@ async function fetchStudentNote() {
 async function saveStudentNote() {
   if (!selectedStudent.value || isSavingNote.value) return
   const textToSave = studentNoteText.value.trim()
-  if (!textToSave) return // 내용이 없으면 저장하지 않음
+  
+  if (!textToSave && !savedStudentNote.value) return // 내용도 없고 저장된 것도 없으면 저장 건너뜀
+  if (!textToSave && savedStudentNote.value) {
+    if (!confirm('메모 내용이 비어있습니다. 기존 저장된 메모를 삭제하시겠습니까?')) return
+  }
 
   isSavingNote.value = true
   noteSaveMsg.value = ''
@@ -1958,8 +1972,8 @@ async function saveStudentNote() {
     })
     if (res.ok) {
       savedStudentNote.value = textToSave
-      // 💡 [사용자 요청 2] 저장 완료 후 입력창은 다시 빈칸으로 리셋
-      studentNoteText.value = ''
+      // 💡 저장 후 입력창 내용을 비우지 않고 유지하여 지속적인 수정이 가능하도록 함
+      studentNoteText.value = textToSave
       const now = new Date()
       savedNoteUpdatedAt.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
       noteSaveMsg.value = '저장됨 ✓'

@@ -510,7 +510,7 @@ def get_student_monthly_scores(student_name: str):
         latest_eng = None
         latest_math = None
 
-        for m in range(1, 11):
+        for m in range(1, 12):
             data = month_map.get(m, {"eng": None, "math": None})
             eng = data["eng"]
             math = data["math"]
@@ -535,6 +535,7 @@ def get_student_monthly_scores(student_name: str):
         avg_math = round(sum(math_scores_list) / len(math_scores_list), 1) if math_scores_list else None
         max_eng = max(eng_scores_list) if eng_scores_list else None
         max_math = max(math_scores_list) if math_scores_list else None
+        tested_months = [m["month"] for m in monthly_scores if m["eng"] is not None or m["math"] is not None]
 
         return {
             "status": "success",
@@ -549,7 +550,8 @@ def get_student_monthly_scores(student_name: str):
                 "latest_month": latest_month,
                 "latest_eng": latest_eng,
                 "latest_math": latest_math,
-                "test_count": len(eng_scores_list)
+                "test_count": len(tested_months),
+                "tested_months": tested_months
             }
         }
     except Exception as e:

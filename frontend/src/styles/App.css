@@ -2458,3 +2458,94 @@
   border-color: #2563eb;
   box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
 }
+
+/* ========================================================
+   MODE 01 모의고사 월 선택 및 칩 버튼 스타일 (성적 보유 월 강조)
+   ======================================================== */
+.label-with-count {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tested-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 1px 6px;
+  border-radius: 9999px;
+}
+
+.month-opt-disabled {
+  color: #94a3b8 !important;
+  background-color: #f8fafc;
+}
+
+.month-opt-enabled {
+  color: #0f172a !important;
+  font-weight: 600;
+}
+
+.month-chips-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 2px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.month-chips-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.month-chips-list {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.month-chip-btn {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a; /* 점수가 있는 월: 선명한 검은색 */
+}
+
+.month-chip-btn.has-score:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #000000;
+}
+
+.month-chip-btn.active {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+.month-chip-btn.no-score,
+.month-chip-btn:disabled {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #94a3b8 !important; /* 점수가 없는 월: 회색 표기 */
+  cursor: not-allowed !important;
+  opacity: 0.55;
+  font-weight: 500;
+  pointer-events: none;
+}

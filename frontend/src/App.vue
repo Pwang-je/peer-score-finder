@@ -229,11 +229,47 @@
                 </select>
               </div>
               <div class="input-wrap">
-                <label>모의고사 월</label>
+                <div class="label-with-count">
+                  <label>모의고사 월</label>
+                  <span v-if="form.student_name && availableMonths.length > 0" class="tested-count-badge">
+                    응시 {{ availableMonths.length }}회
+                  </span>
+                </div>
                 <select v-model="form.month" @change="loadStudentScore" class="modern-select">
                   <option value="" disabled selected>월 선택</option>
-                  <option v-for="m in [1,2,3,4,5,6,7,8,9,10,11]" :key="m" :value="m">{{ m }}월 모의고사</option>
+                  <option
+                    v-for="m in [1,2,3,4,5,6,7,8,9,10,11]"
+                    :key="m"
+                    :value="m"
+                    :disabled="isMonthDisabled(m)"
+                    :class="{ 'month-opt-disabled': isMonthDisabled(m), 'month-opt-enabled': !isMonthDisabled(m) }"
+                  >
+                    {{ m }}월 모의고사{{ isMonthDisabled(m) && form.student_name ? ' (미응시)' : '' }}
+                  </option>
                 </select>
+              </div>
+            </div>
+
+            <!-- 🌟 모의고사 월 빠른 선택 칩 버튼 (점수 있는 월: 검은색 / 없는 월: 회색 및 비활성화) -->
+            <div class="month-chips-container" v-if="form.student_name">
+              <span class="month-chips-label">모의고사 월:</span>
+              <div class="month-chips-list">
+                <button
+                  type="button"
+                  v-for="m in [1,2,3,4,5,6,7,8,9,10,11]"
+                  :key="'chip-' + m"
+                  class="month-chip-btn"
+                  :class="{
+                    'has-score': availableMonths.includes(m),
+                    'no-score': !availableMonths.includes(m),
+                    'active': form.month === m
+                  }"
+                  :disabled="isMonthDisabled(m)"
+                  @click="selectMonthChip(m)"
+                  :title="availableMonths.includes(m) ? `${m}월 성적 불러오기` : `${m}월 성적 데이터 없음 (미응시)`"
+                >
+                  {{ m }}월
+                </button>
               </div>
             </div>
 
@@ -924,6 +960,48 @@ const UNIVERSITY_TIERS = [
   }
 ];
 
+// 🌟 목표 대학 정렬 순서 (서성한 중경외시 건동홍 국숭세단 광명상가 인가경·아주 여대 한성·항공 순)
+const TARGET_UNIV_ORDER_LIST = [
+  // 1. 서성한
+  { name: '서강대학교', match: u => u.includes('서강') },
+  { name: '성균관대학교', match: u => u.includes('성균관') },
+  { name: '한양대학교', match: u => u.includes('한양') },
+  // 2. 중경외시
+  { name: '중앙대학교', match: u => u.includes('중앙') },
+  { name: '경희대학교', match: u => u.includes('경희') },
+  { name: '한국외국어대학교', match: u => u.includes('한국외') || u.includes('외국어') },
+  { name: '서울시립대학교', match: u => u.includes('시립') },
+  // 3. 건동홍
+  { name: '건국대학교', match: u => u.includes('건국') },
+  { name: '동국대학교', match: u => u.includes('동국') },
+  { name: '홍익대학교', match: u => u.includes('홍익') },
+  // 4. 국숭세단
+  { name: '국민대학교', match: u => u.includes('국민') },
+  { name: '숭실대학교', match: u => u.includes('숭실') },
+  { name: '세종대학교', match: u => u.includes('세종') },
+  { name: '단국대학교', match: u => u.includes('단국') },
+  // 5. 광명상가
+  { name: '광운대학교', match: u => u.includes('광운') },
+  { name: '명지대학교', match: u => u.includes('명지') },
+  { name: '상명대학교', match: u => u.includes('상명') },
+  { name: '가톨릭대학교', match: u => u.includes('가톨릭') },
+  // 6. 인가경 · 아주
+  { name: '인하대학교', match: u => u.includes('인하') },
+  { name: '인천대학교', match: u => u.includes('인천') },
+  { name: '가천대학교', match: u => u.includes('가천') },
+  { name: '경기대학교', match: u => u.includes('경기') },
+  { name: '아주대학교', match: u => u.includes('아주') },
+  // 7. 여대 라인 (이대, 숙대, 동덕여대, 덕성여대, 서울여대)
+  { name: '이화여자대학교', match: u => u.includes('이화') },
+  { name: '숙명여자대학교', match: u => u.includes('숙명') },
+  { name: '동덕여자대학교', match: u => u.includes('동덕') },
+  { name: '덕성여자대학교', match: u => u.includes('덕성') },
+  { name: '서울여자대학교', match: u => u.includes('서울여') || (u.includes('서울') && u.includes('여자')) },
+  // 8. 한성, 항공
+  { name: '한성대학교', match: u => u.includes('한성') },
+  { name: '한국항공대학교', match: u => u.includes('항공') }
+];
+
 export default {
   components: {
     ApplicationStrategy,
@@ -994,7 +1072,11 @@ export default {
 
       // 🌟 [신규] 선택한 학생의 원서 지원 현황 데이터 상태
       studentApplications: [],
-      isLoadingApplications: false
+      isLoadingApplications: false,
+
+      // 🌟 [신규] 선택한 학생의 시험 응시 월 목록 (점수가 있는 월만 활성화)
+      availableMonths: [],
+      isLoadingAvailableMonths: false
     };
   },
   computed: {
@@ -1002,13 +1084,13 @@ export default {
       if (!this.studentApplications || !this.studentApplications.length) return [];
       const getRank = (univ) => {
         if (!univ) return 999;
-        for (let i = 0; i < this.UNIVERSITY_TIERS.length; i++) {
-          const tier = this.UNIVERSITY_TIERS[i];
-          if (tier.univs.some(u => univ.includes(u.split('(')[0].trim()))) {
+        const clean = univ.replace(/\s+/g, '');
+        for (let i = 0; i < TARGET_UNIV_ORDER_LIST.length; i++) {
+          if (TARGET_UNIV_ORDER_LIST[i].match(clean)) {
             return i;
           }
         }
-        return 999;
+        return 900;
       };
       return [...this.studentApplications].sort((a, b) => {
         const rankA = getRank(a.univ);
@@ -1245,12 +1327,60 @@ export default {
         console.error("전체 학생 명단 로드 실패:", e);
       }
     },
-    onStudentSelectChange() {
-      this.loadStudentScore();
+    async onStudentSelectChange() {
       if (this.form.student_name) {
+        await this.fetchAvailableMonths(this.form.student_name);
         this.fetchStudentPastExams(this.form.student_name);
         this.fetchStudentApplications(this.form.student_name);
+      } else {
+        this.availableMonths = [];
+        this.loadStudentScore();
       }
+    },
+    async fetchAvailableMonths(studentName) {
+      if (!studentName) {
+        this.availableMonths = [];
+        return;
+      }
+      this.isLoadingAvailableMonths = true;
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/student-monthly-scores`, {
+          params: { student_name: studentName }
+        });
+        if (res.data?.status === 'success') {
+          const tested = res.data?.summary?.tested_months || [];
+          this.availableMonths = tested;
+          if (res.data.is_natural !== undefined) {
+            this.isNatural = res.data.is_natural;
+          }
+          // 만약 현재 선택된 월에 성적이 없거나 비어있다면, 성적이 존재하는 가장 최근 응시 월로 자동 선택
+          if (tested.length > 0) {
+            if (!this.form.month || !tested.includes(Number(this.form.month))) {
+              this.form.month = tested[tested.length - 1];
+            }
+          }
+          this.loadStudentScore();
+        } else {
+          this.availableMonths = [];
+          this.loadStudentScore();
+        }
+      } catch (err) {
+        console.error("응시 가능 월 조회 실패:", err);
+        this.availableMonths = [];
+        this.loadStudentScore();
+      } finally {
+        this.isLoadingAvailableMonths = false;
+      }
+    },
+    isMonthDisabled(m) {
+      if (!this.form.student_name) return false;
+      if (this.isLoadingAvailableMonths) return false;
+      return !this.availableMonths.includes(Number(m));
+    },
+    selectMonthChip(m) {
+      if (this.isMonthDisabled(m)) return;
+      this.form.month = m;
+      this.loadStudentScore();
     },
     async fetchStudentPastExams(studentName) {
       if (!studentName) {
