@@ -1064,17 +1064,38 @@
                   :key="d.id"
                   class="closed-major-item"
                 >
-                  <div class="closed-item-main" @click="toggleClosedDetail(d.id)">
+                  <div class="closed-item-main">
                     <div class="major-left">
                       <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
                       <strong class="major-title">{{ d.major }}</strong>
                       <span class="closed-tag">미모집</span>
                     </div>
 
+                    <!-- 🌟 과거 합격자 접고 펼 필요 없이 바로 옆에 표시 -->
+                    <div class="major-mid-past">
+                      <div v-if="d.past_admissions && d.past_admissions.length > 0" class="past-tag-list inline-past">
+                        <div
+                          v-for="(past, pIdx) in d.past_admissions"
+                          :key="pIdx"
+                          class="past-student-tag mini"
+                        >
+                          <span class="tag-year">{{ String(past.year).slice(-2) }}'</span>
+                          <span :class="['tag-type', past.type === '학사' ? 'tag-bac' : 'tag-gen']">
+                            {{ past.type }}
+                          </span>
+                          <span class="tag-name">{{ past.student_name }}</span>
+                          <span class="tag-score">
+                            <template v-if="past.eng && past.eng !== '-'">영{{ past.eng }}</template>
+                            <template v-if="past.eng && past.eng !== '-' && past.math && past.math !== '-' && Number(past.math) > 0"> / </template>
+                            <template v-if="past.math && past.math !== '-' && Number(past.math) > 0">수{{ past.math }}</template>
+                            <template v-if="(!past.eng || past.eng === '-') && (!past.math || past.math === '-' || Number(past.math) <= 0)">-</template>
+                          </span>
+                        </div>
+                      </div>
+                      <span v-else class="empty-past-hint">과거 합격 이력 없음</span>
+                    </div>
+
                     <div class="major-right">
-                      <span class="past-mini highlight">
-                        과거 합격 {{ d.past_admissions.length }}명
-                      </span>
                       <span
                         class="pick-status-btn disabled"
                         title="현행 미선발 학과이므로 원서에 담을 수 없습니다"
@@ -1082,38 +1103,6 @@
                       >
                         담기 불가
                       </span>
-                      <span class="detail-chevron">
-                        {{ selectedClosedDeptId === d.id ? '▲' : '▼' }}
-                      </span>
-                    </div>
-                  </div>
-
-                  <!-- 클릭 시 합격생 리스트 상세 펼치기 -->
-                  <div v-if="selectedClosedDeptId === d.id" class="closed-past-detail-box">
-                    <div class="past-detail-header">
-                      <span style="display: inline-flex; align-items: center; gap: 6px;">
-                        <Award :size="15" :stroke-width="2" />
-                        <span>{{ d.major }} 과거 합격생 성적 이력 (총 {{ d.past_admissions.length }}명)</span>
-                      </span>
-                    </div>
-                    <div class="past-tag-list in-detail">
-                      <div
-                        v-for="(past, pIdx) in d.past_admissions"
-                        :key="pIdx"
-                        class="past-student-tag"
-                      >
-                        <span class="tag-year">{{ String(past.year).slice(-2) }}'</span>
-                        <span :class="['tag-type', past.type === '학사' ? 'tag-bac' : 'tag-gen']">
-                          {{ past.type }}
-                        </span>
-                        <span class="tag-name">{{ past.student_name }}</span>
-                        <span class="tag-score">
-                          <template v-if="past.eng && past.eng !== '-'">영{{ past.eng }}</template>
-                          <template v-if="past.eng && past.eng !== '-' && past.math && past.math !== '-' && Number(past.math) > 0"> / </template>
-                          <template v-if="past.math && past.math !== '-' && Number(past.math) > 0">수{{ past.math }}</template>
-                          <template v-if="(!past.eng || past.eng === '-') && (!past.math || past.math === '-' || Number(past.math) <= 0)">-</template>
-                        </span>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -1715,7 +1704,7 @@ const filteredUnivListTab1 = computed(() => {
 
 // 미모집/개편 과거 학과 관련 상태
 const isClosedTab1Open = ref(false)
-const isClosedTab2Open = ref(false)
+const isClosedTab2Open = ref(true)
 const selectedClosedDeptId = ref(null)
 
 function toggleClosedDetail(id) {

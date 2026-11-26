@@ -3411,12 +3411,50 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 9px 12px;
-  cursor: pointer;
-  transition: background 0.12s ease;
+  padding: 8px 12px;
+  gap: 12px;
+  background: #ffffff;
 }
-.closed-item-main:hover {
+
+.closed-item-main .major-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-width: 170px;
+}
+
+.closed-item-main .major-mid-past {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.inline-past {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.past-student-tag.mini {
+  font-size: 11px;
+  padding: 2px 6px;
   background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+}
+
+.empty-past-hint {
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+.closed-item-main .major-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .closed-tag {
@@ -3440,29 +3478,4 @@
   color: #94a3b8 !important;
   border: 1px solid #e2e8f0 !important;
   cursor: not-allowed !important;
-}
-
-.detail-chevron {
-  font-size: 10px;
-  color: #94a3b8;
-  margin-left: 4px;
-}
-
-.closed-past-detail-box {
-  background: #f8fafc;
-  border-top: 1px dashed #e2e8f0;
-  padding: 10px 12px;
-}
-
-.past-detail-header {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #475569;
-  margin-bottom: 6px;
-}
-
-.past-tag-list.in-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
 }
