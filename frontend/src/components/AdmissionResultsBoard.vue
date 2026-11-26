@@ -13,16 +13,8 @@
       </div>
 
       <div class="board-actions">
-        <!-- 보기 모드 전환 탭 (학생별 묶어보기 우선) -->
+        <!-- 보기 모드 전환 탭 (전체 빠른 표 우선) -->
         <div class="view-mode-toggle">
-          <button
-            :class="['view-toggle-btn', viewMode === 'grouped' ? 'active' : '']"
-            @click="viewMode = 'grouped'"
-            title="학생별 지원 대학 묶어서 보기"
-          >
-            <Users :size="15" :stroke-width="2" />
-            <span>학생별 묶어보기</span>
-          </button>
           <button
             :class="['view-toggle-btn', viewMode === 'table' ? 'active' : '']"
             @click="viewMode = 'table'"
@@ -31,12 +23,14 @@
             <Table :size="15" :stroke-width="2" />
             <span>전체 빠른 표</span>
           </button>
-        </div>
-
-        <!-- 학생별 보기일 때 전체 펼침/접힘 토글 -->
-        <div v-if="viewMode === 'grouped'" class="batch-expand-btns">
-          <button @click="toggleAllStudents(true)" class="btn-batch-toggle" title="전체 학생 펼치기">모두 펼치기</button>
-          <button @click="toggleAllStudents(false)" class="btn-batch-toggle" title="전체 학생 접기">모두 접기</button>
+          <button
+            :class="['view-toggle-btn', viewMode === 'grouped' ? 'active' : '']"
+            @click="viewMode = 'grouped'"
+            title="학생별 지원 대학 묶어서 보기"
+          >
+            <Users :size="15" :stroke-width="2" />
+            <span>학생별 묶어보기</span>
+          </button>
         </div>
 
         <button @click="loadData" class="btn-refresh" :disabled="loading" title="최신 상태 새로고침">
@@ -408,7 +402,7 @@ export default {
   data() {
     return {
       loading: false,
-      viewMode: 'grouped', // 'grouped' (기본값) | 'table'
+      viewMode: 'table', // 'table' (기본값) | 'grouped'
       searchKeyword: '',
       filterDept: 'ALL',
       filterStage1: 'ALL',
@@ -561,14 +555,6 @@ export default {
   methods: {
     toggleStudent(name) {
       this.expandedStudents[name] = !this.expandedStudents[name];
-    },
-
-    toggleAllStudents(expand) {
-      const newMap = {};
-      this.groupedStudents.forEach(g => {
-        newMap[g.student_name] = expand;
-      });
-      this.expandedStudents = newMap;
     },
 
     async loadData() {
