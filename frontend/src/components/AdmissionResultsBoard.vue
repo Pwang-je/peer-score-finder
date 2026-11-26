@@ -46,71 +46,53 @@
       </div>
     </div>
 
-    <!-- 2. 핵심 통계 대시보드 카드 그리드 -->
+    <!-- 2. 핵심 통계 대시보드 (군더더기 없는 모던 미니멀 스타일) -->
     <div class="stats-grid">
-      <div class="stat-card total">
-        <div class="stat-icon">
-          <Bookmark :size="20" :stroke-width="2" />
-        </div>
+      <div class="stat-card">
         <div class="stat-info">
           <span class="stat-label">총 지원 건수</span>
-          <span class="stat-val">{{ stats.total_applications }}건</span>
+          <span class="stat-val">{{ stats.total_applications }}<span class="stat-val-unit">건</span></span>
           <span class="stat-sub">{{ stats.unique_students }}명 지원 중</span>
         </div>
       </div>
 
-      <div class="stat-card stage1">
-        <div class="stat-icon">
-          <CheckCircle2 :size="20" :stroke-width="2" />
-        </div>
+      <div class="stat-card">
         <div class="stat-info">
           <span class="stat-label">1차 합격</span>
-          <span class="stat-val">{{ stats.stage1_pass }}건</span>
+          <span class="stat-val stat-stage1">{{ stats.stage1_pass }}<span class="stat-val-unit">건</span></span>
           <span class="stat-sub">서류/면접 대상</span>
         </div>
       </div>
 
-      <div class="stat-card initial">
-        <div class="stat-icon">
-          <Award :size="20" :stroke-width="2" />
-        </div>
+      <div class="stat-card">
         <div class="stat-info">
           <span class="stat-label">최초 합격</span>
-          <span class="stat-val">{{ stats.final_initial }}건</span>
-          <span class="stat-sub">정규 합격</span>
+          <span class="stat-val stat-initial">{{ stats.final_initial }}<span class="stat-val-unit">건</span></span>
+          <span class="stat-sub">정규 최초 합격</span>
         </div>
       </div>
 
-      <div class="stat-card reserve">
-        <div class="stat-icon">
-          <Clock :size="20" :stroke-width="2" />
-        </div>
+      <div class="stat-card">
         <div class="stat-info">
           <span class="stat-label">예비 대기</span>
-          <span class="stat-val">{{ stats.final_reserve }}건</span>
+          <span class="stat-val stat-reserve">{{ stats.final_reserve }}<span class="stat-val-unit">건</span></span>
           <span class="stat-sub">충원 대기중</span>
         </div>
       </div>
 
-      <div class="stat-card added">
-        <div class="stat-icon">
-          <Sparkles :size="20" :stroke-width="2" />
-        </div>
+      <div class="stat-card">
         <div class="stat-info">
           <span class="stat-label">추가 합격</span>
-          <span class="stat-val">{{ stats.final_added }}건</span>
-          <span class="stat-sub">전화/차수 추합</span>
+          <span class="stat-val stat-added">{{ stats.final_added }}<span class="stat-val-unit">건</span></span>
+          <span class="stat-sub">차수/전화 추합</span>
         </div>
       </div>
 
-      <div class="stat-card enrolled">
-        <div class="stat-icon">
-          <GraduationCap :size="20" :stroke-width="2" />
-        </div>
+      <div class="stat-card">
         <div class="stat-info">
           <span class="stat-label">최종 진학 등록</span>
-          <span class="stat-val">{{ stats.enrolled }}명</span>
-          <span class="stat-sub">진학 확정</span>
+          <span class="stat-val stat-enrolled">{{ stats.enrolled }}<span class="stat-val-unit">명</span></span>
+          <span class="stat-sub">진학 확정생</span>
         </div>
       </div>
     </div>
@@ -156,138 +138,123 @@
       </div>
     </div>
 
-    <!-- 4. [모드 A] 스프레드시트형 전체 빠른 표 (콤팩트 & 학생별 구분선) -->
-    <div v-if="viewMode === 'table'" class="table-card">
+    <!-- 4. [모드 A] 스프레드시트형 매트릭스 빠른 표 (행: 학생, 열: 지원 대학) -->
+    <div v-if="viewMode === 'table'" class="table-card matrix-table-card">
       <div class="results-table-wrap">
-        <table class="results-table compact-table">
+        <table class="results-table matrix-table">
           <thead>
             <tr>
-              <th style="width: 130px;">학생명</th>
-              <th style="width: 70px; text-align: center;">계열</th>
-              <th style="width: 150px;">지원 대학</th>
-              <th>지원 학과</th>
-              <th style="width: 70px; text-align: center;">전략</th>
-              <th style="width: 105px; text-align: center;">1차 전형</th>
-              <th style="width: 125px; text-align: center;">최종 전형</th>
-              <th style="width: 90px; text-align: center;">예비 번호</th>
-              <th style="width: 95px; text-align: center;">최종 등록</th>
+              <th class="matrix-sticky-col matrix-col-header" style="min-width: 130px; width: 130px;">
+                학생명
+              </th>
+              <th class="matrix-sticky-dept matrix-col-header" style="min-width: 70px; width: 70px; text-align: center;">
+                계열
+              </th>
+              <th
+                v-for="univ in matrixUnivHeaders"
+                :key="univ"
+                class="matrix-col-header matrix-univ-th"
+              >
+                <div class="matrix-univ-name" :title="univ">{{ univ }}</div>
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="filteredApplications.length === 0">
-              <td colspan="9" class="empty-state">
+            <tr v-if="matrixStudentRows.length === 0">
+              <td :colspan="2 + matrixUnivHeaders.length" class="empty-state">
                 <Inbox :size="32" :stroke-width="1.5" />
-                <p>일치하는 지원 및 결과 내역이 없습니다.</p>
+                <p>일치하는 지원 학생 및 결과가 없습니다.</p>
               </td>
             </tr>
 
-            <template v-for="(app, idx) in filteredApplications" :key="app.id">
-              <!-- 학생이 바뀔 때 시각적 구분 헤더 행 삽입 -->
-              <tr
-                v-if="idx === 0 || app.student_name !== filteredApplications[idx - 1].student_name"
-                class="student-group-divider-row"
+            <tr
+              v-for="row in matrixStudentRows"
+              :key="row.student_name"
+              :class="['matrix-row', { 'row-has-enrolled': row.hasEnrolled }]"
+            >
+              <!-- 1) 고정 열: 학생명 -->
+              <td class="matrix-sticky-col cell-student-name">
+                <div class="matrix-student-info">
+                  <span class="student-name-text">{{ row.student_name }}</span>
+                  <span v-if="row.enrolledUniv" class="enrolled-indicator" :title="`${row.enrolledUniv} 등록`">🏆</span>
+                </div>
+              </td>
+
+              <!-- 2) 고정 열: 계열 -->
+              <td class="matrix-sticky-dept" style="text-align: center;">
+                <span
+                  :class="['dept-badge', row.department && row.department.includes('자연') ? 'natural' : 'human']"
+                >
+                  {{ row.department && row.department.includes('자연') ? '자연' : (row.department && row.department.includes('인문') ? '인문' : '-') }}
+                </span>
+              </td>
+
+              <!-- 3) 가로 대학 열 셀 -->
+              <td
+                v-for="univ in matrixUnivHeaders"
+                :key="univ"
+                :class="['matrix-cell', {
+                  'cell-applied': !!row.appsByUniv[univ],
+                  'cell-enrolled': row.appsByUniv[univ] && row.appsByUniv[univ].is_enrolled,
+                  'cell-stage1-pass': row.appsByUniv[univ] && row.appsByUniv[univ].stage1_result === '합격',
+                  'cell-final-pass': row.appsByUniv[univ] && (row.appsByUniv[univ].final_result === '최초합' || row.appsByUniv[univ].final_result === '추가합')
+                }]"
               >
-                <td colspan="9">
-                  <div class="student-divider-content">
-                    <User :size="13" :stroke-width="2.5" />
-                    <strong>{{ app.student_name }}</strong>
-                    <span :class="['dept-badge', app.department && app.department.includes('자연') ? 'natural' : 'human']">
-                      {{ app.department && app.department.includes('자연') ? '자연계열' : (app.department && app.department.includes('인문') ? '인문계열' : '계열미기재') }}
-                    </span>
-                    <span class="student-app-count-pill">
-                      총 {{ filteredApplications.filter(x => x.student_name === app.student_name).length }}개교 지원
-                    </span>
+                <!-- 지원한 학교인 경우: 1차합격 토글 및 예비번호 인라인 입력 -->
+                <div v-if="row.appsByUniv[univ]" class="matrix-cell-content">
+                  <div class="matrix-cell-actions">
+                    <!-- 1차 결과 토글 버튼 -->
+                    <button
+                      :class="['matrix-stage1-btn', row.appsByUniv[univ].stage1_result || '대기']"
+                      @click="toggleStage1(row.appsByUniv[univ])"
+                      :title="'1차 결과 변경 (클릭: 대기/합격/불합격/해당없음)'"
+                    >
+                      {{ formatMatrixStage1(row.appsByUniv[univ].stage1_result) }}
+                    </button>
+
+                    <!-- 최종 결과 셀렉트 -->
+                    <select
+                      v-model="row.appsByUniv[univ].final_result"
+                      :class="['matrix-final-select', row.appsByUniv[univ].final_result || '대기']"
+                      @change="onFinalResultChange(row.appsByUniv[univ])"
+                      :title="'최종 결과: ' + (row.appsByUniv[univ].final_result || '대기')"
+                    >
+                      <option value="대기">대기</option>
+                      <option value="최초합">최초합</option>
+                      <option value="예비">예비</option>
+                      <option value="추가합">추합</option>
+                      <option value="불합격">불합</option>
+                    </select>
                   </div>
-                </td>
-              </tr>
 
-              <tr :class="['compact-row', { 'row-enrolled': app.is_enrolled }]">
-                <!-- 학생명 -->
-                <td class="cell-student-name">
-                  <span class="student-name-text">{{ app.student_name }}</span>
-                </td>
-
-                <!-- 계열 -->
-                <td style="text-align: center;">
-                  <span
-                    :class="['dept-badge', app.department && app.department.includes('자연') ? 'natural' : 'human']"
+                  <!-- 예비번호 입력창 (예비, 추합, 또는 번호 기재 시) -->
+                  <div
+                    class="matrix-waitlist-box"
+                    v-if="row.appsByUniv[univ].final_result === '예비' || row.appsByUniv[univ].final_result === '추가합' || row.appsByUniv[univ].waitlist_no"
                   >
-                    {{ app.department && app.department.includes('자연') ? '자연' : (app.department && app.department.includes('인문') ? '인문' : '-') }}
-                  </span>
-                </td>
-
-                <!-- 대학 -->
-                <td class="cell-univ">
-                  <strong class="univ-text">{{ app.univ }}</strong>
-                </td>
-
-                <!-- 학과 -->
-                <td class="cell-major">
-                  <span class="major-text">{{ app.major }}</span>
-                </td>
-
-                <!-- 전략 메모 -->
-                <td style="text-align: center;">
-                  <span class="memo-tag">{{ app.memo || '적정' }}</span>
-                </td>
-
-                <!-- 1차 결과 (원클릭 순환 토글) -->
-                <td style="text-align: center;">
-                  <button
-                    :class="['stage1-toggle-btn', app.stage1_result || '대기']"
-                    @click="toggleStage1(app)"
-                    :title="'클릭하여 1차 결과 변경 (현재: ' + (app.stage1_result || '대기') + ')'"
-                  >
-                    {{ formatStage1(app.stage1_result) }}
-                  </button>
-                </td>
-
-                <!-- 최종 결과 (드롭다운 빠른 선택) -->
-                <td style="text-align: center;">
-                  <select
-                    v-model="app.final_result"
-                    :class="['final-result-select', app.final_result || '대기']"
-                    @change="onFinalResultChange(app)"
-                  >
-                    <option value="대기">대기</option>
-                    <option value="최초합">최초합 🎉</option>
-                    <option value="예비">예비 ⏳</option>
-                    <option value="추가합">추가합 🎊</option>
-                    <option value="불합격">불합격 ⚪</option>
-                  </select>
-                </td>
-
-                <!-- 예비 번호 인라인 입력 -->
-                <td style="text-align: center;">
-                  <div class="waitlist-wrap" v-if="app.final_result === '예비' || app.final_result === '추가합' || app.waitlist_no">
                     <input
                       type="number"
                       min="1"
                       max="999"
-                      v-model.number="app.waitlist_no"
-                      @change="updateResult(app)"
+                      v-model.number="row.appsByUniv[univ].waitlist_no"
+                      @change="updateResult(row.appsByUniv[univ])"
                       @keyup.enter="$event.target.blur()"
-                      placeholder="번호"
-                      class="waitlist-input"
+                      placeholder="예비"
+                      class="matrix-waitlist-input"
                     />
-                    <span class="waitlist-unit">번</span>
+                    <span class="matrix-waitlist-unit">번</span>
                   </div>
-                  <span v-else style="color: #cbd5e1;">-</span>
-                </td>
 
-                <!-- 최종 등록 토글 버튼 -->
-                <td style="text-align: center;">
-                  <button
-                    :class="['enrolled-btn', { 'is-enrolled': app.is_enrolled }]"
-                    @click="toggleEnrolled(app)"
-                    :disabled="app.final_result === '불합격'"
-                    :title="app.is_enrolled ? '최종 등록 취소' : '이 학교를 최종 진학으로 등록'"
-                  >
-                    {{ app.is_enrolled ? '등록 🏆' : '선택' }}
-                  </button>
-                </td>
-              </tr>
-            </template>
+                  <!-- 학과 툴팁/안내 -->
+                  <div class="matrix-major-preview" :title="row.appsByUniv[univ].major">
+                    {{ row.appsByUniv[univ].major }}
+                  </div>
+                </div>
+
+                <!-- 미지원 학교 -->
+                <span v-else class="matrix-empty-dash">-</span>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -308,7 +275,7 @@
         <div class="student-card-header" @click="toggleStudent(group.student_name)">
           <div class="student-profile">
             <div class="student-avatar">
-              <User :size="18" :stroke-width="2" />
+              <User :size="16" :stroke-width="2" />
             </div>
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -341,14 +308,13 @@
           </div>
         </div>
 
-        <!-- 펼쳐진 카드 내부 학생별 지원 학교 리스트 -->
+        <!-- 펼쳐진 카드 내부 학생별 지원 학교 리스트 (전략 열 제거) -->
         <div v-if="group.expanded" class="student-card-body">
-          <table class="results-table">
+          <table class="results-table compact-table">
             <thead>
               <tr>
-                <th style="width: 150px;">지원 대학</th>
+                <th style="width: 160px;">지원 대학</th>
                 <th>지원 학과</th>
-                <th style="width: 80px; text-align: center;">전략</th>
                 <th style="width: 110px; text-align: center;">1차 전형</th>
                 <th style="width: 130px; text-align: center;">최종 전형</th>
                 <th style="width: 100px; text-align: center;">예비 번호</th>
@@ -361,9 +327,8 @@
                 :key="app.id"
                 :class="{ 'row-enrolled': app.is_enrolled }"
               >
-                <td><span class="univ-text">{{ app.univ }}</span></td>
+                <td><strong class="univ-text">{{ app.univ }}</strong></td>
                 <td><span class="major-text">{{ app.major }}</span></td>
-                <td style="text-align: center;"><span class="memo-tag">{{ app.memo || '적정' }}</span></td>
 
                 <!-- 1차 결과 토글 -->
                 <td style="text-align: center;">
@@ -383,10 +348,10 @@
                     @change="onFinalResultChange(app)"
                   >
                     <option value="대기">대기</option>
-                    <option value="최초합">최초합 🎉</option>
-                    <option value="예비">예비 ⏳</option>
-                    <option value="추가합">추가합 🎊</option>
-                    <option value="불합격">불합격 ⚪</option>
+                    <option value="최초합">최초합</option>
+                    <option value="예비">예비</option>
+                    <option value="추가합">추가합</option>
+                    <option value="불합격">불합격</option>
                   </select>
                 </td>
 
@@ -433,12 +398,6 @@ import {
   Table,
   Users,
   RotateCw,
-  Bookmark,
-  CheckCircle2,
-  Award,
-  Clock,
-  Sparkles,
-  GraduationCap,
   Search,
   Inbox,
   User,
@@ -456,12 +415,6 @@ export default {
     Table,
     Users,
     RotateCw,
-    Bookmark,
-    CheckCircle2,
-    Award,
-    Clock,
-    Sparkles,
-    GraduationCap,
     Search,
     Inbox,
     User,
@@ -557,6 +510,64 @@ export default {
       });
 
       return Object.values(map);
+    },
+
+    // 🌟 [매트릭스 빠른 표] 가로 열: 학생들이 실제 지원한 대학 목록 (선호 순위 순 정렬)
+    matrixUnivHeaders() {
+      const set = new Set();
+      this.filteredApplications.forEach(a => {
+        if (a.univ) set.add(a.univ);
+      });
+      const univs = Array.from(set);
+
+      // 주요 대학 서열 목록 (서성한 중경외시 건동홍 국숭세단 광명상가 인가경 여대 한성항공)
+      const ORDER_PATTERNS = [
+        '서강', '성균관', '한양',
+        '중앙', '경희', '한국외', '외국어', '시립',
+        '건국', '동국', '홍익',
+        '국민', '숭실', '세종', '단국',
+        '광운', '명지', '상명', '가톨릭',
+        '인하', '인천', '가천', '경기', '아주',
+        '이화', '숙명', '동덕', '덕성', '서울여',
+        '한성', '항공'
+      ];
+
+      function getUnivRank(name) {
+        for (let i = 0; i < ORDER_PATTERNS.length; i++) {
+          if (name.includes(ORDER_PATTERNS[i])) return i;
+        }
+        return 999;
+      }
+
+      return univs.sort((a, b) => {
+        const rA = getUnivRank(a);
+        const rB = getUnivRank(b);
+        if (rA !== rB) return rA - rB;
+        return a.localeCompare(b, 'ko');
+      });
+    },
+
+    // 🌟 [매트릭스 빠른 표] 세로 행: 학생별 행 데이터 (학생명, 계열, 대학별 지원 내역 매핑)
+    matrixStudentRows() {
+      const map = {};
+      this.filteredApplications.forEach(app => {
+        if (!map[app.student_name]) {
+          map[app.student_name] = {
+            student_name: app.student_name,
+            department: app.department,
+            appsByUniv: {},
+            hasEnrolled: false,
+            enrolledUniv: ''
+          };
+        }
+        map[app.student_name].appsByUniv[app.univ] = app;
+        if (app.is_enrolled) {
+          map[app.student_name].hasEnrolled = true;
+          map[app.student_name].enrolledUniv = app.univ;
+        }
+      });
+
+      return Object.values(map).sort((a, b) => a.student_name.localeCompare(b.student_name, 'ko'));
     }
   },
   mounted() {
@@ -592,9 +603,17 @@ export default {
 
     formatStage1(val) {
       if (!val || val === '대기') return '대기';
-      if (val === '합격') return '1차합격 🟢';
-      if (val === '불합격') return '1차불합 ⚪';
+      if (val === '합격') return '1차합격';
+      if (val === '불합격') return '1차불합';
       if (val === '해당없음') return '해당없음';
+      return val;
+    },
+
+    formatMatrixStage1(val) {
+      if (!val || val === '대기') return '대기';
+      if (val === '합격') return '1차합';
+      if (val === '불합격') return '불합';
+      if (val === '해당없음') return '-';
       return val;
     },
 

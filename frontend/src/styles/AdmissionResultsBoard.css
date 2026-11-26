@@ -102,7 +102,7 @@
   border-color: #94a3b8;
 }
 
-/* 2. 핵심 통계 대시보드 그리드 */
+/* 2. 핵심 통계 대시보드 (자연스럽고 차분한 모던 스타일) */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -112,36 +112,20 @@
 
 .stat-card {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
   padding: 16px 18px;
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+  border-color: #cbd5e1;
 }
-
-.stat-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-}
-
-.stat-card.total .stat-icon { background: #f1f5f9; color: #475569; }
-.stat-card.stage1 .stat-icon { background: #ecfdf5; color: #059669; }
-.stat-card.initial .stat-icon { background: #eff6ff; color: #2563eb; }
-.stat-card.reserve .stat-icon { background: #fffbeb; color: #d97706; }
-.stat-card.added .stat-icon { background: #f5f3ff; color: #7c3aed; }
-.stat-card.enrolled .stat-icon { background: #fdf2f8; color: #db2777; }
 
 .stat-info {
   display: flex;
@@ -149,24 +133,39 @@
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #64748b;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .stat-val {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   color: #0f172a;
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-val-unit {
+  font-size: 14px;
+  font-weight: 600;
+  margin-left: 2px;
+  color: #64748b;
 }
 
 .stat-sub {
   font-size: 11px;
   color: #94a3b8;
-  margin-top: 3px;
+  margin-top: 4px;
 }
+
+/* 숫자 톤 다운 강조 */
+.stat-stage1 { color: #047857; }
+.stat-initial { color: #1d4ed8; }
+.stat-reserve { color: #b45309; }
+.stat-added { color: #6d28d9; }
+.stat-enrolled { color: #be185d; }
 
 /* 3. 검색 및 필터 툴바 */
 .filter-toolbar {
@@ -247,8 +246,8 @@
   border-color: #94a3b8;
 }
 
-/* 4. 플랫 테이블 뷰 (스프레드시트형 빠른 표) */
-.table-card {
+/* 4. 스프레드시트형 매트릭스 빠른 표 (행: 학생, 열: 대학) */
+.matrix-table-card {
   background: #ffffff;
   border-radius: 14px;
   border: 1px solid #e2e8f0;
@@ -263,9 +262,10 @@
 
 .results-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .results-table th {
@@ -275,56 +275,198 @@
   background: #f8fafc;
   color: #475569;
   font-weight: 700;
-  padding: 9px 12px;
-  border-bottom: 2px solid #e2e8f0;
+  padding: 10px 12px;
+  border-bottom: 2px solid #cbd5e1;
   white-space: nowrap;
   font-size: 12px;
-  letter-spacing: -0.2px;
 }
 
-.results-table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: middle;
+.matrix-univ-th {
+  min-width: 130px;
+  max-width: 160px;
+  text-align: center;
+  border-left: 1px solid #e2e8f0;
 }
 
-.compact-table td {
-  padding: 7px 10px;
-  font-size: 12.5px;
+.matrix-univ-name {
+  font-weight: 700;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 학생별 구분선 행 (Group Divider) */
-.student-group-divider-row td {
-  background: #f1f5f9 !important;
-  padding: 6px 12px !important;
-  border-top: 2px solid #cbd5e1;
-  border-bottom: 1px solid #e2e8f0;
+/* 고정 열 (좌측 학생명 & 계열) */
+.matrix-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
 }
 
-.student-divider-content {
+.matrix-sticky-dept {
+  position: sticky;
+  left: 130px;
+  z-index: 20;
+  background: #ffffff;
+  border-right: 2px solid #cbd5e1;
+}
+
+th.matrix-sticky-col,
+th.matrix-sticky-dept {
+  z-index: 30;
+  background: #f1f5f9;
+}
+
+.matrix-student-info {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  color: #1e293b;
+  gap: 6px;
 }
 
-.student-app-count-pill {
-  font-size: 11px;
-  color: #64748b;
+.enrolled-indicator {
+  font-size: 12px;
+}
+
+/* 매트릭스 셀 */
+.matrix-cell {
+  padding: 6px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  border-left: 1px solid #f1f5f9;
+  vertical-align: middle;
+  text-align: center;
+  min-width: 125px;
+  max-width: 160px;
   background: #ffffff;
-  padding: 1px 7px;
-  border-radius: 999px;
-  border: 1px solid #e2e8f0;
-  font-weight: 600;
 }
 
-.compact-row:hover {
+.matrix-row:hover .matrix-cell,
+.matrix-row:hover .matrix-sticky-col,
+.matrix-row:hover .matrix-sticky-dept {
   background: #fafaf9;
 }
 
-.results-table tr.row-enrolled {
+.matrix-cell.cell-applied {
+  background: #ffffff;
+}
+
+.matrix-cell.cell-stage1-pass {
+  background: #f0fdf4 !important;
+}
+
+.matrix-cell.cell-final-pass {
+  background: #eff6ff !important;
+}
+
+.matrix-cell.cell-enrolled {
   background: #fdf2f8 !important;
+}
+
+.matrix-empty-dash {
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
+/* 매트릭스 셀 내부 컨트롤 */
+.matrix-cell-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.matrix-cell-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.matrix-stage1-btn {
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.matrix-stage1-btn.대기 {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.matrix-stage1-btn.합격 {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.matrix-stage1-btn.불합격 {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.matrix-stage1-btn.해당없음 {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.matrix-final-select {
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  outline: none;
+}
+
+.matrix-final-select.대기 { background: #ffffff; color: #64748b; }
+.matrix-final-select.최초합 { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.matrix-final-select.예비 { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
+.matrix-final-select.추가합 { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+.matrix-final-select.불합격 { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+
+.matrix-waitlist-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.matrix-waitlist-input {
+  width: 44px;
+  padding: 2px 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  color: #b45309;
+}
+
+.matrix-waitlist-input:focus {
+  border-color: #b45309;
+  outline: none;
+}
+
+.matrix-waitlist-unit {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.matrix-major-preview {
+  font-size: 10.5px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+  margin: 0 auto;
 }
 
 .student-cell {
