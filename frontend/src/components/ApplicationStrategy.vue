@@ -1321,9 +1321,17 @@
               <div class="card-content" @click="jumpToFormUniv(app.univ)" title="클릭하면 좌측에서 해당 대학 열기">
                 <div class="card-univ-row">
                   <span class="card-univ">{{ app.univ }}</span>
+                  <!-- 🌟 전형 결과 뱃지 (합격/예비/최종등록) -->
+                  <span v-if="app.is_enrolled" class="badge-app-status enrolled" style="background: #db2777; color: white;">🏆 최종등록</span>
+                  <span v-else-if="app.final_result === '최초합'" class="badge-app-status pass-final" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">최초합 🎉</span>
+                  <span v-else-if="app.final_result === '추가합'" class="badge-app-status pass-final" style="background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe;">추가합 🎊</span>
+                  <span v-else-if="app.final_result === '예비'" class="badge-app-status waitlist" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a;">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
+                  <span v-else-if="app.stage1_result === '합격'" class="badge-app-status stage1-pass" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">1차합격 🟢</span>
+                  <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="badge-app-status fail" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;">불합격</span>
+
                   <span v-if="app.is_closed" class="badge-app-status closed">🚨 26년 미선발</span>
                   <span v-else-if="!app.is_quota_released" class="badge-app-status pending">⏳ 요강 발표전</span>
-                  <span v-else class="badge-app-status confirmed">✓ 모집확정</span>
+                  <span v-else-if="!app.is_enrolled && app.final_result === '대기' && app.stage1_result === '대기'" class="badge-app-status confirmed">✓ 모집확정</span>
                 </div>
                 <div class="card-major-row">
                   <div class="card-major" :class="{ 'closed-major-text': app.is_closed }">{{ app.major }}</div>

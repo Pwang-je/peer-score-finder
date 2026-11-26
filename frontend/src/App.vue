@@ -15,6 +15,12 @@
         원서 지원 현황
       </button>
       <button
+        @click="currentMainView = 'results_board'"
+        :class="['mode-nav-btn', { active: currentMainView === 'results_board' }]"
+      >
+        합격·전형결과 현황판 🏆
+      </button>
+      <button
         @click="currentMainView = 'past_exam'"
         :class="['mode-nav-btn', { active: currentMainView === 'past_exam' }]"
       >
@@ -24,6 +30,9 @@
 
     <!-- 화면 A: 신규 원서 지원 현황 및 전략 관리 컴포넌트 -->
     <ApplicationStrategy v-if="currentMainView === 'strategy'" />
+
+    <!-- 화면 D: 2026 편입 전형 결과 및 합격 현황판 컴포넌트 -->
+    <AdmissionResultsBoard v-else-if="currentMainView === 'results_board'" />
 
     <!-- 화면 C: 학생 기출 성적 직접 입력 컴포넌트 -->
     <PastExamScoreInput v-else-if="currentMainView === 'past_exam'" />
@@ -885,6 +894,7 @@ import axios from 'axios';
 import {Chart, registerables} from 'chart.js';
 import ApplicationStrategy from "./components/ApplicationStrategy.vue";
 import PastExamScoreInput from "./components/PastExamScoreInput.vue";
+import AdmissionResultsBoard from "./components/AdmissionResultsBoard.vue";
 import { ref } from 'vue'
 import {
   FileSpreadsheet,
@@ -996,6 +1006,7 @@ export default {
   components: {
     ApplicationStrategy,
     PastExamScoreInput,
+    AdmissionResultsBoard,
     FileSpreadsheet,
     FileText,
     AlertTriangle,

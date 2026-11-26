@@ -1074,6 +1074,10 @@ def ensure_application_tables():
                        univ VARCHAR(50) NOT NULL,
                        major VARCHAR(50) NOT NULL,
                        memo VARCHAR(50) DEFAULT '적정',
+                       stage1_result VARCHAR(20) DEFAULT '대기',
+                       final_result VARCHAR(20) DEFAULT '대기',
+                       waitlist_no INT DEFAULT NULL,
+                       is_enrolled TINYINT(1) DEFAULT 0,
                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                        UNIQUE KEY uq_student_univ (year, student_name, univ)
                    );
@@ -1718,14 +1722,18 @@ def get_student_applications(student_name: str):
                           q.id                          AS quota_id,
                           COALESCE(q.general_quota, 0)  AS gen_quota,
                           COALESCE(q.bachelor_quota, 0) AS bac_quota,
-                          (SELECT COUNT(*) FROM recruit_quota rq WHERE rq.year = 2026 AND rq.univ = a.univ) AS univ_quota_count
+                          (SELECT COUNT(*) FROM recruit_quota rq WHERE rq.year = 2026 AND rq.univ = a.univ) AS univ_quota_count,
+                          COALESCE(a.stage1_result, '대기') AS stage1_result,
+                          COALESCE(a.final_result, '대기')  AS final_result,
+                          a.waitlist_no,
+                          COALESCE(a.is_enrolled, 0)    AS is_enrolled
                    FROM student_applications a
                             LEFT JOIN recruit_quota q
-                                      ON a.year = q.year AND a.univ = q.univ AND a.major = q.major
-                   WHERE a.year = 2026
-                     AND a.student_name = %s
-                   ORDER BY a.created_at ASC;
-                   """, (student_name,))
+                                       ON a.year = q.year AND a.univ = q.univ AND a.major = q.major
+                    WHERE a.year = 2026
+                      AND a.student_name = %s
+                    ORDER BY a.created_at ASC;
+                    """, (student_name,))
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -1751,7 +1759,11 @@ def get_student_applications(student_name: str):
             "bac_quota": b_quota,
             "is_quota_released": is_released,
             "has_quota": has_quota,
-            "is_closed": is_closed
+            "is_closed": is_closed,
+            "stage1_result": r[8] if isinstance(r, tuple) else r["stage1_result"],
+            "final_result": r[9] if isinstance(r, tuple) else r["final_result"],
+            "waitlist_no": r[10] if isinstance(r, tuple) else r["waitlist_no"],
+            "is_enrolled": bool(r[11] if isinstance(r, tuple) else r["is_enrolled"])
         })
     return cards
 
@@ -1792,6 +1804,140 @@ def delete_application(app_id: int):
     conn.close()
     DEPT_CACHE.clear()
     return {"status": "success", "message": "삭제 완료"}
+
+
+# 5-1. 합격 결과 전용 현황판 조회 및 단건 수정 API
+class ApplicationResultUpdate(BaseModel):
+    stage1_result: Optional[str] = None
+    final_result: Optional[str] = None
+    waitlist_no: Optional[int] = None
+    is_enrolled: Optional[bool] = None
+
+
+@app.get("/api/applications/results-board")
+def get_applications_results_board():
+    """모든 학생의 2026 지원 원서 및 전형 결과(1차, 최종, 예비, 최종등록) 전체 조회"""
+    conn = get_db_connection()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+    # 1) 전체 지원 내역 조회 (학생의 최신 계열 정보 서브쿼리로 조인)
+    cursor.execute("""
+        SELECT 
+            a.id, a.year, a.student_name, a.univ, a.major, a.memo,
+            COALESCE(a.stage1_result, '대기') AS stage1_result,
+            COALESCE(a.final_result, '대기') AS final_result,
+            a.waitlist_no,
+            COALESCE(a.is_enrolled, 0) AS is_enrolled,
+            a.created_at,
+            COALESCE((
+                SELECT p.department 
+                FROM peer_data p 
+                WHERE p.year = 2026 AND p.student_name = a.student_name AND p.department != '' 
+                ORDER BY p.month DESC LIMIT 1
+            ), '미기재') AS department
+        FROM student_applications a
+        WHERE a.year = 2026
+        ORDER BY a.student_name ASC, a.created_at ASC
+    """)
+    applications = cursor.fetchall()
+
+    # 2) 학생 메모 정보 조인
+    cursor.execute("SELECT student_name, pref_major_1, pref_major_2 FROM student_notes")
+    notes_rows = cursor.fetchall()
+    notes_map = {r['student_name']: r for r in notes_rows}
+
+    # boolean 변환
+    for app_item in applications:
+        app_item['is_enrolled'] = bool(app_item['is_enrolled'])
+        s_note = notes_map.get(app_item['student_name'], {})
+        app_item['pref_major_1'] = s_note.get('pref_major_1', '')
+        app_item['pref_major_2'] = s_note.get('pref_major_2', '')
+
+    # 3) 실시간 카운트 집계
+    total_apps = len(applications)
+    stage1_pass_cnt = sum(1 for a in applications if a['stage1_result'] == '합격')
+    final_initial_cnt = sum(1 for a in applications if a['final_result'] == '최초합')
+    final_reserve_cnt = sum(1 for a in applications if a['final_result'] == '예비')
+    final_added_cnt = sum(1 for a in applications if a['final_result'] == '추가합')
+    final_fail_cnt = sum(1 for a in applications if a['final_result'] == '불합격')
+    enrolled_cnt = sum(1 for a in applications if a['is_enrolled'])
+
+    # 고유 학생 수
+    unique_students = len(set(a['student_name'] for a in applications))
+
+    cursor.close()
+    conn.close()
+
+    return {
+        "stats": {
+            "total_applications": total_apps,
+            "unique_students": unique_students,
+            "stage1_pass": stage1_pass_cnt,
+            "final_initial": final_initial_cnt,
+            "final_reserve": final_reserve_cnt,
+            "final_added": final_added_cnt,
+            "final_fail": final_fail_cnt,
+            "enrolled": enrolled_cnt
+        },
+        "applications": applications
+    }
+
+
+@app.patch("/api/applications/{app_id}/result")
+def update_application_result(app_id: int, payload: ApplicationResultUpdate):
+    """특정 지원건의 전형 결과(1차, 최종, 예비번호, 최종등록) 수정"""
+    conn = get_db_connection()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+    # 1) 기존 데이터 확인
+    cursor.execute("SELECT id, student_name, year FROM student_applications WHERE id = %s", (app_id,))
+    target = cursor.fetchone()
+    if not target:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="해당 원서 정보를 찾을 수 없습니다.")
+
+    student_name = target['student_name']
+    year = target['year']
+
+    # 2) 최종 등록이 True로 설정된 경우, 이 학생의 다른 모든 원서는 is_enrolled = 0 처리
+    if payload.is_enrolled is True:
+        cursor.execute("""
+            UPDATE student_applications 
+            SET is_enrolled = 0 
+            WHERE year = %s AND student_name = %s
+        """, (year, student_name))
+
+    # 3) 필드 동적 업데이트 구성
+    updates = []
+    params = []
+
+    if payload.stage1_result is not None:
+        updates.append("stage1_result = %s")
+        params.append(payload.stage1_result)
+
+    if payload.final_result is not None:
+        updates.append("final_result = %s")
+        params.append(payload.final_result)
+
+    if payload.waitlist_no is not None or "waitlist_no" in payload.__fields_set__:
+        updates.append("waitlist_no = %s")
+        params.append(payload.waitlist_no)
+
+    if payload.is_enrolled is not None:
+        updates.append("is_enrolled = %s")
+        params.append(1 if payload.is_enrolled else 0)
+
+    if updates:
+        params.append(app_id)
+        sql = f"UPDATE student_applications SET {', '.join(updates)} WHERE id = %s"
+        cursor.execute(sql, tuple(params))
+        conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return {"status": "success", "message": "결과 상태가 정상적으로 업데이트되었습니다."}
 
 
 # 6. 대학별 학점은행제 지원자격 조회 및 저장 API
