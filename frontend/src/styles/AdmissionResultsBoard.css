@@ -224,7 +224,30 @@
   border-color: #2563eb;
 }
 
-/* 4. 플랫 테이블 뷰 (스프레드시트형) */
+.batch-expand-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-batch-toggle {
+  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-batch-toggle:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+/* 4. 플랫 테이블 뷰 (스프레드시트형 빠른 표) */
 .table-card {
   background: #ffffff;
   border-radius: 14px;
@@ -235,32 +258,68 @@
 
 .results-table-wrap {
   overflow-x: auto;
+  max-height: 720px; /* 세로 스크롤 & 고정 헤더 */
 }
 
 .results-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 .results-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   background: #f8fafc;
   color: #475569;
   font-weight: 700;
-  padding: 12px 14px;
+  padding: 9px 12px;
   border-bottom: 2px solid #e2e8f0;
   white-space: nowrap;
-  font-size: 12.5px;
+  font-size: 12px;
+  letter-spacing: -0.2px;
 }
 
 .results-table td {
-  padding: 12px 14px;
+  padding: 8px 12px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
 }
 
-.results-table tr:hover {
+.compact-table td {
+  padding: 7px 10px;
+  font-size: 12.5px;
+}
+
+/* 학생별 구분선 행 (Group Divider) */
+.student-group-divider-row td {
+  background: #f1f5f9 !important;
+  padding: 6px 12px !important;
+  border-top: 2px solid #cbd5e1;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.student-divider-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #1e293b;
+}
+
+.student-app-count-pill {
+  font-size: 11px;
+  color: #64748b;
+  background: #ffffff;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  font-weight: 600;
+}
+
+.compact-row:hover {
   background: #fafaf9;
 }
 

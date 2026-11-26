@@ -18,7 +18,7 @@
         @click="currentMainView = 'results_board'"
         :class="['mode-nav-btn', { active: currentMainView === 'results_board' }]"
       >
-        합격·전형결과 현황판 🏆
+        합격·전형결과 현황판
       </button>
       <button
         @click="currentMainView = 'past_exam'"

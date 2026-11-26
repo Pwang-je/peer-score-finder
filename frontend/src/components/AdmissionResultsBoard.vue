@@ -13,16 +13,8 @@
       </div>
 
       <div class="board-actions">
-        <!-- 보기 모드 전환 탭 (플랫 테이블 vs 학생별 묶어보기) -->
+        <!-- 보기 모드 전환 탭 (학생별 묶어보기 우선) -->
         <div class="view-mode-toggle">
-          <button
-            :class="['view-toggle-btn', viewMode === 'table' ? 'active' : '']"
-            @click="viewMode = 'table'"
-            title="스프레드시트형 전체 표로 보기"
-          >
-            <Table :size="15" :stroke-width="2" />
-            <span>전체 표 (테이블)</span>
-          </button>
           <button
             :class="['view-toggle-btn', viewMode === 'grouped' ? 'active' : '']"
             @click="viewMode = 'grouped'"
@@ -31,6 +23,20 @@
             <Users :size="15" :stroke-width="2" />
             <span>학생별 묶어보기</span>
           </button>
+          <button
+            :class="['view-toggle-btn', viewMode === 'table' ? 'active' : '']"
+            @click="viewMode = 'table'"
+            title="스프레드시트형 전체 빠른 표로 보기"
+          >
+            <Table :size="15" :stroke-width="2" />
+            <span>전체 빠른 표</span>
+          </button>
+        </div>
+
+        <!-- 학생별 보기일 때 전체 펼침/접힘 토글 -->
+        <div v-if="viewMode === 'grouped'" class="batch-expand-btns">
+          <button @click="toggleAllStudents(true)" class="btn-batch-toggle" title="전체 학생 펼치기">모두 펼치기</button>
+          <button @click="toggleAllStudents(false)" class="btn-batch-toggle" title="전체 학생 접기">모두 접기</button>
         </div>
 
         <button @click="loadData" class="btn-refresh" :disabled="loading" title="최신 상태 새로고침">
@@ -150,118 +156,138 @@
       </div>
     </div>
 
-    <!-- 4. [모드 A] 스프레드시트형 전체 플랫 테이블 뷰 -->
+    <!-- 4. [모드 A] 스프레드시트형 전체 빠른 표 (콤팩트 & 학생별 구분선) -->
     <div v-if="viewMode === 'table'" class="table-card">
       <div class="results-table-wrap">
-        <table class="results-table">
+        <table class="results-table compact-table">
           <thead>
             <tr>
-              <th style="width: 140px;">학생명 (계열)</th>
+              <th style="width: 130px;">학생명</th>
+              <th style="width: 70px; text-align: center;">계열</th>
               <th style="width: 150px;">지원 대학</th>
               <th>지원 학과</th>
-              <th style="width: 80px; text-align: center;">전략</th>
-              <th style="width: 110px; text-align: center;">1차 전형</th>
-              <th style="width: 130px; text-align: center;">최종 전형</th>
-              <th style="width: 100px; text-align: center;">예비 번호</th>
-              <th style="width: 100px; text-align: center;">최종 등록</th>
+              <th style="width: 70px; text-align: center;">전략</th>
+              <th style="width: 105px; text-align: center;">1차 전형</th>
+              <th style="width: 125px; text-align: center;">최종 전형</th>
+              <th style="width: 90px; text-align: center;">예비 번호</th>
+              <th style="width: 95px; text-align: center;">최종 등록</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="filteredApplications.length === 0">
-              <td colspan="8" class="empty-state">
+              <td colspan="9" class="empty-state">
                 <Inbox :size="32" :stroke-width="1.5" />
                 <p>일치하는 지원 및 결과 내역이 없습니다.</p>
               </td>
             </tr>
 
-            <tr
-              v-for="app in filteredApplications"
-              :key="app.id"
-              :class="{ 'row-enrolled': app.is_enrolled }"
-            >
-              <!-- 학생명 & 계열 -->
-              <td>
-                <div class="student-cell">
+            <template v-for="(app, idx) in filteredApplications" :key="app.id">
+              <!-- 학생이 바뀔 때 시각적 구분 헤더 행 삽입 -->
+              <tr
+                v-if="idx === 0 || app.student_name !== filteredApplications[idx - 1].student_name"
+                class="student-group-divider-row"
+              >
+                <td colspan="9">
+                  <div class="student-divider-content">
+                    <User :size="13" :stroke-width="2.5" />
+                    <strong>{{ app.student_name }}</strong>
+                    <span :class="['dept-badge', app.department && app.department.includes('자연') ? 'natural' : 'human']">
+                      {{ app.department && app.department.includes('자연') ? '자연계열' : (app.department && app.department.includes('인문') ? '인문계열' : '계열미기재') }}
+                    </span>
+                    <span class="student-app-count-pill">
+                      총 {{ filteredApplications.filter(x => x.student_name === app.student_name).length }}개교 지원
+                    </span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr :class="['compact-row', { 'row-enrolled': app.is_enrolled }]">
+                <!-- 학생명 -->
+                <td class="cell-student-name">
                   <span class="student-name-text">{{ app.student_name }}</span>
+                </td>
+
+                <!-- 계열 -->
+                <td style="text-align: center;">
                   <span
                     :class="['dept-badge', app.department && app.department.includes('자연') ? 'natural' : 'human']"
                   >
-                    {{ app.department && app.department.includes('자연') ? '자연' : (app.department && app.department.includes('인문') ? '인문' : '미기재') }}
+                    {{ app.department && app.department.includes('자연') ? '자연' : (app.department && app.department.includes('인문') ? '인문' : '-') }}
                   </span>
-                </div>
-              </td>
+                </td>
 
-              <!-- 대학 -->
-              <td>
-                <span class="univ-text">{{ app.univ }}</span>
-              </td>
+                <!-- 대학 -->
+                <td class="cell-univ">
+                  <strong class="univ-text">{{ app.univ }}</strong>
+                </td>
 
-              <!-- 학과 -->
-              <td>
-                <span class="major-text">{{ app.major }}</span>
-              </td>
+                <!-- 학과 -->
+                <td class="cell-major">
+                  <span class="major-text">{{ app.major }}</span>
+                </td>
 
-              <!-- 전략 메모 -->
-              <td style="text-align: center;">
-                <span class="memo-tag">{{ app.memo || '적정' }}</span>
-              </td>
+                <!-- 전략 메모 -->
+                <td style="text-align: center;">
+                  <span class="memo-tag">{{ app.memo || '적정' }}</span>
+                </td>
 
-              <!-- 1차 결과 (원클릭 순환 토글 버튼) -->
-              <td style="text-align: center;">
-                <button
-                  :class="['stage1-toggle-btn', app.stage1_result || '대기']"
-                  @click="toggleStage1(app)"
-                  :title="'클릭하여 1차 결과 변경 (현재: ' + (app.stage1_result || '대기') + ')'"
-                >
-                  {{ formatStage1(app.stage1_result) }}
-                </button>
-              </td>
+                <!-- 1차 결과 (원클릭 순환 토글) -->
+                <td style="text-align: center;">
+                  <button
+                    :class="['stage1-toggle-btn', app.stage1_result || '대기']"
+                    @click="toggleStage1(app)"
+                    :title="'클릭하여 1차 결과 변경 (현재: ' + (app.stage1_result || '대기') + ')'"
+                  >
+                    {{ formatStage1(app.stage1_result) }}
+                  </button>
+                </td>
 
-              <!-- 최종 결과 (드롭다운 빠른 선택) -->
-              <td style="text-align: center;">
-                <select
-                  v-model="app.final_result"
-                  :class="['final-result-select', app.final_result || '대기']"
-                  @change="onFinalResultChange(app)"
-                >
-                  <option value="대기">대기</option>
-                  <option value="최초합">최초합 🎉</option>
-                  <option value="예비">예비 ⏳</option>
-                  <option value="추가합">추가합 🎊</option>
-                  <option value="불합격">불합격 ⚪</option>
-                </select>
-              </td>
+                <!-- 최종 결과 (드롭다운 빠른 선택) -->
+                <td style="text-align: center;">
+                  <select
+                    v-model="app.final_result"
+                    :class="['final-result-select', app.final_result || '대기']"
+                    @change="onFinalResultChange(app)"
+                  >
+                    <option value="대기">대기</option>
+                    <option value="최초합">최초합 🎉</option>
+                    <option value="예비">예비 ⏳</option>
+                    <option value="추가합">추가합 🎊</option>
+                    <option value="불합격">불합격 ⚪</option>
+                  </select>
+                </td>
 
-              <!-- 예비 번호 인라인 입력 -->
-              <td style="text-align: center;">
-                <div class="waitlist-wrap" v-if="app.final_result === '예비' || app.final_result === '추가합' || app.waitlist_no">
-                  <input
-                    type="number"
-                    min="1"
-                    max="999"
-                    v-model.number="app.waitlist_no"
-                    @change="updateResult(app)"
-                    @keyup.enter="$event.target.blur()"
-                    placeholder="번호"
-                    class="waitlist-input"
-                  />
-                  <span class="waitlist-unit">번</span>
-                </div>
-                <span v-else style="color: #cbd5e1;">-</span>
-              </td>
+                <!-- 예비 번호 인라인 입력 -->
+                <td style="text-align: center;">
+                  <div class="waitlist-wrap" v-if="app.final_result === '예비' || app.final_result === '추가합' || app.waitlist_no">
+                    <input
+                      type="number"
+                      min="1"
+                      max="999"
+                      v-model.number="app.waitlist_no"
+                      @change="updateResult(app)"
+                      @keyup.enter="$event.target.blur()"
+                      placeholder="번호"
+                      class="waitlist-input"
+                    />
+                    <span class="waitlist-unit">번</span>
+                  </div>
+                  <span v-else style="color: #cbd5e1;">-</span>
+                </td>
 
-              <!-- 최종 등록 토글 버튼 -->
-              <td style="text-align: center;">
-                <button
-                  :class="['enrolled-btn', { 'is-enrolled': app.is_enrolled }]"
-                  @click="toggleEnrolled(app)"
-                  :disabled="app.final_result === '불합격'"
-                  :title="app.is_enrolled ? '최종 등록 취소' : '이 학교를 최종 진학으로 등록'"
-                >
-                  {{ app.is_enrolled ? '등록완료 🏆' : '등록선택' }}
-                </button>
-              </td>
-            </tr>
+                <!-- 최종 등록 토글 버튼 -->
+                <td style="text-align: center;">
+                  <button
+                    :class="['enrolled-btn', { 'is-enrolled': app.is_enrolled }]"
+                    @click="toggleEnrolled(app)"
+                    :disabled="app.final_result === '불합격'"
+                    :title="app.is_enrolled ? '최종 등록 취소' : '이 학교를 최종 진학으로 등록'"
+                  >
+                    {{ app.is_enrolled ? '등록 🏆' : '선택' }}
+                  </button>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -279,7 +305,7 @@
         :key="group.student_name"
         class="student-card"
       >
-        <div class="student-card-header" @click="group.expanded = !group.expanded">
+        <div class="student-card-header" @click="toggleStudent(group.student_name)">
           <div class="student-profile">
             <div class="student-avatar">
               <User :size="18" :stroke-width="2" />
@@ -444,11 +470,12 @@ export default {
   data() {
     return {
       loading: false,
-      viewMode: 'table', // 'table' | 'grouped'
+      viewMode: 'grouped', // 'grouped' (기본값) | 'table'
       searchKeyword: '',
       filterDept: 'ALL',
       filterStage1: 'ALL',
       filterFinal: 'ALL',
+      tableGroupByStudent: true, // 빠른 표에서 학생별 구분선 및 음영 그룹핑
       stats: {
         total_applications: 0,
         unique_students: 0,
@@ -508,7 +535,7 @@ export default {
           map[app.student_name] = {
             student_name: app.student_name,
             department: app.department,
-            expanded: this.expandedStudents[app.student_name] !== false, // 기본 펼침
+            expanded: this.expandedStudents[app.student_name] === true, // 🌟 기본값: 모두 접혀있게 설정
             items: [],
             enrolledUniv: '',
             enrolledMajor: '',
@@ -536,6 +563,18 @@ export default {
     this.loadData();
   },
   methods: {
+    toggleStudent(name) {
+      this.expandedStudents[name] = !this.expandedStudents[name];
+    },
+
+    toggleAllStudents(expand) {
+      const newMap = {};
+      this.groupedStudents.forEach(g => {
+        newMap[g.student_name] = expand;
+      });
+      this.expandedStudents = newMap;
+    },
+
     async loadData() {
       this.loading = true;
       try {
