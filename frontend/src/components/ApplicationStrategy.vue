@@ -397,7 +397,15 @@
         </div>
       </div>
 
-      <!-- 3) 모집단위 테이블 -->
+      <!-- 3) 2027 모집학과 테이블 -->
+      <div class="quota-section-header">
+        <div class="quota-header-left">
+          <strong class="quota-header-title">📋 {{ selectedUniv }} 2027 모집학과 (정원 선발 단위)</strong>
+          <span class="quota-count-badge">{{ filteredDepartments.length }}개 학과</span>
+        </div>
+        <span class="quota-header-sub">일반 또는 학사 정원이 배정된 학과 목록입니다. (원서 지원 가능)</span>
+      </div>
+
       <div class="table-wrapper">
         <div class="mobile-scroll-hint">← 좌우로 스크롤하여 전체 모집인원 및 지원현황을 확인하세요 →</div>
         <div v-if="isLoadingDepts" class="table-loading-overlay">
@@ -979,6 +987,11 @@
               <button :class="['mini-tab', { active: formDeptFilter === '자연' }]" @click="formDeptFilter = '자연'">자연</button>
               <button :class="['mini-tab', { active: formDeptFilter === '인문' }]" @click="formDeptFilter = '인문'">인문</button>
             </div>
+          </div>
+
+          <div class="form-major-section-label">
+            <span class="label-text">📋 2027 선발 학과 (클릭 시 원서 담기)</span>
+            <span class="label-badge">{{ filteredFormMajors.length }}개</span>
           </div>
 
           <div class="quick-major-list">

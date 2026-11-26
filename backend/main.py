@@ -1171,22 +1171,79 @@ def get_quota_univ_list():
     return [r[0] if isinstance(r, tuple) else r["univ"] for r in rows]
 
 
-def clean_major_name(s: str) -> str:
+def extract_major_variants(s: str) -> set:
+    """학과명에서 접두어 분리, 괄호 분리 등을 거친 가능한 전공명 후보군 집합 생성"""
+    if not s:
+        return set()
+    s = str(s).strip()
+    variants = {s}
+
+    # 1. 앞쪽 학부명/대학명 접두어 분리:
+    # 예: '첨단소재·전자융합공학부 신소재물리전공' -> '신소재물리전공', 'Fine Arts학부 서양화전공' -> '서양화전공'
+    # 가운뎃점(·), 공백, 영문 등이 포함된 학부명도 처리할 수 있도록 non-greedy 패턴 사용 (단, 단독 형태인 '법학부' 등은 유지)
+    prefix_match = re.match(r'^.+?(?:학부|대학)\s+(.+)$', s)
+    if prefix_match:
+        variants.add(prefix_match.group(1).strip())
+
+    # 2. 괄호 분리:
+    # 예: '전자정보공학부(IT융합전공)' -> '전자정보공학부', 'IT융합전공'
+    if '(' in s and ')' in s:
+        in_paren = re.search(r'\(([^)]+)\)', s)
+        out_paren = re.sub(r'\([^)]*\)', '', s).strip()
+        if in_paren:
+            variants.add(in_paren.group(1).strip())
+        if out_paren:
+            variants.add(out_paren)
+
+    return variants
+
+
+def normalize_major_core(s: str) -> str:
+    """특수기호, 공백, 접미어(학전공/공학전공/공학과/학과/학부/전공/과)를 일관 제거한 핵심 키워드 반환"""
     if not s:
         return ""
-    s = re.sub(r'[*()\[\]·•ㆍ/,\s]', '', str(s))
-    return s.strip()
+    # 1. 특수기호 및 공백 제거
+    clean_s = re.sub(r'[*()\[\]·•ㆍ/,\-_~\s]', '', str(s))
+    if not clean_s:
+        return ""
+    # 2. 끝부분 접미어(학전공|공학전공|공학과|학과|학부|전공|과) 제거
+    core = re.sub(r'(학전공|공학전공|공학과|학과|학부|전공|과)$', '', clean_s)
+    return core if core else clean_s
 
 
-def is_major_matched(target_clean: str, past_clean: str) -> bool:
-    if not target_clean or not past_clean:
+def clean_major_name(s: str) -> str:
+    """호환성을 위한 정규화 함수"""
+    if not s:
+        return ""
+    variants = extract_major_variants(s)
+    for v in variants:
+        core = normalize_major_core(v)
+        if core:
+            return core
+    return normalize_major_core(s)
+
+
+def is_major_matched(target_major: str, past_major: str) -> bool:
+    """recruit_quota 학과와 peer_data 과거 학과 간의 동일 전공 매칭 판정"""
+    if not target_major or not past_major:
         return False
-    if target_clean == past_clean:
+
+    # 1. 원본 특수기호/공백만 제거한 단순 비교
+    t_raw = re.sub(r'[*()\[\]·•ㆍ/,\-_~\s]', '', str(target_major).strip())
+    p_raw = re.sub(r'[*()\[\]·•ㆍ/,\-_~\s]', '', str(past_major).strip())
+    if t_raw and t_raw == p_raw:
         return True
-    t_core = re.sub(r'(학과|학부|전공|과)$', '', target_clean)
-    p_core = re.sub(r'(학과|학부|전공|과)$', '', past_clean)
-    if t_core and t_core == p_core:
+
+    # 2. 접두어/괄호 변형 추출 후 핵심 코어 키워드 일치 비교
+    t_variants = extract_major_variants(target_major)
+    p_variants = extract_major_variants(past_major)
+
+    t_cores = {normalize_major_core(v) for v in t_variants if normalize_major_core(v)}
+    p_cores = {normalize_major_core(v) for v in p_variants if normalize_major_core(v)}
+
+    if t_cores & p_cores:
         return True
+
     return False
 
 
@@ -1363,8 +1420,7 @@ def get_quota_departments(univ: str = "가천대학교"):
             p_eng = p[5] if isinstance(p, tuple) else p["eng_score"]
             p_math = p[6] if isinstance(p, tuple) else p["math_score"]
 
-            past_clean = clean_major_name(p_major)
-            if is_major_matched(target_clean, past_clean):
+            if is_major_matched(d_major, p_major):
                 matched_past_indices.add(idx_p)
                 key = (p_year, p_name)
                 if key not in seen_past:
@@ -1463,6 +1519,65 @@ def get_quota_departments(univ: str = "가천대학교"):
     return result
 
 
+# 2-1. [신규] 디버깅용 과거 합격생 매칭 점검 진단 API
+@app.get("/api/quota/unmatched-diagnosis")
+def get_unmatched_diagnosis(univ: str = "이화여자대학교"):
+    """특정 대학의 recruit_quota 학과와 매칭되지 않는 peer_data 과거 합격생 목록 진단"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # 1) 해당 대학 최신 recruit_quota 학과 목록
+    cursor.execute("""
+        SELECT major 
+        FROM recruit_quota 
+        WHERE univ = %s AND year = (SELECT COALESCE(MAX(year), 2026) FROM recruit_quota WHERE univ = %s);
+    """, (univ, univ))
+    quota_majors = [r[0] if isinstance(r, tuple) else r["major"] for r in cursor.fetchall()]
+
+    # 2) 해당 대학 과거 합격생 (peer_data)
+    cursor.execute("""
+        SELECT year, student_name, department, major, total_score, math_total
+        FROM peer_data
+        WHERE univ = %s 
+          AND year < 2026
+          AND major IS NOT NULL AND major != '' AND major != '-' AND major != '미기재'
+        ORDER BY year DESC, student_name ASC;
+    """, (univ,))
+    past_rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    unmatched_students = []
+    matched_count = 0
+
+    for p in past_rows:
+        p_yr = p[0] if isinstance(p, tuple) else p["year"]
+        p_name = p[1] if isinstance(p, tuple) else p["student_name"]
+        p_dept = p[2] if isinstance(p, tuple) else p["department"]
+        p_major = p[3] if isinstance(p, tuple) else p["major"]
+
+        matched = any(is_major_matched(qm, p_major) for qm in quota_majors)
+        if matched:
+            matched_count += 1
+        else:
+            unmatched_students.append({
+                "year": p_yr,
+                "student_name": p_name,
+                "department": p_dept,
+                "major": p_major
+            })
+
+    return {
+        "univ": univ,
+        "quota_majors_count": len(quota_majors),
+        "total_past_records": len(past_rows),
+        "matched_count": matched_count,
+        "unmatched_count": len(unmatched_students),
+        "match_rate_percent": round(matched_count / len(past_rows) * 100, 1) if past_rows else 0.0,
+        "unmatched_students": unmatched_students
+    }
+
+
 # 모집요강 엑셀 일괄 업로드 API
 @app.post("/api/quota/upload")
 async def upload_quota_excel(file: UploadFile = File(...)):
@@ -1478,7 +1593,14 @@ async def upload_quota_excel(file: UploadFile = File(...)):
             except UnicodeDecodeError:
                 df = pd.read_csv(io.BytesIO(contents), encoding="cp949")
         else:
-            df = pd.read_excel(io.BytesIO(contents))
+            # 엑셀 파일인 경우 'DB업로드용' 시트 우선 로드
+            excel_file = pd.ExcelFile(io.BytesIO(contents))
+            target_sheet = 0
+            for s in excel_file.sheet_names:
+                if "DB업로드용" in s:
+                    target_sheet = s
+                    break
+            df = pd.read_excel(excel_file, sheet_name=target_sheet)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"파일 읽기 실패: {str(e)}")
 
@@ -1501,7 +1623,7 @@ async def upload_quota_excel(file: UploadFile = File(...)):
             detail=f"필수 컬럼 누락 (현재 컬럼: {list(df.columns)} / 필수: 대학, 계열, 학과명)"
         )
 
-    # 기본 연도 추출 (파일명에 2027 등이 있거나 컬럼에 있는 경우 대응)
+    # 기본 연도 추출 (파일명에 2027 등이 있거나 컬럼에 있는 경우 대응, 기본 2026)
     default_year = 2026
     year_in_filename = re.search(r'202[0-9]|2[0-9]{3}', filename)
     if year_in_filename:
@@ -1515,6 +1637,8 @@ async def upload_quota_excel(file: UploadFile = File(...)):
     df = df.dropna(subset=["univ", "department", "major"])
 
     rows_to_insert = []
+    target_univs_by_year = {}
+
     for _, row in df.iterrows():
         univ_val = str(row["univ"]).strip()
         dept_val = str(row["department"]).strip()
@@ -1531,6 +1655,7 @@ async def upload_quota_excel(file: UploadFile = File(...)):
             except (ValueError, TypeError):
                 row_year = default_year
 
+        # 0명 / 0명인 학과도 필터링 없이 그대로 저장
         rows_to_insert.append((
             row_year,
             univ_val,
@@ -1540,6 +1665,8 @@ async def upload_quota_excel(file: UploadFile = File(...)):
             int(row["bachelor_quota"])
         ))
 
+        target_univs_by_year.setdefault(row_year, set()).add(univ_val)
+
     if not rows_to_insert:
         raise HTTPException(status_code=400, detail="유효한 데이터가 없습니다.")
 
@@ -1548,17 +1675,20 @@ async def upload_quota_excel(file: UploadFile = File(...)):
         cursor = conn.cursor()
         cursor.execute("ALTER TABLE recruit_quota MODIFY COLUMN major VARCHAR(150) NOT NULL;")
 
-        query = """
+        # 업로드 대상 대학의 기존 모집요강 데이터 깔끔하게 삭제 후 교체 (Clean Overwrite)
+        for y, univs in target_univs_by_year.items():
+            for u in univs:
+                cursor.execute("DELETE FROM recruit_quota WHERE year = %s AND univ = %s;", (y, u))
+
+        insert_query = """
             INSERT INTO recruit_quota (year, univ, department, major, general_quota, bachelor_quota)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                department = VALUES(department),
-                general_quota = VALUES(general_quota),
-                bachelor_quota = VALUES(bachelor_quota)
+            VALUES (%s, %s, %s, %s, %s, %s);
         """
-        cursor.executemany(query, rows_to_insert)
+        cursor.executemany(insert_query, rows_to_insert)
         conn.commit()
         cursor.close()
+
+        # 메모리 캐시 즉각 완전 초기화
         DEPT_CACHE.clear()
     except Exception as e:
         conn.rollback()
@@ -1566,7 +1696,11 @@ async def upload_quota_excel(file: UploadFile = File(...)):
     finally:
         conn.close()
 
-    return {"status": "success", "message": f"총 {len(rows_to_insert)}개 학과 모집요강 데이터가 성공적으로 반영되었습니다."}
+    total_univs = sum(len(u_set) for u_set in target_univs_by_year.values())
+    return {
+        "status": "success",
+        "message": f"총 {total_univs}개 대학 {len(rows_to_insert)}개 학과 모집요강 데이터가 성공적으로 교체 반영되었습니다. (0명 미선발 학과 포함)"
+    }
 
 
 # 3. 특정 학생의 지원 희망 리스트 조회
