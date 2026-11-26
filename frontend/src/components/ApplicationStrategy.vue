@@ -621,7 +621,10 @@
           </div>
 
           <div class="monthly-grid-wrapper">
-            <div class="monthly-grid">
+            <div
+              class="monthly-grid"
+              :style="{ gridTemplateColumns: `repeat(${studentScoreData.monthly_scores?.length || 11}, minmax(44px, 1fr))` }"
+            >
               <div
                 v-for="item in studentScoreData.monthly_scores"
                 :key="item.month"

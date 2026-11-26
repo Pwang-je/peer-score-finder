@@ -648,8 +648,8 @@
 
 .monthly-grid {
   display: grid;
-  grid-template-columns: repeat(10, minmax(54px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(11, minmax(44px, 1fr));
+  gap: 5px;
   width: 100%;
 }
 
@@ -3063,7 +3063,7 @@
   }
 
   .monthly-grid {
-    grid-template-columns: repeat(10, 48px);
+    grid-template-columns: repeat(11, 46px);
     gap: 4px;
   }
 
