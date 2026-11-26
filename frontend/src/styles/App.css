@@ -1261,7 +1261,11 @@
 }
 
 .action-bar {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
   margin: 24px 0 36px;
 }
 
@@ -1284,6 +1288,18 @@
 .primary-btn:hover {
   background: #1d4ed8;
   transform: translateY(-1px);
+}
+
+.action-bar-notice {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 10px 16px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* ========================================================

@@ -403,12 +403,7 @@
 
           <!-- 지원 원서가 없을 때 -->
           <div v-else-if="studentApplications.length === 0" class="apps-empty-guide">
-            <p>
-              <strong>{{ form.student_name }}</strong> 학생의 등록된 지원 원서가 없습니다.
-              <button @click="currentMainView = 'app_strategy'" class="link-inline-btn">
-                [원서 전략 관리] 탭에서 원서를 담아보세요 →
-              </button>
-            </p>
+            <p><strong>{{ form.student_name }}</strong> 학생의 등록된 지원 원서가 없습니다.</p>
           </div>
 
           <!-- 지원 원서 카드 그리드 -->
@@ -428,14 +423,6 @@
               </div>
               <div class="app-major-name" :title="app.major">
                 {{ app.major }}
-              </div>
-              <div class="card-bottom">
-                <span v-if="app.is_closed" class="quota-info closed">정원 0명 (미선발)</span>
-                <span v-else-if="!app.is_quota_released" class="quota-info pending">정원 미정</span>
-                <span v-else class="quota-info">
-                  일반 {{ app.gen_quota ?? 0 }} / 학사 {{ app.bac_quota ?? 0 }}
-                </span>
-                <span v-if="app.memo" class="app-memo-dot" :title="`메모: ${app.memo}`">💬</span>
               </div>
             </div>
           </div>
@@ -727,6 +714,9 @@
             <span>비슷한 점수 분석 실행</span>
             <span class="btn-arrow">→</span>
           </button>
+          <span class="action-bar-notice">
+            ※ 11월 점수는 포함되지 않으며, 1월부터 10월까지만 반영됩니다.
+          </span>
         </div>
 
         <!-- 3. 결과 시각화 섹션 -->
