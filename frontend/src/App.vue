@@ -315,6 +315,96 @@
           </div>
         </section>
 
+        <!-- 🌟 [신규] 선택한 학생의 원서 지원 목록 패널 -->
+        <section class="student-apps-summary-panel">
+          <div class="apps-summary-header">
+            <div class="header-title-group">
+              <span class="panel-icon apps-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </span>
+              <div class="title-text-wrap">
+                <div class="main-title-row">
+                  <h3 class="panel-title">
+                    {{ form.student_name ? `${form.student_name} 학생 원서 지원 목록` : '선택한 학생의 원서 지원 목록' }}
+                  </h3>
+                  <span v-if="form.student_name && studentApplications.length > 0" class="apps-count-badge">
+                    총 {{ studentApplications.length }}개교 지원
+                  </span>
+                </div>
+                <p class="panel-subtitle">
+                  학생이 원서 전략 탭에서 담아둔 2026/2027 지원 대학 및 학과 목록입니다.
+                </p>
+              </div>
+            </div>
+
+            <div class="header-action-group" v-if="form.student_name">
+              <button
+                type="button"
+                class="btn-go-strategy"
+                @click="currentMainView = 'app_strategy'"
+                title="원서 지원 전략 탭으로 이동"
+              >
+                <span>원서 전략 관리 이동 ➔</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 학생 미선택 안내 -->
+          <div v-if="!form.student_name" class="apps-empty-guide">
+            <p>위 <strong>MODE 01 [26년도 성적 불러오기]</strong>에서 학생을 선택하면, 해당 학생이 지원한 원서 목록이 이곳에 표시됩니다.</p>
+          </div>
+
+          <!-- 로딩 상태 -->
+          <div v-else-if="isLoadingApplications" class="apps-summary-loading">
+            원서 목록을 불러오는 중입니다...
+          </div>
+
+          <!-- 지원 원서가 없을 때 -->
+          <div v-else-if="studentApplications.length === 0" class="apps-empty-guide">
+            <p>
+              <strong>{{ form.student_name }}</strong> 학생의 등록된 지원 원서가 없습니다.
+              <button @click="currentMainView = 'app_strategy'" class="link-inline-btn">
+                [원서 전략 관리] 탭에서 원서를 담아보세요 →
+              </button>
+            </p>
+          </div>
+
+          <!-- 지원 원서 카드 그리드 -->
+          <div v-else class="apps-cards-grid">
+            <div
+              v-for="(app, idx) in sortedStudentApplications"
+              :key="app.id || idx"
+              class="app-mini-card"
+              :class="{ 'is-closed': app.is_closed }"
+            >
+              <div class="card-top">
+                <span class="card-seq">{{ idx + 1 }}</span>
+                <strong class="app-univ-name">{{ app.univ }}</strong>
+                <span v-if="app.is_closed" class="app-status-tag closed">미선발</span>
+                <span v-else-if="!app.is_quota_released" class="app-status-tag pending">요강미정</span>
+                <span v-else class="app-status-tag ok">모집</span>
+              </div>
+              <div class="app-major-name" :title="app.major">
+                {{ app.major }}
+              </div>
+              <div class="card-bottom">
+                <span v-if="app.is_closed" class="quota-info closed">정원 0명 (미선발)</span>
+                <span v-else-if="!app.is_quota_released" class="quota-info pending">정원 미정</span>
+                <span v-else class="quota-info">
+                  일반 {{ app.gen_quota ?? 0 }} / 학사 {{ app.bac_quota ?? 0 }}
+                </span>
+                <span v-if="app.memo" class="app-memo-dot" :title="`메모: ${app.memo}`">💬</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- 🌟 [신규] 선택한 학생의 모든 기출고사 성적 매트릭스 표 (사진의 엑셀 스타일) -->
         <section class="student-past-exams-panel">
           <div class="past-exams-header">
@@ -900,10 +990,33 @@ export default {
       matrixViewMode: 'taken', // 'taken' (응시 대학만 보기) | 'all' (전체 대학 보기)
       matrixTierFilter: 'ALL', // 'ALL' or '서성한', '중경외시', '건동홍', '국숭세단' 등
       matrixYears: [2026, 2025, 2024, 2023, 2022, 2021, 2020],
-      UNIVERSITY_TIERS
+      UNIVERSITY_TIERS,
+
+      // 🌟 [신규] 선택한 학생의 원서 지원 현황 데이터 상태
+      studentApplications: [],
+      isLoadingApplications: false
     };
   },
   computed: {
+    sortedStudentApplications() {
+      if (!this.studentApplications || !this.studentApplications.length) return [];
+      const getRank = (univ) => {
+        if (!univ) return 999;
+        for (let i = 0; i < this.UNIVERSITY_TIERS.length; i++) {
+          const tier = this.UNIVERSITY_TIERS[i];
+          if (tier.univs.some(u => univ.includes(u.split('(')[0].trim()))) {
+            return i;
+          }
+        }
+        return 999;
+      };
+      return [...this.studentApplications].sort((a, b) => {
+        const rankA = getRank(a.univ);
+        const rankB = getRank(b.univ);
+        if (rankA !== rankB) return rankA - rankB;
+        return (a.univ || '').localeCompare(b.univ || '', 'ko');
+      });
+    },
     activeIsNatural() {
       const hasManual = [this.form.grammar, this.form.vocabulary, this.form.logic, this.form.reading, this.form.math_total].some(v => v !== '');
       return hasManual ? this.manualIsNatural : this.isNatural;
@@ -1017,8 +1130,10 @@ export default {
     'form.student_name'(newVal) {
       if (newVal) {
         this.fetchStudentPastExams(newVal);
+        this.fetchStudentApplications(newVal);
       } else {
         this.studentPastExams = [];
+        this.studentApplications = [];
       }
     }
   },
@@ -1134,6 +1249,7 @@ export default {
       this.loadStudentScore();
       if (this.form.student_name) {
         this.fetchStudentPastExams(this.form.student_name);
+        this.fetchStudentApplications(this.form.student_name);
       }
     },
     async fetchStudentPastExams(studentName) {
@@ -1152,6 +1268,24 @@ export default {
         this.studentPastExams = [];
       } finally {
         this.isLoadingPastExams = false;
+      }
+    },
+    async fetchStudentApplications(studentName) {
+      if (!studentName) {
+        this.studentApplications = [];
+        return;
+      }
+      this.isLoadingApplications = true;
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/applications`, {
+          params: { student_name: studentName }
+        });
+        this.studentApplications = res.data || [];
+      } catch (err) {
+        console.error("원서 지원 목록 조회 실패:", err);
+        this.studentApplications = [];
+      } finally {
+        this.isLoadingApplications = false;
       }
     },
     getTierScoreCount(grp) {
