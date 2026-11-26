@@ -144,10 +144,10 @@
         <table class="results-table matrix-table">
           <thead>
             <tr>
-              <th class="matrix-sticky-col matrix-col-header" style="min-width: 130px; width: 130px;">
+              <th class="matrix-sticky-col matrix-col-header" style="width: 85px; min-width: 85px; max-width: 85px;">
                 학생명
               </th>
-              <th class="matrix-sticky-dept matrix-col-header" style="min-width: 70px; width: 70px; text-align: center;">
+              <th class="matrix-sticky-dept matrix-col-header" style="width: 55px; min-width: 55px; max-width: 55px; text-align: center;">
                 계열
               </th>
               <th
@@ -172,7 +172,7 @@
               :key="row.student_name"
               :class="['matrix-row', { 'row-has-enrolled': row.hasEnrolled }]"
             >
-              <!-- 1) 고정 열: 학생명 -->
+              <!-- 1) 고정 열: 학생명 (딱 맞는 너비) -->
               <td class="matrix-sticky-col cell-student-name">
                 <div class="matrix-student-info">
                   <span class="student-name-text">{{ row.student_name }}</span>
@@ -180,7 +180,7 @@
                 </div>
               </td>
 
-              <!-- 2) 고정 열: 계열 -->
+              <!-- 2) 고정 열: 계열 (딱 맞는 너비) -->
               <td class="matrix-sticky-dept" style="text-align: center;">
                 <span
                   :class="['dept-badge', row.department && row.department.includes('자연') ? 'natural' : 'human']"
@@ -196,53 +196,38 @@
                 :class="['matrix-cell', {
                   'cell-applied': !!row.appsByUniv[univ],
                   'cell-enrolled': row.appsByUniv[univ] && row.appsByUniv[univ].is_enrolled,
-                  'cell-stage1-pass': row.appsByUniv[univ] && row.appsByUniv[univ].stage1_result === '합격',
-                  'cell-final-pass': row.appsByUniv[univ] && (row.appsByUniv[univ].final_result === '최초합' || row.appsByUniv[univ].final_result === '추가합')
+                  'cell-stage1-pass': row.appsByUniv[univ] && getUnifiedStatus(row.appsByUniv[univ]) === '1차합',
+                  'cell-final-pass': row.appsByUniv[univ] && getUnifiedStatus(row.appsByUniv[univ]) === '최초합',
+                  'cell-reserve': row.appsByUniv[univ] && getUnifiedStatus(row.appsByUniv[univ]) === '예비'
                 }]"
               >
-                <!-- 지원한 학교인 경우: 1차합격 토글 및 예비번호 인라인 입력 -->
+                <!-- 지원한 학교인 경우: 단일 원클릭 토글 (대기->최초합->1차합->예비->불합) + 바로 옆 예비번호 -->
                 <div v-if="row.appsByUniv[univ]" class="matrix-cell-content">
-                  <div class="matrix-cell-actions">
-                    <!-- 1차 결과 토글 버튼 -->
+                  <div class="matrix-cell-row">
+                    <!-- 원클릭 순환 토글 버튼 -->
                     <button
-                      :class="['matrix-stage1-btn', row.appsByUniv[univ].stage1_result || '대기']"
-                      @click="toggleStage1(row.appsByUniv[univ])"
-                      :title="'1차 결과 변경 (클릭: 대기/합격/불합격/해당없음)'"
+                      class="matrix-status-btn"
+                      :data-status="getUnifiedStatus(row.appsByUniv[univ])"
+                      @click="cycleUnifiedStatus(row.appsByUniv[univ])"
+                      title="클릭하여 결과 변경: 대기 ➔ 최초합 ➔ 1차합 ➔ 예비 ➔ 불합"
                     >
-                      {{ formatMatrixStage1(row.appsByUniv[univ].stage1_result) }}
+                      {{ getUnifiedStatus(row.appsByUniv[univ]) }}
                     </button>
 
-                    <!-- 최종 결과 셀렉트 -->
-                    <select
-                      v-model="row.appsByUniv[univ].final_result"
-                      :class="['matrix-final-select', row.appsByUniv[univ].final_result || '대기']"
-                      @change="onFinalResultChange(row.appsByUniv[univ])"
-                      :title="'최종 결과: ' + (row.appsByUniv[univ].final_result || '대기')"
-                    >
-                      <option value="대기">대기</option>
-                      <option value="최초합">최초합</option>
-                      <option value="예비">예비</option>
-                      <option value="추가합">추합</option>
-                      <option value="불합격">불합</option>
-                    </select>
-                  </div>
-
-                  <!-- 예비번호 입력창 (예비, 추합, 또는 번호 기재 시) -->
-                  <div
-                    class="matrix-waitlist-box"
-                    v-if="row.appsByUniv[univ].final_result === '예비' || row.appsByUniv[univ].final_result === '추가합' || row.appsByUniv[univ].waitlist_no"
-                  >
-                    <input
-                      type="number"
-                      min="1"
-                      max="999"
-                      v-model.number="row.appsByUniv[univ].waitlist_no"
-                      @change="updateResult(row.appsByUniv[univ])"
-                      @keyup.enter="$event.target.blur()"
-                      placeholder="예비"
-                      class="matrix-waitlist-input"
-                    />
-                    <span class="matrix-waitlist-unit">번</span>
+                    <!-- 옆에 붙은 예비번호 입력창 (화살표 제거) -->
+                    <div class="matrix-waitlist-box">
+                      <input
+                        type="number"
+                        min="1"
+                        max="999"
+                        v-model.number="row.appsByUniv[univ].waitlist_no"
+                        @change="updateResult(row.appsByUniv[univ])"
+                        @keyup.enter="$event.target.blur()"
+                        placeholder="예비"
+                        class="matrix-waitlist-input no-spinner"
+                      />
+                      <span class="matrix-waitlist-unit">번</span>
+                    </div>
                   </div>
 
                   <!-- 학과 툴팁/안내 -->
@@ -605,21 +590,46 @@ export default {
       if (!val || val === '대기') return '대기';
       if (val === '합격') return '1차합격';
       if (val === '불합격') return '1차불합';
-      if (val === '해당없음') return '해당없음';
       return val;
     },
 
-    formatMatrixStage1(val) {
-      if (!val || val === '대기') return '대기';
-      if (val === '합격') return '1차합';
-      if (val === '불합격') return '불합';
-      if (val === '해당없음') return '-';
-      return val;
+    // 🌟 원클릭 통합 상태 계산 (대기 / 최초합 / 1차합 / 예비 / 불합)
+    getUnifiedStatus(app) {
+      if (!app) return '대기';
+      if (app.final_result === '최초합') return '최초합';
+      if (app.final_result === '추가합') return '최초합'; // 또는 합격
+      if (app.final_result === '예비') return '예비';
+      if (app.stage1_result === '합격') return '1차합';
+      if (app.final_result === '불합격' || app.stage1_result === '불합격') return '불합';
+      return '대기';
     },
 
-    // 1차 결과 순환 토글 (대기 -> 합격 -> 불합격 -> 해당없음 -> 대기)
+    // 🌟 한 번 누를 때마다 순환: 대기 ➔ 최초합 ➔ 1차합 ➔ 예비 ➔ 불합 ➔ 대기
+    async cycleUnifiedStatus(app) {
+      const current = this.getUnifiedStatus(app);
+      if (current === '대기') {
+        app.stage1_result = '합격';
+        app.final_result = '최초합';
+      } else if (current === '최초합') {
+        app.stage1_result = '합격';
+        app.final_result = '대기'; // 1차만 합격한 상태
+      } else if (current === '1차합') {
+        app.stage1_result = '합격';
+        app.final_result = '예비'; // 예비 상태
+      } else if (current === '예비') {
+        app.stage1_result = '불합격';
+        app.final_result = '불합격';
+        app.is_enrolled = false;
+      } else { // '불합' -> '대기'
+        app.stage1_result = '대기';
+        app.final_result = '대기';
+      }
+      await this.updateResult(app);
+    },
+
+    // 1차 결과 순환 토글 (대기 -> 1차합 -> 1차불합 -> 대기, 불필요한 '-' 삭제)
     async toggleStage1(app) {
-      const cycle = ['대기', '합격', '불합격', '해당없음'];
+      const cycle = ['대기', '합격', '불합격'];
       const currentIdx = cycle.indexOf(app.stage1_result || '대기');
       const nextVal = cycle[(currentIdx + 1) % cycle.length];
       app.stage1_result = nextVal;

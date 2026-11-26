@@ -301,14 +301,20 @@
   position: sticky;
   left: 0;
   z-index: 20;
+  width: 85px;
+  min-width: 85px;
+  max-width: 85px;
   background: #ffffff;
   border-right: 1px solid #e2e8f0;
 }
 
 .matrix-sticky-dept {
   position: sticky;
-  left: 130px;
+  left: 85px;
   z-index: 20;
+  width: 55px;
+  min-width: 55px;
+  max-width: 55px;
   background: #ffffff;
   border-right: 2px solid #cbd5e1;
 }
@@ -322,22 +328,23 @@ th.matrix-sticky-dept {
 .matrix-student-info {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 4px;
 }
 
 .enrolled-indicator {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 /* 매트릭스 셀 */
 .matrix-cell {
-  padding: 6px 8px;
+  padding: 5px 6px;
   border-bottom: 1px solid #f1f5f9;
   border-left: 1px solid #f1f5f9;
   vertical-align: middle;
   text-align: center;
-  min-width: 125px;
-  max-width: 160px;
+  min-width: 120px;
+  max-width: 150px;
   background: #ffffff;
 }
 
@@ -359,6 +366,10 @@ th.matrix-sticky-dept {
   background: #eff6ff !important;
 }
 
+.matrix-cell.cell-reserve {
+  background: #fffbeb !important;
+}
+
 .matrix-cell.cell-enrolled {
   background: #fdf2f8 !important;
 }
@@ -368,90 +379,96 @@ th.matrix-sticky-dept {
   font-size: 12px;
 }
 
-/* 매트릭스 셀 내부 컨트롤 */
+/* 매트릭스 셀 내부 컨트롤 (한 줄 배치) */
 .matrix-cell-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
-.matrix-cell-actions {
+.matrix-cell-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
 }
 
-.matrix-stage1-btn {
+/* 🌟 단일 순환 토글 버튼 (대기 / 최초합 / 1차합 / 예비 / 불합) */
+.matrix-status-btn {
   padding: 3px 6px;
-  border-radius: 4px;
-  border: 1px solid #cbd5e1;
+  border-radius: 5px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  border: 1px solid #cbd5e1;
   transition: all 0.15s ease;
+  user-select: none;
 }
 
-.matrix-stage1-btn.대기 {
+.matrix-status-btn[data-status="대기"] {
   background: #f8fafc;
   color: #64748b;
+  border-color: #cbd5e1;
 }
 
-.matrix-stage1-btn.합격 {
+.matrix-status-btn[data-status="최초합"] {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.matrix-status-btn[data-status="1차합"] {
   background: #dcfce7;
   color: #15803d;
   border-color: #86efac;
 }
 
-.matrix-stage1-btn.불합격 {
+.matrix-status-btn[data-status="예비"] {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fcd34d;
+}
+
+.matrix-status-btn[data-status="불합"] {
   background: #fee2e2;
   color: #b91c1c;
   border-color: #fca5a5;
 }
 
-.matrix-stage1-btn.해당없음 {
-  background: #f1f5f9;
-  color: #94a3b8;
-}
-
-.matrix-final-select {
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 700;
-  border: 1px solid #cbd5e1;
-  cursor: pointer;
-  outline: none;
-}
-
-.matrix-final-select.대기 { background: #ffffff; color: #64748b; }
-.matrix-final-select.최초합 { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
-.matrix-final-select.예비 { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
-.matrix-final-select.추가합 { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
-.matrix-final-select.불합격 { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
-
+/* 🌟 예비번호 입력창 (화살표 제거) */
 .matrix-waitlist-box {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 2px;
 }
 
 .matrix-waitlist-input {
-  width: 44px;
-  padding: 2px 4px;
+  width: 38px;
+  padding: 2px 3px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
   text-align: center;
   color: #b45309;
+  background: #ffffff;
 }
 
 .matrix-waitlist-input:focus {
   border-color: #b45309;
   outline: none;
+  background: #fffbeb;
+}
+
+/* 숫자 입력 화살표(Spinner) 제거 */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spinner[type=number] {
+  -moz-appearance: textfield;
 }
 
 .matrix-waitlist-unit {
@@ -578,7 +595,7 @@ th.matrix-sticky-dept {
 }
 
 .waitlist-input {
-  width: 54px;
+  width: 48px;
   padding: 4px 6px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
@@ -586,6 +603,15 @@ th.matrix-sticky-dept {
   font-weight: 700;
   text-align: center;
   color: #d97706;
+}
+
+.waitlist-input::-webkit-outer-spin-button,
+.waitlist-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.waitlist-input[type=number] {
+  -moz-appearance: textfield;
 }
 
 .waitlist-input:focus {
