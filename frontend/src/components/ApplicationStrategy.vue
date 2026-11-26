@@ -990,8 +990,16 @@
           </div>
 
           <div class="form-major-section-label">
-            <span class="label-text">📋 2027 선발 학과 (클릭 시 원서 담기)</span>
-            <span class="label-badge">{{ filteredFormMajors.length }}개</span>
+            <div class="label-left">
+              <span class="label-text">📋 2027 선발 학과 (클릭 시 원서 담기)</span>
+              <span class="label-badge">{{ filteredFormMajors.length }}개</span>
+            </div>
+            <div class="label-right-cols">
+              <span class="col-head gen">일반정원</span>
+              <span class="col-head bac">학사정원</span>
+              <span class="col-head past">과거합격</span>
+              <span class="col-head btn">담기</span>
+            </div>
           </div>
 
           <div class="quick-major-list">
@@ -1003,20 +1011,37 @@
             >
               <div class="major-left">
                 <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
-                <span class="major-title">{{ d.major }}</span>
+                <span class="major-title" :title="d.major">{{ d.major }}</span>
               </div>
 
               <div class="major-right">
                 <div class="quota-tag-group">
-                  <span :class="['quota-pill', 'gen', { zero: !d.gen || d.gen == 0 }]">
+                  <span
+                    :class="['quota-pill', 'gen', { zero: !d.gen || d.gen == 0 }]"
+                    :title="`일반편입 정원: ${d.gen || 0}명`"
+                  >
                     일반 <strong class="num">{{ d.gen || 0 }}</strong>명
                   </span>
-                  <span :class="['quota-pill', 'bac', { zero: !d.bac || d.bac == 0 }]">
+                  <span
+                    :class="['quota-pill', 'bac', { zero: !d.bac || d.bac == 0 }]"
+                    :title="`학사편입 정원: ${d.bac || 0}명`"
+                  >
                     학사 <strong class="num">{{ d.bac || 0 }}</strong>명
                   </span>
                 </div>
-                <span v-if="d.past_admissions && d.past_admissions.length > 0" class="past-mini">
+                <span
+                  v-if="d.past_admissions && d.past_admissions.length > 0"
+                  class="past-mini"
+                  :title="getPastTooltip(d.past_admissions)"
+                >
                   합격 {{ d.past_admissions.length }}
+                </span>
+                <span
+                  v-else
+                  class="past-mini empty"
+                  title="과거 합격생 데이터 없음"
+                >
+                  합격 -
                 </span>
                 <span
                   :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]"
@@ -1764,6 +1789,21 @@ const closedFormMajors = computed(() => {
     return matchDept && matchKw
   })
 })
+
+const getPastTooltip = (pastList) => {
+  if (!pastList || pastList.length === 0) return '과거 합격생 데이터 없음'
+  return pastList
+    .map(p => {
+      const yearStr = p.year ? `${String(p.year).slice(-2)}'` : ''
+      const typeStr = p.type ? `[${p.type}]` : ''
+      const nameStr = p.student_name || '합격생'
+      const engStr = p.eng && p.eng !== '-' ? `영 ${p.eng}` : ''
+      const mathStr = p.math && p.math !== '-' && Number(p.math) > 0 ? `수 ${p.math}` : ''
+      const scoreStr = [engStr, mathStr].filter(Boolean).join(' / ') || '-'
+      return `${yearStr} ${typeStr} ${nameStr}: ${scoreStr}`.trim()
+    })
+    .join('\n')
+}
 
 const appliedUnivSet = computed(() => new Set(studentApplications.value.map(a => a.univ)))
 
