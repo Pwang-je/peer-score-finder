@@ -1664,6 +1664,14 @@
   border: 1px solid #e2e8f0;
   font-weight: 500;
 }
+.past-empty-slot {
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
+  display: inline-block;
+  visibility: hidden;
+  pointer-events: none;
+}
 
 .pick-status-btn {
   width: 28px;
@@ -3153,7 +3161,8 @@
     padding: 6px 0;
   }
 
-  .label-right-cols {
+  .label-right-cols,
+  .past-empty-slot {
     display: none;
   }
 

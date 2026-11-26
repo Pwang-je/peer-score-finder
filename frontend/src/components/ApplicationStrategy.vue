@@ -1038,11 +1038,9 @@
                 </span>
                 <span
                   v-else
-                  class="past-mini empty"
-                  title="과거 합격생 데이터 없음"
-                >
-                  합격 -
-                </span>
+                  class="past-empty-slot"
+                  aria-hidden="true"
+                ></span>
                 <span
                   :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]"
                   :title="isMajorApplied(d.univ, d.major) ? '담김 (클릭 시 취소)' : '원서 담기'"
