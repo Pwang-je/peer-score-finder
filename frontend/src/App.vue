@@ -15,27 +15,27 @@
         원서 지원 현황
       </button>
       <button
-        @click="currentMainView = 'results_board'"
-        :class="['mode-nav-btn', { active: currentMainView === 'results_board' }]"
-      >
-        합격·전형결과 현황판
-      </button>
-      <button
         @click="currentMainView = 'past_exam'"
         :class="['mode-nav-btn', { active: currentMainView === 'past_exam' }]"
       >
         기출 성적 직접 입력
+      </button>
+      <button
+        @click="currentMainView = 'results_board'"
+        :class="['mode-nav-btn', { active: currentMainView === 'results_board' }]"
+      >
+        합격·전형결과 현황판
       </button>
     </div>
 
     <!-- 화면 A: 신규 원서 지원 현황 및 전략 관리 컴포넌트 -->
     <ApplicationStrategy v-if="currentMainView === 'strategy'" />
 
-    <!-- 화면 D: 2026 편입 전형 결과 및 합격 현황판 컴포넌트 -->
-    <AdmissionResultsBoard v-else-if="currentMainView === 'results_board'" />
-
     <!-- 화면 C: 학생 기출 성적 직접 입력 컴포넌트 -->
     <PastExamScoreInput v-else-if="currentMainView === 'past_exam'" />
+
+    <!-- 화면 D: 2026 편입 전형 결과 및 합격 현황판 컴포넌트 -->
+    <AdmissionResultsBoard v-else-if="currentMainView === 'results_board'" />
 
     <!-- 화면 B: 기존 Peer Analyzer 성적 및 지원 가능 대학 분석 대시보드 -->
     <template v-else>
