@@ -1338,14 +1338,14 @@
           </div>
 
           <div v-else class="app-split-container">
-            <!-- 좌측 컬럼: 상향 지원 -->
+            <!-- 좌측 컬럼: ▲ -->
             <div class="app-split-column upward">
               <div class="split-column-header">
-                <span class="column-badge upward">▲ 상향 지원</span>
+                <span class="column-badge upward">▲</span>
                 <span class="column-count">{{ upwardApplications.length }}개</span>
               </div>
               <div v-if="upwardApplications.length === 0" class="split-empty-hint">
-                상향 지원 대학이 없습니다.
+                등록된 지원 대학이 없습니다.
               </div>
               <div v-else class="application-cards">
                 <div
@@ -1397,9 +1397,9 @@
                       type="button"
                       @click.stop="toggleAppTier(app)"
                       class="btn-tier-toggle to-downward"
-                      title="하향(안정) 지원으로 이동"
+                      title="아래(▼)로 이동"
                     >
-                      하향 ➔
+                      ▼
                     </button>
                     <button @click.stop="handleRemoveApplication(app.id)" class="btn-remove" title="삭제">
                       ✕
@@ -1409,14 +1409,14 @@
               </div>
             </div>
 
-            <!-- 우측 컬럼: 하향 지원 -->
+            <!-- 우측 컬럼: ▼ -->
             <div class="app-split-column downward">
               <div class="split-column-header">
-                <span class="column-badge downward">▼ 하향 지원</span>
+                <span class="column-badge downward">▼</span>
                 <span class="column-count">{{ downwardApplications.length }}개</span>
               </div>
               <div v-if="downwardApplications.length === 0" class="split-empty-hint">
-                하향 지원 대학이 없습니다.
+                등록된 지원 대학이 없습니다.
               </div>
               <div v-else class="application-cards">
                 <div
@@ -1468,9 +1468,9 @@
                       type="button"
                       @click.stop="toggleAppTier(app)"
                       class="btn-tier-toggle to-upward"
-                      title="상향 지원으로 이동"
+                      title="위(▲)로 이동"
                     >
-                      ▲ 상향
+                      ▲
                     </button>
                     <button @click.stop="handleRemoveApplication(app.id)" class="btn-remove" title="삭제">
                       ✕
@@ -1740,12 +1740,12 @@ const sortedStudentApplications = computed(() => {
   })
 })
 
-// 🌟 상향 지원 원서 목록 (memo === '상향' 이거나 기본값)
+// 🌟 상향(▲) 지원 원서 목록 (하향이 아닌 모든 지원건: '상향', '적정', null 등 기존 데이터 포함)
 const upwardApplications = computed(() => {
-  return sortedStudentApplications.value.filter(a => (a.memo || '상향') === '상향')
+  return sortedStudentApplications.value.filter(a => a.memo !== '하향')
 })
 
-// 🌟 하향/안정 지원 원서 목록 (memo === '하향')
+// 🌟 하향(▼) 지원 원서 목록 (memo === '하향')
 const downwardApplications = computed(() => {
   return sortedStudentApplications.value.filter(a => a.memo === '하향')
 })
@@ -1761,7 +1761,7 @@ async function toggleAppTier(app) {
       body: JSON.stringify({ memo: newMemo })
     })
   } catch (err) {
-    console.error('지원 구분(상향/하향) 저장 실패:', err)
+    console.error('지원 구분(▲/▼) 저장 실패:', err)
   }
 }
 
