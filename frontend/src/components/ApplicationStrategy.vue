@@ -1337,22 +1337,35 @@
             아직 추가된 지원 대학이 없습니다.<br>좌측에서 대학과 학과를 클릭해 바로 담아보세요.
           </div>
 
-          <div v-else class="app-split-container">
+          <div class="app-split-container">
             <!-- 좌측 컬럼: ▲ -->
-            <div class="app-split-column upward">
+            <div
+              :class="['app-split-column', 'upward', { 'is-drag-over': dragOverTarget === 'upward' }]"
+              @dragover="onDragOver($event, 'upward')"
+              @dragleave="onDragLeave($event, 'upward')"
+              @drop="onDrop($event, 'upward')"
+            >
               <div class="split-column-header">
                 <span class="column-badge upward">▲</span>
                 <span class="column-count">{{ upwardApplications.length }}개</span>
               </div>
               <div v-if="upwardApplications.length === 0" class="split-empty-hint">
-                등록된 지원 대학이 없습니다.
+                원서를 여기로 끌어다 놓으세요.
               </div>
               <div v-else class="application-cards">
                 <div
                   v-for="(app, idx) in upwardApplications"
                   :key="app.id"
-                  :class="['app-card', { 'is-closed-alert': app.is_closed, 'is-target-changing': changingAppTarget && changingAppTarget.id === app.id }]"
+                  :class="['app-card', {
+                    'is-closed-alert': app.is_closed,
+                    'is-target-changing': changingAppTarget && changingAppTarget.id === app.id,
+                    'is-dragging': draggedAppId === app.id
+                  }]"
+                  draggable="true"
+                  @dragstart="onDragStart($event, app)"
+                  @dragend="onDragEnd"
                 >
+                  <div class="card-drag-handle" title="끌어서 하향(▼)으로 이동">⋮⋮</div>
                   <div class="card-num">{{ idx + 1 }}</div>
                   <div class="card-content" @click="jumpToFormUniv(app.univ)" title="클릭하면 좌측에서 해당 대학 열기">
                     <div class="card-univ-row">
@@ -1410,20 +1423,33 @@
             </div>
 
             <!-- 우측 컬럼: ▼ -->
-            <div class="app-split-column downward">
+            <div
+              :class="['app-split-column', 'downward', { 'is-drag-over': dragOverTarget === 'downward' }]"
+              @dragover="onDragOver($event, 'downward')"
+              @dragleave="onDragLeave($event, 'downward')"
+              @drop="onDrop($event, 'downward')"
+            >
               <div class="split-column-header">
                 <span class="column-badge downward">▼</span>
                 <span class="column-count">{{ downwardApplications.length }}개</span>
               </div>
               <div v-if="downwardApplications.length === 0" class="split-empty-hint">
-                등록된 지원 대학이 없습니다.
+                원서를 여기로 끌어다 놓으세요.
               </div>
               <div v-else class="application-cards">
                 <div
                   v-for="(app, idx) in downwardApplications"
                   :key="app.id"
-                  :class="['app-card', { 'is-closed-alert': app.is_closed, 'is-target-changing': changingAppTarget && changingAppTarget.id === app.id }]"
+                  :class="['app-card', {
+                    'is-closed-alert': app.is_closed,
+                    'is-target-changing': changingAppTarget && changingAppTarget.id === app.id,
+                    'is-dragging': draggedAppId === app.id
+                  }]"
+                  draggable="true"
+                  @dragstart="onDragStart($event, app)"
+                  @dragend="onDragEnd"
                 >
+                  <div class="card-drag-handle" title="끌어서 상향(▲)으로 이동">⋮⋮</div>
                   <div class="card-num">{{ idx + 1 }}</div>
                   <div class="card-content" @click="jumpToFormUniv(app.univ)" title="클릭하면 좌측에서 해당 대학 열기">
                     <div class="card-univ-row">
@@ -1749,6 +1775,63 @@ const upwardApplications = computed(() => {
 const downwardApplications = computed(() => {
   return sortedStudentApplications.value.filter(a => a.memo === '하향')
 })
+
+const draggedAppId = ref(null)
+const dragOverTarget = ref(null) // 'upward' | 'downward' | null
+
+function onDragStart(event, app) {
+  draggedAppId.value = app.id
+  if (event.dataTransfer) {
+    event.dataTransfer.setData('text/plain', String(app.id))
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function onDragEnd() {
+  draggedAppId.value = null
+  dragOverTarget.value = null
+}
+
+function onDragOver(event, targetTier) {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+  dragOverTarget.value = targetTier
+}
+
+function onDragLeave(event, targetTier) {
+  if (dragOverTarget.value === targetTier) {
+    dragOverTarget.value = null
+  }
+}
+
+async function onDrop(event, targetTier) {
+  event.preventDefault()
+  dragOverTarget.value = null
+  const appIdStr = event.dataTransfer ? event.dataTransfer.getData('text/plain') : null
+  const appId = appIdStr ? Number(appIdStr) : draggedAppId.value
+  draggedAppId.value = null
+
+  if (!appId) return
+  const app = studentApplications.value.find(a => a.id === appId)
+  if (!app) return
+
+  const currentTier = app.memo === '하향' ? 'downward' : 'upward'
+  if (currentTier === targetTier) return
+
+  const newMemo = targetTier === 'downward' ? '하향' : '상향'
+  app.memo = newMemo
+  try {
+    await fetch(`${API_BASE}/api/applications/${app.id}/result`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memo: newMemo })
+    })
+  } catch (err) {
+    console.error('드래그앤드롭 지원 구분 저장 실패:', err)
+  }
+}
 
 async function toggleAppTier(app) {
   const newMemo = (app.memo === '하향') ? '상향' : '하향'

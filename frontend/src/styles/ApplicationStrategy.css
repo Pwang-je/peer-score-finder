@@ -2112,10 +2112,24 @@
 
 .app-split-column.upward {
   border-top: 3px solid #2563eb;
+  transition: all 0.2s ease;
 }
 
 .app-split-column.downward {
   border-top: 3px solid #059669;
+  transition: all 0.2s ease;
+}
+
+.app-split-column.is-drag-over {
+  background: #f0fdf4;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+.app-split-column.downward.is-drag-over {
+  background: #ecfdf5;
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
 }
 
 .split-column-header {
@@ -2172,6 +2186,7 @@
   gap: 8px;
   max-height: 520px;
   overflow-y: auto;
+  min-height: 80px;
 }
 
 .app-card {
@@ -2181,8 +2196,17 @@
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #ffffff;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.15s ease;
+  user-select: none;
+}
+.app-card:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+.app-card.is-dragging {
+  opacity: 0.45;
+  transform: scale(0.98);
+  border-style: dashed;
 }
 .app-card.is-closed-alert {
   border: 1.5px solid #f87171;
@@ -2193,6 +2217,23 @@
   background: #eff6ff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
+
+.card-drag-handle {
+  cursor: grab;
+  color: #94a3b8;
+  font-size: 13px;
+  letter-spacing: -2px;
+  padding: 0 2px;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+.card-drag-handle:hover {
+  color: #334155;
+}
+.app-card:active .card-drag-handle {
+  cursor: grabbing;
+}
+
 .card-num { font-size: 12px; font-weight: 800; color: #64748b; width: 18px; text-align: center; flex-shrink: 0; }
 .card-content { flex: 1; min-width: 0; cursor: pointer; }
 
@@ -2205,41 +2246,48 @@
 }
 
 .btn-tier-toggle {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 3px 6px;
-  border-radius: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
   border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #475569;
+  background: #ffffff;
+  color: #334155;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  line-height: 1;
 }
 
 .btn-tier-toggle:hover {
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .btn-tier-toggle.to-downward {
   color: #047857;
-  border-color: #a7f3d0;
+  border-color: #6ee7b7;
   background: #ecfdf5;
 }
 
 .btn-tier-toggle.to-downward:hover {
   background: #d1fae5;
+  border-color: #34d399;
 }
 
 .btn-tier-toggle.to-upward {
   color: #1d4ed8;
-  border-color: #bfdbfe;
+  border-color: #93c5fd;
   background: #eff6ff;
 }
 
 .btn-tier-toggle.to-upward:hover {
   background: #dbeafe;
+  border-color: #60a5fa;
 }
 .card-univ-row {
   display: flex;
