@@ -2090,15 +2090,98 @@
 }
 
 .empty-list-box { padding: 40px 20px; text-align: center; font-size: 13px; color: #94a3b8; line-height: 1.6; }
-.application-cards { display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; }
+
+/* 🌟 상향/하향 좌우 2분할 레이아웃 */
+.app-split-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.app-split-column {
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 10px 12px;
+  min-width: 0;
+}
+
+.app-split-column.upward {
+  border-top: 3px solid #2563eb;
+}
+
+.app-split-column.downward {
+  border-top: 3px solid #059669;
+}
+
+.split-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.column-badge {
+  font-size: 12.5px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+
+.column-badge.upward {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.column-badge.downward {
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.column-count {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.split-empty-hint {
+  padding: 28px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #94a3b8;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+}
+
+.application-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
 .app-card {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
+  padding: 10px 10px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  background: #f8fafc;
-  gap: 12px;
+  background: #ffffff;
+  gap: 8px;
   transition: all 0.15s ease;
 }
 .app-card.is-closed-alert {
@@ -2110,8 +2193,54 @@
   background: #eff6ff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
-.card-num { font-size: 13px; font-weight: 800; color: #2563eb; width: 20px; text-align: center; }
-.card-content { flex: 1; cursor: pointer; }
+.card-num { font-size: 12px; font-weight: 800; color: #64748b; width: 18px; text-align: center; flex-shrink: 0; }
+.card-content { flex: 1; min-width: 0; cursor: pointer; }
+
+.card-actions-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.btn-tier-toggle {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 6px;
+  border-radius: 5px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+}
+
+.btn-tier-toggle:hover {
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.btn-tier-toggle.to-downward {
+  color: #047857;
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+
+.btn-tier-toggle.to-downward:hover {
+  background: #d1fae5;
+}
+
+.btn-tier-toggle.to-upward {
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.btn-tier-toggle.to-upward:hover {
+  background: #dbeafe;
+}
 .card-univ-row {
   display: flex;
   align-items: center;
@@ -3244,7 +3373,12 @@
     justify-content: flex-end;
   }
 
-  /* 탭 2: 지원 카드 */
+  /* 탭 2: 지원 카드 및 상향/하향 분할 */
+  .app-split-container {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
   .app-card {
     padding: 8px 10px;
     gap: 8px;

@@ -1812,6 +1812,7 @@ class ApplicationResultUpdate(BaseModel):
     final_result: Optional[str] = None
     waitlist_no: Optional[int] = None
     is_enrolled: Optional[bool] = None
+    memo: Optional[str] = None
 
 
 @app.get("/api/applications/results-board")
@@ -1927,6 +1928,10 @@ def update_application_result(app_id: int, payload: ApplicationResultUpdate):
     if payload.is_enrolled is not None:
         updates.append("is_enrolled = %s")
         params.append(1 if payload.is_enrolled else 0)
+
+    if payload.memo is not None:
+        updates.append("memo = %s")
+        params.append(payload.memo)
 
     if updates:
         params.append(app_id)

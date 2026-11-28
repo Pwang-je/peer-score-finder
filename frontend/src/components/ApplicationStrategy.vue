@@ -1337,57 +1337,147 @@
             아직 추가된 지원 대학이 없습니다.<br>좌측에서 대학과 학과를 클릭해 바로 담아보세요.
           </div>
 
-          <div v-else class="application-cards">
-            <div
-              v-for="(app, idx) in sortedStudentApplications"
-              :key="app.id"
-              :class="['app-card', { 'is-closed-alert': app.is_closed, 'is-target-changing': changingAppTarget && changingAppTarget.id === app.id }]"
-            >
-              <div class="card-num">{{ idx + 1 }}</div>
-              <div class="card-content" @click="jumpToFormUniv(app.univ)" title="클릭하면 좌측에서 해당 대학 열기">
-                <div class="card-univ-row">
-                  <span class="card-univ">{{ app.univ }}</span>
-                  <!-- 🌟 전형 결과 뱃지 (합격/예비/최종등록) -->
-                  <span v-if="app.is_enrolled" class="badge-app-status enrolled" style="background: #db2777; color: white;">🏆 최종등록</span>
-                  <span v-else-if="app.final_result === '최초합'" class="badge-app-status pass-final" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">최초합 🎉</span>
-                  <span v-else-if="app.final_result === '추가합'" class="badge-app-status pass-final" style="background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe;">추가합 🎊</span>
-                  <span v-else-if="app.final_result === '예비'" class="badge-app-status waitlist" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a;">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
-                  <span v-else-if="app.stage1_result === '합격'" class="badge-app-status stage1-pass" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">1차합격 🟢</span>
-                  <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="badge-app-status fail" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;">불합격</span>
+          <div v-else class="app-split-container">
+            <!-- 좌측 컬럼: 상향 지원 -->
+            <div class="app-split-column upward">
+              <div class="split-column-header">
+                <span class="column-badge upward">▲ 상향 지원</span>
+                <span class="column-count">{{ upwardApplications.length }}개</span>
+              </div>
+              <div v-if="upwardApplications.length === 0" class="split-empty-hint">
+                상향 지원 대학이 없습니다.
+              </div>
+              <div v-else class="application-cards">
+                <div
+                  v-for="(app, idx) in upwardApplications"
+                  :key="app.id"
+                  :class="['app-card', { 'is-closed-alert': app.is_closed, 'is-target-changing': changingAppTarget && changingAppTarget.id === app.id }]"
+                >
+                  <div class="card-num">{{ idx + 1 }}</div>
+                  <div class="card-content" @click="jumpToFormUniv(app.univ)" title="클릭하면 좌측에서 해당 대학 열기">
+                    <div class="card-univ-row">
+                      <span class="card-univ">{{ app.univ }}</span>
+                      <!-- 🌟 전형 결과 뱃지 (합격/예비/최종등록) -->
+                      <span v-if="app.is_enrolled" class="badge-app-status enrolled" style="background: #db2777; color: white;">🏆 최종등록</span>
+                      <span v-else-if="app.final_result === '최초합'" class="badge-app-status pass-final" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">최초합 🎉</span>
+                      <span v-else-if="app.final_result === '추가합'" class="badge-app-status pass-final" style="background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe;">추가합 🎊</span>
+                      <span v-else-if="app.final_result === '예비'" class="badge-app-status waitlist" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a;">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
+                      <span v-else-if="app.stage1_result === '합격'" class="badge-app-status stage1-pass" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">1차합격 🟢</span>
+                      <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="badge-app-status fail" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;">불합격</span>
 
-                  <span v-if="app.is_closed" class="badge-app-status closed">🚨 26년 미선발</span>
-                  <span v-else-if="!app.is_quota_released" class="badge-app-status pending">⏳ 요강 발표전</span>
-                  <span v-else-if="!app.is_enrolled && app.final_result === '대기' && app.stage1_result === '대기'" class="badge-app-status confirmed">✓ 모집확정</span>
-                </div>
-                <div class="card-major-row">
-                  <div class="card-major" :class="{ 'closed-major-text': app.is_closed }">{{ app.major }}</div>
-                  <button
-                    v-if="app.is_closed"
-                    @click.stop="startChangeMajor(app)"
-                    class="btn-change-major-action"
-                    title="선발 중인 다른 학과로 즉시 변경"
-                  >
-                    학과 변경 ➔
-                  </button>
-                </div>
-                <div class="card-meta">
-                  <span v-if="app.is_closed" class="quota-warning-text">
-                    ⚠️ 2026 선발인원 없음 (일반 0명 / 학사 0명)
-                  </span>
-                  <span v-else-if="!app.is_quota_released" class="quota-pending-text">
-                    모집정원 미정 (2026 요강 발표 대기중)
-                  </span>
-                  <span v-else>
-                    선발정원: 일반 {{ app.gen_quota }}명 / 학사 {{ app.bac_quota }}명
-                  </span>
-                  <div v-if="getUnivExamSummary(app.univ)" class="card-exam-tag">
-                    <span class="exam-tag-label">기출:</span> {{ getUnivExamSummary(app.univ) }}
+                      <span v-if="app.is_closed" class="badge-app-status closed">🚨 26년 미선발</span>
+                      <span v-else-if="!app.is_quota_released" class="badge-app-status pending">⏳ 요강 발표전</span>
+                      <span v-else-if="!app.is_enrolled && app.final_result === '대기' && app.stage1_result === '대기'" class="badge-app-status confirmed">✓ 모집확정</span>
+                    </div>
+                    <div class="card-major-row">
+                      <div class="card-major" :class="{ 'closed-major-text': app.is_closed }">{{ app.major }}</div>
+                      <button
+                        v-if="app.is_closed"
+                        @click.stop="startChangeMajor(app)"
+                        class="btn-change-major-action"
+                        title="선발 중인 다른 학과로 즉시 변경"
+                      >
+                        학과 변경 ➔
+                      </button>
+                    </div>
+                    <div class="card-meta">
+                      <span v-if="app.is_closed" class="quota-warning-text">
+                        ⚠️ 2026 선발인원 없음 (일반 0명 / 학사 0명)
+                      </span>
+                      <span v-else-if="!app.is_quota_released" class="quota-pending-text">
+                        모집정원 미정 (2026 요강 발표 대기중)
+                      </span>
+                      <span v-else>
+                        선발정원: 일반 {{ app.gen_quota }}명 / 학사 {{ app.bac_quota }}명
+                      </span>
+                    </div>
+                  </div>
+                  <div class="card-actions-right">
+                    <button
+                      type="button"
+                      @click.stop="toggleAppTier(app)"
+                      class="btn-tier-toggle to-downward"
+                      title="하향(안정) 지원으로 이동"
+                    >
+                      하향 ➔
+                    </button>
+                    <button @click.stop="handleRemoveApplication(app.id)" class="btn-remove" title="삭제">
+                      ✕
+                    </button>
                   </div>
                 </div>
               </div>
-              <button @click="handleRemoveApplication(app.id)" class="btn-remove" title="삭제">
-                ✕
-              </button>
+            </div>
+
+            <!-- 우측 컬럼: 하향 지원 -->
+            <div class="app-split-column downward">
+              <div class="split-column-header">
+                <span class="column-badge downward">▼ 하향 지원</span>
+                <span class="column-count">{{ downwardApplications.length }}개</span>
+              </div>
+              <div v-if="downwardApplications.length === 0" class="split-empty-hint">
+                하향 지원 대학이 없습니다.
+              </div>
+              <div v-else class="application-cards">
+                <div
+                  v-for="(app, idx) in downwardApplications"
+                  :key="app.id"
+                  :class="['app-card', { 'is-closed-alert': app.is_closed, 'is-target-changing': changingAppTarget && changingAppTarget.id === app.id }]"
+                >
+                  <div class="card-num">{{ idx + 1 }}</div>
+                  <div class="card-content" @click="jumpToFormUniv(app.univ)" title="클릭하면 좌측에서 해당 대학 열기">
+                    <div class="card-univ-row">
+                      <span class="card-univ">{{ app.univ }}</span>
+                      <!-- 🌟 전형 결과 뱃지 (합격/예비/최종등록) -->
+                      <span v-if="app.is_enrolled" class="badge-app-status enrolled" style="background: #db2777; color: white;">🏆 최종등록</span>
+                      <span v-else-if="app.final_result === '최초합'" class="badge-app-status pass-final" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">최초합 🎉</span>
+                      <span v-else-if="app.final_result === '추가합'" class="badge-app-status pass-final" style="background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe;">추가합 🎊</span>
+                      <span v-else-if="app.final_result === '예비'" class="badge-app-status waitlist" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a;">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
+                      <span v-else-if="app.stage1_result === '합격'" class="badge-app-status stage1-pass" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">1차합격 🟢</span>
+                      <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="badge-app-status fail" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;">불합격</span>
+
+                      <span v-if="app.is_closed" class="badge-app-status closed">🚨 26년 미선발</span>
+                      <span v-else-if="!app.is_quota_released" class="badge-app-status pending">⏳ 요강 발표전</span>
+                      <span v-else-if="!app.is_enrolled && app.final_result === '대기' && app.stage1_result === '대기'" class="badge-app-status confirmed">✓ 모집확정</span>
+                    </div>
+                    <div class="card-major-row">
+                      <div class="card-major" :class="{ 'closed-major-text': app.is_closed }">{{ app.major }}</div>
+                      <button
+                        v-if="app.is_closed"
+                        @click.stop="startChangeMajor(app)"
+                        class="btn-change-major-action"
+                        title="선발 중인 다른 학과로 즉시 변경"
+                      >
+                        학과 변경 ➔
+                      </button>
+                    </div>
+                    <div class="card-meta">
+                      <span v-if="app.is_closed" class="quota-warning-text">
+                        ⚠️ 2026 선발인원 없음 (일반 0명 / 학사 0명)
+                      </span>
+                      <span v-else-if="!app.is_quota_released" class="quota-pending-text">
+                        모집정원 미정 (2026 요강 발표 대기중)
+                      </span>
+                      <span v-else>
+                        선발정원: 일반 {{ app.gen_quota }}명 / 학사 {{ app.bac_quota }}명
+                      </span>
+                    </div>
+                  </div>
+                  <div class="card-actions-right">
+                    <button
+                      type="button"
+                      @click.stop="toggleAppTier(app)"
+                      class="btn-tier-toggle to-upward"
+                      title="상향 지원으로 이동"
+                    >
+                      ▲ 상향
+                    </button>
+                    <button @click.stop="handleRemoveApplication(app.id)" class="btn-remove" title="삭제">
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1649,6 +1739,31 @@ const sortedStudentApplications = computed(() => {
     return (a.univ || '').localeCompare(b.univ || '', 'ko')
   })
 })
+
+// 🌟 상향 지원 원서 목록 (memo === '상향' 이거나 기본값)
+const upwardApplications = computed(() => {
+  return sortedStudentApplications.value.filter(a => (a.memo || '상향') === '상향')
+})
+
+// 🌟 하향/안정 지원 원서 목록 (memo === '하향')
+const downwardApplications = computed(() => {
+  return sortedStudentApplications.value.filter(a => a.memo === '하향')
+})
+
+async function toggleAppTier(app) {
+  const newMemo = (app.memo === '하향') ? '상향' : '하향'
+  // 로컬 즉시 반영
+  app.memo = newMemo
+  try {
+    await fetch(`${API_BASE}/api/applications/${app.id}/result`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memo: newMemo })
+    })
+  } catch (err) {
+    console.error('지원 구분(상향/하향) 저장 실패:', err)
+  }
+}
 
 const closedApplicationsCount = computed(() => {
   return studentApplications.value.filter(a => a.is_closed).length
