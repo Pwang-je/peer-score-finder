@@ -1442,200 +1442,299 @@
             </button>
           </div>
 
+          <!-- 담긴 원서 목록 (상향/하향 분할 및 통합형 한칸 매트릭스) -->
+          <div v-if="studentApplications.length > 0" class="app-cards-top-bar">
+            <span class="app-cards-subtitle">
+              담긴 원서 목록 (총 {{ studentApplications.length }}개교 · 상향 {{ upwardApplications.length }}개 · 하향 {{ downwardApplications.length }}개)
+            </span>
+            <button
+              @click="openPrintModal"
+              class="btn-print-mini-action"
+              title="지원 대학:학과 리스트 PNG 저장 및 인쇄"
+            >
+              <Printer :size="12" :stroke-width="2" />
+              <span>PNG 저장 · 인쇄</span>
+            </button>
+          </div>
+
           <div v-if="studentApplications.length === 0" class="empty-list-box">
             아직 추가된 지원 대학이 없습니다.<br>좌측에서 대학과 학과를 클릭해 바로 담아보세요.
           </div>
 
-          <div class="app-split-container">
-            <!-- 좌측 컬럼: ▲ -->
-            <div
-              :class="['app-split-column', 'upward', { 'is-drag-over': dragOverTarget === 'upward' }]"
-              @dragover="onDragOver($event, 'upward')"
-              @dragleave="onDragLeave($event, 'upward')"
-              @drop="onDrop($event, 'upward')"
-            >
-              <div class="split-column-header">
-                <div class="column-title-group">
+          <div v-else class="app-matrix-container">
+            <!-- 상단 열 헤더: 상향 | 하향 -->
+            <div class="matrix-column-headers">
+              <div
+                :class="['matrix-header-col', 'upward', { 'is-drag-over': dragOverTarget === 'upward' }]"
+                @dragover="onDragOver($event, 'upward')"
+                @dragleave="onDragLeave($event, 'upward')"
+                @drop="onDrop($event, 'upward')"
+              >
+                <div class="header-col-title">
                   <span class="column-mark up">▲</span>
+                  <span class="header-text">상향</span>
                   <span class="column-count-chip">{{ upwardApplications.length }}</span>
                 </div>
-                <span class="column-drag-tip">드래그하여 이동</span>
               </div>
 
-              <div v-if="upwardApplications.length === 0" class="split-empty-hint">
-                <div class="empty-icon-bubble">
-                  <ArrowUp :size="14" :stroke-width="2.2" />
-                </div>
-                <span>원서를 이곳으로 드래그해 담아보세요</span>
-              </div>
-
-              <div v-else class="application-cards">
-                <div
-                  v-for="(app, idx) in upwardApplications"
-                  :key="app.id"
-                  :class="['app-card', {
-                    'is-closed-alert': app.is_closed,
-                    'is-target-changing': changingAppTarget && changingAppTarget.id === app.id,
-                    'is-dragging': draggedAppId === app.id
-                  }]"
-                  draggable="true"
-                  @dragstart="onDragStart($event, app)"
-                  @dragend="onDragEnd"
-                >
-                  <div class="card-drag-handle" title="드래그하여 하향(▼)으로 이동">
-                    <GripVertical :size="13" :stroke-width="2" />
-                  </div>
-                  <span class="card-idx">{{ idx + 1 }}</span>
-
-                  <div class="card-main-content" @click="jumpToFormUniv(app.univ)" title="클릭 시 좌측에서 해당 대학 열기">
-                    <div class="card-top-row">
-                      <span class="card-univ-title">{{ app.univ }}</span>
-
-                      <!-- 전형 결과 뱃지 (깔끔한 사스 뱃지 톤앤매너) -->
-                      <span v-if="app.is_enrolled" class="status-tag enrolled">최종등록</span>
-                      <span v-else-if="app.final_result === '최초합'" class="status-tag pass-first">최초합</span>
-                      <span v-else-if="app.final_result === '추가합'" class="status-tag pass-add">추가합</span>
-                      <span v-else-if="app.final_result === '예비'" class="status-tag waitlist">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
-                      <span v-else-if="app.stage1_result === '합격'" class="status-tag pass-stage1">1차합격</span>
-                      <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="status-tag fail">불합격</span>
-                      <span v-else-if="app.is_closed" class="status-tag closed">26년 미선발</span>
-                      <span v-else-if="!app.is_quota_released" class="status-tag pending">요강 대기</span>
-                    </div>
-
-                    <div class="card-major-row">
-                      <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ app.major }}</span>
-                      <button
-                        v-if="app.is_closed"
-                        @click.stop="startChangeMajor(app)"
-                        class="btn-change-major-pill"
-                        title="선발 중인 다른 학과로 즉시 변경"
-                      >
-                        학과 변경 ➔
-                      </button>
-                    </div>
-
-                    <div class="card-meta-row">
-                      <span v-if="app.is_closed" class="meta-warn">2026 선발인원 없음 (0명)</span>
-                      <span v-else-if="!app.is_quota_released" class="meta-pending">2026 요강 발표 대기중</span>
-                      <span v-else class="meta-quota">일반 {{ app.gen_quota }}명 · 학사 {{ app.bac_quota }}명</span>
-                    </div>
-                  </div>
-
-                  <div class="card-side-actions">
-                    <button
-                      type="button"
-                      @click.stop="toggleAppTier(app)"
-                      class="btn-card-shift"
-                      title="하향(▼)으로 이동"
-                    >
-                      <ArrowDown :size="13" :stroke-width="2.2" />
-                    </button>
-                    <button
-                      type="button"
-                      @click.stop="handleRemoveApplication(app.id)"
-                      class="btn-card-delete"
-                      title="원서 삭제"
-                    >
-                      <X :size="13" :stroke-width="2.2" />
-                    </button>
-                  </div>
+              <div
+                :class="['matrix-header-col', 'downward', { 'is-drag-over': dragOverTarget === 'downward' }]"
+                @dragover="onDragOver($event, 'downward')"
+                @dragleave="onDragLeave($event, 'downward')"
+                @drop="onDrop($event, 'downward')"
+              >
+                <div class="header-col-title">
+                  <span class="column-mark down">▼</span>
+                  <span class="header-text">하향</span>
+                  <span class="column-count-chip">{{ downwardApplications.length }}</span>
                 </div>
               </div>
             </div>
 
-            <!-- 우측 컬럼: ▼ -->
-            <div
-              :class="['app-split-column', 'downward', { 'is-drag-over': dragOverTarget === 'downward' }]"
-              @dragover="onDragOver($event, 'downward')"
-              @dragleave="onDragLeave($event, 'downward')"
-              @drop="onDrop($event, 'downward')"
-            >
-              <div class="split-column-header">
-                <div class="column-title-group">
-                  <span class="column-mark down">▼</span>
-                  <span class="column-count-chip">{{ downwardApplications.length }}</span>
-                </div>
-                <span class="column-drag-tip">드래그하여 이동</span>
-              </div>
+            <!-- 대학 순서대로 배치되는 원서 목록 행 -->
+            <div class="matrix-rows-list">
+              <div
+                v-for="(app, idx) in sortedStudentApplications"
+                :key="app.id"
+                :class="['matrix-row-item', isUnifiedUniv(app.univ) ? 'unified-row' : 'split-row']"
+              >
+                <!-- 1. 상향/하향 구분 없이 한 칸 전체 너비로 나오는 학교들 -->
+                <!-- (서강, 성균, 한양, 중앙, 경희, 외대, 시립대, 이화여대, 홍익, 항공대, 공학대, 한성대) -->
+                <template v-if="isUnifiedUniv(app.univ)">
+                  <div
+                    :class="['app-card', 'unified-card', {
+                      'is-closed-alert': app.is_closed,
+                      'is-target-changing': changingAppTarget && changingAppTarget.id === app.id
+                    }]"
+                  >
+                    <span class="card-idx">{{ idx + 1 }}</span>
 
-              <div v-if="downwardApplications.length === 0" class="split-empty-hint">
-                <div class="empty-icon-bubble">
-                  <ArrowDown :size="14" :stroke-width="2.2" />
-                </div>
-                <span>원서를 이곳으로 드래그해 담아보세요</span>
-              </div>
+                    <div class="card-main-content" @click="jumpToFormUniv(app.univ)" title="클릭 시 좌측에서 해당 대학 열기">
+                      <div class="card-top-row">
+                        <span class="card-univ-title">{{ app.univ }}</span>
 
-              <div v-else class="application-cards">
-                <div
-                  v-for="(app, idx) in downwardApplications"
-                  :key="app.id"
-                  :class="['app-card', {
-                    'is-closed-alert': app.is_closed,
-                    'is-target-changing': changingAppTarget && changingAppTarget.id === app.id,
-                    'is-dragging': draggedAppId === app.id
-                  }]"
-                  draggable="true"
-                  @dragstart="onDragStart($event, app)"
-                  @dragend="onDragEnd"
-                >
-                  <div class="card-drag-handle" title="드래그하여 상향(▲)으로 이동">
-                    <GripVertical :size="13" :stroke-width="2" />
-                  </div>
-                  <span class="card-idx">{{ idx + 1 }}</span>
+                        <!-- 전형 결과 뱃지 -->
+                        <span v-if="app.is_enrolled" class="status-tag enrolled">최종등록</span>
+                        <span v-else-if="app.final_result === '최초합'" class="status-tag pass-first">최초합</span>
+                        <span v-else-if="app.final_result === '추가합'" class="status-tag pass-add">추가합</span>
+                        <span v-else-if="app.final_result === '예비'" class="status-tag waitlist">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
+                        <span v-else-if="app.stage1_result === '합격'" class="status-tag pass-stage1">1차합격</span>
+                        <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="status-tag fail">불합격</span>
+                        <span v-else-if="app.is_closed" class="status-tag closed">26년 미선발</span>
+                        <span v-else-if="!app.is_quota_released" class="status-tag pending">요강 대기</span>
+                      </div>
 
-                  <div class="card-main-content" @click="jumpToFormUniv(app.univ)" title="클릭 시 좌측에서 해당 대학 열기">
-                    <div class="card-top-row">
-                      <span class="card-univ-title">{{ app.univ }}</span>
+                      <div class="card-major-row">
+                        <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ app.major }}</span>
+                        <button
+                          v-if="app.is_closed"
+                          @click.stop="startChangeMajor(app)"
+                          class="btn-change-major-pill"
+                          title="선발 중인 다른 학과로 즉시 변경"
+                        >
+                          학과 변경 ➔
+                        </button>
+                      </div>
 
-                      <!-- 전형 결과 뱃지 (깔끔한 사스 뱃지 톤앤매너) -->
-                      <span v-if="app.is_enrolled" class="status-tag enrolled">최종등록</span>
-                      <span v-else-if="app.final_result === '최초합'" class="status-tag pass-first">최초합</span>
-                      <span v-else-if="app.final_result === '추가합'" class="status-tag pass-add">추가합</span>
-                      <span v-else-if="app.final_result === '예비'" class="status-tag waitlist">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
-                      <span v-else-if="app.stage1_result === '합격'" class="status-tag pass-stage1">1차합격</span>
-                      <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="status-tag fail">불합격</span>
-                      <span v-else-if="app.is_closed" class="status-tag closed">26년 미선발</span>
-                      <span v-else-if="!app.is_quota_released" class="status-tag pending">요강 대기</span>
+                      <div class="card-meta-row">
+                        <span v-if="app.is_closed" class="meta-warn">2026 선발인원 없음 (0명)</span>
+                        <span v-else-if="!app.is_quota_released" class="meta-pending">2026 요강 발표 대기중</span>
+                        <span v-else class="meta-quota">일반 {{ app.gen_quota }}명 · 학사 {{ app.bac_quota }}명</span>
+                      </div>
                     </div>
 
-                    <div class="card-major-row">
-                      <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ app.major }}</span>
+                    <div class="card-side-actions">
                       <button
-                        v-if="app.is_closed"
-                        @click.stop="startChangeMajor(app)"
-                        class="btn-change-major-pill"
-                        title="선발 중인 다른 학과로 즉시 변경"
+                        type="button"
+                        @click.stop="handleRemoveApplication(app.id)"
+                        class="btn-card-delete"
+                        title="원서 삭제"
                       >
-                        학과 변경 ➔
+                        <X :size="13" :stroke-width="2.2" />
                       </button>
                     </div>
+                  </div>
+                </template>
 
-                    <div class="card-meta-row">
-                      <span v-if="app.is_closed" class="meta-warn">2026 선발인원 없음 (0명)</span>
-                      <span v-else-if="!app.is_quota_released" class="meta-pending">2026 요강 발표 대기중</span>
-                      <span v-else class="meta-quota">일반 {{ app.gen_quota }}명 · 학사 {{ app.bac_quota }}명</span>
+                <!-- 2. 상향과 하향이 구분되어야 하는 학교들 -->
+                <!-- (건국, 동국, 국민, 숭실, 세종, 단국, 광운, 명지, 가천, 인하, 아주, 경기 등) -->
+                <template v-else>
+                  <!-- 좌측: 상향 슬롯 -->
+                  <div
+                    :class="['split-slot', 'up-slot', { 'has-card': app.memo !== '하향' }]"
+                    @dragover="onDragOver($event, 'upward')"
+                    @dragleave="onDragLeave($event, 'upward')"
+                    @drop="onDrop($event, 'upward')"
+                  >
+                    <div
+                      v-if="app.memo !== '하향'"
+                      :class="['app-card', 'split-card', {
+                        'is-closed-alert': app.is_closed,
+                        'is-target-changing': changingAppTarget && changingAppTarget.id === app.id,
+                        'is-dragging': draggedAppId === app.id
+                      }]"
+                      draggable="true"
+                      @dragstart="onDragStart($event, app)"
+                      @dragend="onDragEnd"
+                    >
+                      <div class="card-drag-handle" title="드래그하여 하향(우측)으로 이동">
+                        <GripVertical :size="13" :stroke-width="2" />
+                      </div>
+                      <span class="card-idx">{{ idx + 1 }}</span>
+
+                      <div class="card-main-content" @click="jumpToFormUniv(app.univ)" title="클릭 시 좌측에서 해당 대학 열기">
+                        <div class="card-top-row">
+                          <span class="card-univ-title">{{ app.univ }}</span>
+
+                          <!-- 전형 결과 뱃지 -->
+                          <span v-if="app.is_enrolled" class="status-tag enrolled">최종등록</span>
+                          <span v-else-if="app.final_result === '최초합'" class="status-tag pass-first">최초합</span>
+                          <span v-else-if="app.final_result === '추가합'" class="status-tag pass-add">추가합</span>
+                          <span v-else-if="app.final_result === '예비'" class="status-tag waitlist">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
+                          <span v-else-if="app.stage1_result === '합격'" class="status-tag pass-stage1">1차합격</span>
+                          <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="status-tag fail">불합격</span>
+                          <span v-else-if="app.is_closed" class="status-tag closed">26년 미선발</span>
+                          <span v-else-if="!app.is_quota_released" class="status-tag pending">요강 대기</span>
+                        </div>
+
+                        <div class="card-major-row">
+                          <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ app.major }}</span>
+                          <button
+                            v-if="app.is_closed"
+                            @click.stop="startChangeMajor(app)"
+                            class="btn-change-major-pill"
+                            title="선발 중인 다른 학과로 즉시 변경"
+                          >
+                            학과 변경 ➔
+                          </button>
+                        </div>
+
+                        <div class="card-meta-row">
+                          <span v-if="app.is_closed" class="meta-warn">2026 선발인원 없음 (0명)</span>
+                          <span v-else-if="!app.is_quota_released" class="meta-pending">2026 요강 발표 대기중</span>
+                          <span v-else class="meta-quota">일반 {{ app.gen_quota }}명 · 학사 {{ app.bac_quota }}명</span>
+                        </div>
+                      </div>
+
+                      <div class="card-side-actions">
+                        <button
+                          type="button"
+                          @click.stop="toggleAppTier(app)"
+                          class="btn-card-shift"
+                          title="하향(우측)으로 이동"
+                        >
+                          <ArrowRight :size="13" :stroke-width="2.2" />
+                        </button>
+                        <button
+                          type="button"
+                          @click.stop="handleRemoveApplication(app.id)"
+                          class="btn-card-delete"
+                          title="원서 삭제"
+                        >
+                          <X :size="13" :stroke-width="2.2" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- 하향으로 지정되어 좌측이 빈 경우: 클릭 시 상향으로 이동 가능한 빈 슬롯 -->
+                    <div
+                      v-else
+                      class="empty-tier-slot"
+                      @click="moveAppToTier(app, 'upward')"
+                      title="클릭 시 상향(좌측)으로 이동"
+                    >
+                      <span class="empty-slot-hint">+ 상향 이동</span>
                     </div>
                   </div>
 
-                  <div class="card-side-actions">
-                    <button
-                      type="button"
-                      @click.stop="toggleAppTier(app)"
-                      class="btn-card-shift"
-                      title="상향(▲)으로 이동"
+                  <!-- 우측: 하향 슬롯 -->
+                  <div
+                    :class="['split-slot', 'down-slot', { 'has-card': app.memo === '하향' }]"
+                    @dragover="onDragOver($event, 'downward')"
+                    @dragleave="onDragLeave($event, 'downward')"
+                    @drop="onDrop($event, 'downward')"
+                  >
+                    <div
+                      v-if="app.memo === '하향'"
+                      :class="['app-card', 'split-card', {
+                        'is-closed-alert': app.is_closed,
+                        'is-target-changing': changingAppTarget && changingAppTarget.id === app.id,
+                        'is-dragging': draggedAppId === app.id
+                      }]"
+                      draggable="true"
+                      @dragstart="onDragStart($event, app)"
+                      @dragend="onDragEnd"
                     >
-                      <ArrowUp :size="13" :stroke-width="2.2" />
-                    </button>
-                    <button
-                      type="button"
-                      @click.stop="handleRemoveApplication(app.id)"
-                      class="btn-card-delete"
-                      title="원서 삭제"
+                      <div class="card-drag-handle" title="드래그하여 상향(좌측)으로 이동">
+                        <GripVertical :size="13" :stroke-width="2" />
+                      </div>
+                      <span class="card-idx">{{ idx + 1 }}</span>
+
+                      <div class="card-main-content" @click="jumpToFormUniv(app.univ)" title="클릭 시 좌측에서 해당 대학 열기">
+                        <div class="card-top-row">
+                          <span class="card-univ-title">{{ app.univ }}</span>
+
+                          <!-- 전형 결과 뱃지 -->
+                          <span v-if="app.is_enrolled" class="status-tag enrolled">최종등록</span>
+                          <span v-else-if="app.final_result === '최초합'" class="status-tag pass-first">최초합</span>
+                          <span v-else-if="app.final_result === '추가합'" class="status-tag pass-add">추가합</span>
+                          <span v-else-if="app.final_result === '예비'" class="status-tag waitlist">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
+                          <span v-else-if="app.stage1_result === '합격'" class="status-tag pass-stage1">1차합격</span>
+                          <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="status-tag fail">불합격</span>
+                          <span v-else-if="app.is_closed" class="status-tag closed">26년 미선발</span>
+                          <span v-else-if="!app.is_quota_released" class="status-tag pending">요강 대기</span>
+                        </div>
+
+                        <div class="card-major-row">
+                          <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ app.major }}</span>
+                          <button
+                            v-if="app.is_closed"
+                            @click.stop="startChangeMajor(app)"
+                            class="btn-change-major-pill"
+                            title="선발 중인 다른 학과로 즉시 변경"
+                          >
+                            학과 변경 ➔
+                          </button>
+                        </div>
+
+                        <div class="card-meta-row">
+                          <span v-if="app.is_closed" class="meta-warn">2026 선발인원 없음 (0명)</span>
+                          <span v-else-if="!app.is_quota_released" class="meta-pending">2026 요강 발표 대기중</span>
+                          <span v-else class="meta-quota">일반 {{ app.gen_quota }}명 · 학사 {{ app.bac_quota }}명</span>
+                        </div>
+                      </div>
+
+                      <div class="card-side-actions">
+                        <button
+                          type="button"
+                          @click.stop="toggleAppTier(app)"
+                          class="btn-card-shift"
+                          title="상향(좌측)으로 이동"
+                        >
+                          <ArrowLeft :size="13" :stroke-width="2.2" />
+                        </button>
+                        <button
+                          type="button"
+                          @click.stop="handleRemoveApplication(app.id)"
+                          class="btn-card-delete"
+                          title="원서 삭제"
+                        >
+                          <X :size="13" :stroke-width="2.2" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- 상향으로 지정되어 우측이 빈 경우: 클릭 시 하향으로 이동 가능한 빈 슬롯 -->
+                    <div
+                      v-else
+                      class="empty-tier-slot"
+                      @click="moveAppToTier(app, 'downward')"
+                      title="클릭 시 하향(우측)으로 이동"
                     >
-                      <X :size="13" :stroke-width="2.2" />
-                    </button>
+                      <span class="empty-slot-hint">+ 하향 이동</span>
+                    </div>
                   </div>
-                </div>
+                </template>
               </div>
             </div>
           </div>
@@ -1732,6 +1831,8 @@ import {
   GripVertical,
   ArrowUp,
   ArrowDown,
+  ArrowLeft,
+  ArrowRight,
   X,
   Search
 } from 'lucide-vue-next'
@@ -1884,9 +1985,10 @@ const TARGET_UNIV_ORDER_LIST = [
   { name: '동덕여자대학교', match: u => u.includes('동덕') },
   { name: '덕성여자대학교', match: u => u.includes('덕성') },
   { name: '서울여자대학교', match: u => u.includes('서울여') || (u.includes('서울') && u.includes('여자')) },
-  // 8. 한성, 항공
+  // 8. 한성, 항공, 공학대
   { name: '한성대학교', match: u => u.includes('한성') },
-  { name: '한국항공대학교', match: u => u.includes('항공') }
+  { name: '한국항공대학교', match: u => u.includes('항공') },
+  { name: '한국공학대학교', match: u => u.includes('한국공학') || u.includes('공학대') }
 ]
 
 function getUnivMeta(univName) {
@@ -1901,6 +2003,18 @@ function getUnivMeta(univName) {
   return { name: univName, rank: 900 }
 }
 
+// 🌟 상향, 하향 구분 없이 한 칸(전체 너비)으로 표시하는 대학 판별
+// 서강, 성균, 한양, 중앙, 경희, 외대, 시립대, 이화여대, 홍익, 항공대, 공학대, 한성대
+const UNIFIED_UNIV_KEYWORDS = [
+  '서강', '성균', '한양', '중앙', '경희', '외대', '외국어', '시립', '이화', '홍익', '항공', '공학', '한성'
+]
+
+function isUnifiedUniv(univName) {
+  if (!univName) return false
+  const clean = univName.replace(/\s+/g, '')
+  return UNIFIED_UNIV_KEYWORDS.some(k => clean.includes(k))
+}
+
 // 담긴 원서 목록 정렬 (서성한 중경외시 건동홍 국숭세단 광명상가 인가경 여대 한성 항공 순)
 const sortedStudentApplications = computed(() => {
   return [...studentApplications.value].sort((a, b) => {
@@ -1911,20 +2025,26 @@ const sortedStudentApplications = computed(() => {
   })
 })
 
-// 🌟 상향(▲) 지원 원서 목록 (하향이 아닌 모든 지원건: '상향', '적정', null 등 기존 데이터 포함)
+// 🌟 구분형 대학 중 상향(▲) 지원 원서
 const upwardApplications = computed(() => {
-  return sortedStudentApplications.value.filter(a => a.memo !== '하향')
+  return sortedStudentApplications.value.filter(a => !isUnifiedUniv(a.univ) && a.memo !== '하향')
 })
 
-// 🌟 하향(▼) 지원 원서 목록 (memo === '하향')
+// 🌟 구분형 대학 중 하향(▼) 지원 원서
 const downwardApplications = computed(() => {
-  return sortedStudentApplications.value.filter(a => a.memo === '하향')
+  return sortedStudentApplications.value.filter(a => !isUnifiedUniv(a.univ) && a.memo === '하향')
+})
+
+// 🌟 상/하향 구분 없는 통합(전체 너비) 원서
+const unifiedApplications = computed(() => {
+  return sortedStudentApplications.value.filter(a => isUnifiedUniv(a.univ))
 })
 
 const draggedAppId = ref(null)
 const dragOverTarget = ref(null) // 'upward' | 'downward' | null
 
 function onDragStart(event, app) {
+  if (isUnifiedUniv(app.univ)) return
   draggedAppId.value = app.id
   if (event.dataTransfer) {
     event.dataTransfer.setData('text/plain', String(app.id))
@@ -1951,6 +2071,22 @@ function onDragLeave(event, targetTier) {
   }
 }
 
+async function moveAppToTier(app, targetTier) {
+  if (!app || isUnifiedUniv(app.univ)) return
+  const newMemo = targetTier === 'downward' ? '하향' : '상향'
+  if (app.memo === newMemo) return
+  app.memo = newMemo
+  try {
+    await fetch(`${API_BASE}/api/applications/${app.id}/result`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memo: newMemo })
+    })
+  } catch (err) {
+    console.error('지원 구분(상향/하향) 저장 실패:', err)
+  }
+}
+
 async function onDrop(event, targetTier) {
   event.preventDefault()
   dragOverTarget.value = null
@@ -1960,25 +2096,12 @@ async function onDrop(event, targetTier) {
 
   if (!appId) return
   const app = studentApplications.value.find(a => a.id === appId)
-  if (!app) return
-
-  const currentTier = app.memo === '하향' ? 'downward' : 'upward'
-  if (currentTier === targetTier) return
-
-  const newMemo = targetTier === 'downward' ? '하향' : '상향'
-  app.memo = newMemo
-  try {
-    await fetch(`${API_BASE}/api/applications/${app.id}/result`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memo: newMemo })
-    })
-  } catch (err) {
-    console.error('드래그앤드롭 지원 구분 저장 실패:', err)
-  }
+  if (!app || isUnifiedUniv(app.univ)) return
+  await moveAppToTier(app, targetTier)
 }
 
 async function toggleAppTier(app) {
+  if (isUnifiedUniv(app.univ)) return
   const newMemo = (app.memo === '하향') ? '상향' : '하향'
   // 로컬 즉시 반영
   app.memo = newMemo
