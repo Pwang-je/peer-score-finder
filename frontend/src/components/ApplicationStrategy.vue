@@ -655,6 +655,114 @@
         </div>
       </div>
 
+      <!-- 🔍 [신규] 전체 대학 학과 통합 검색 카드 (월말평가 점수 스트립 바로 밑에 독립 배치) -->
+      <div class="global-major-search-card">
+        <div class="global-search-bar-row">
+          <div class="global-search-input-box">
+            <span class="search-input-icon"><Search :size="15" :stroke-width="2" /></span>
+            <input
+              v-model="globalKeyword"
+              type="text"
+              placeholder="전체 대학 학과 검색 (예: 기계, 컴퓨터, 경영, 전자, 간호...)"
+              class="global-search-input"
+              @input="onGlobalKeywordInput"
+              @keydown.enter="triggerGlobalSearch"
+            />
+            <button
+              v-if="globalKeyword"
+              @click="globalKeyword = ''; globalSearchResults = [];"
+              class="input-clear-btn"
+            >✕</button>
+          </div>
+
+          <div class="global-dept-filters">
+            <button
+              type="button"
+              :class="['dept-filter-btn', { active: globalDeptFilter === 'ALL' }]"
+              @click="globalDeptFilter = 'ALL'; if (globalKeyword.trim()) triggerGlobalSearch();"
+            >전체</button>
+            <button
+              type="button"
+              :class="['dept-filter-btn', { active: globalDeptFilter === '자연' }]"
+              @click="globalDeptFilter = '자연'; if (globalKeyword.trim()) triggerGlobalSearch();"
+            >자연계열</button>
+            <button
+              type="button"
+              :class="['dept-filter-btn', { active: globalDeptFilter === '인문' }]"
+              @click="globalDeptFilter = '인문'; if (globalKeyword.trim()) triggerGlobalSearch();"
+            >인문계열</button>
+          </div>
+
+          <span v-if="globalKeyword.trim() && !isSearchingGlobal" class="global-results-counter">
+            검색 결과 <strong>{{ filteredGlobalMajors.length }}</strong>개
+          </span>
+        </div>
+
+        <!-- 검색 결과 패널 (검색어가 입력되었을 때만 펼쳐짐) -->
+        <div v-if="globalKeyword.trim()" class="global-search-results-panel">
+          <div v-if="isSearchingGlobal" class="global-search-loading">
+            <span class="spinner"></span>
+            <span>전체 대학에서 '{{ globalKeyword }}' 학과를 검색하고 있습니다...</span>
+          </div>
+
+          <div v-else-if="filteredGlobalMajors.length === 0" class="global-search-empty">
+            '{{ globalKeyword }}' 단어가 포함된 2026학년도 대학 및 학과가 없습니다.
+          </div>
+
+          <div v-else class="global-search-results-list">
+            <div
+              v-for="d in filteredGlobalMajors"
+              :key="`global-${d.univ}-${d.id}`"
+              :class="['global-result-row', { selected: isMajorApplied(d.univ, d.major) }]"
+              @click="toggleApplication(d)"
+            >
+              <div class="result-left">
+                <span class="result-univ-tag">{{ d.univ }}</span>
+                <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
+                <strong class="result-major-title">{{ d.major }}</strong>
+              </div>
+
+              <div class="result-right">
+                <div class="quota-tag-group">
+                  <span
+                    :class="['quota-pill', 'gen', { zero: !d.gen || d.gen == 0 }]"
+                    :title="`일반편입 정원: ${d.gen || 0}명`"
+                  >
+                    일반 <strong class="num">{{ d.gen || 0 }}</strong>명
+                  </span>
+                  <span
+                    :class="['quota-pill', 'bac', { zero: !d.bac || d.bac == 0 }]"
+                    :title="`학사편입 정원: ${d.bac || 0}명`"
+                  >
+                    학사 <strong class="num">{{ d.bac || 0 }}</strong>명
+                  </span>
+                </div>
+
+                <span
+                  v-if="d.past_count && d.past_count > 0"
+                  class="past-mini"
+                  :title="`${d.univ} ${d.major} 과거 합격생 ${d.past_count}명`"
+                >
+                  합격 {{ d.past_count }}
+                </span>
+                <span
+                  v-else
+                  class="past-empty-slot"
+                  aria-hidden="true"
+                ></span>
+
+                <span
+                  :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]"
+                  :title="isMajorApplied(d.univ, d.major) ? '담김 (클릭 시 취소)' : '원서 담기'"
+                >
+                  {{ isMajorApplied(d.univ, d.major) ? '✓' : '+' }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="fast-basket-layout">
         <!-- 좌측 패널: 대학 및 학과 탐색 및 담기 -->
         <div class="panel picker-panel">
@@ -974,191 +1082,90 @@
           </div>
 
           <div class="major-filter-row">
-            <!-- 검색 모드 탭: [현재 대학 내] vs [전체 대학 통합] -->
-            <div class="search-scope-tabs">
-              <button
-                type="button"
-                :class="['scope-tab', { active: searchScope === 'univ' }]"
-                @click="setSearchScope('univ')"
-              >
-                {{ formUniv }} 학과
-              </button>
-              <button
-                type="button"
-                :class="['scope-tab', { active: searchScope === 'all' }]"
-                @click="setSearchScope('all')"
-              >
-                🔍 전체 대학 학과 검색
-              </button>
-            </div>
-
             <div class="major-search-wrap">
+              <span class="search-input-icon"><Search :size="14" :stroke-width="2" /></span>
               <input
                 ref="majorSearchInput"
                 v-model="majorKeyword"
                 type="text"
-                :placeholder="searchScope === 'all' ? '전체 대학 학과명 검색 (예: 기계, 컴퓨터, 경영, 전자...)' : `${formUniv} 학과 검색 (예: 기계, 컴, 경영...)`"
-                class="major-search-input"
-                @input="onMajorKeywordInput"
-                @keydown.enter="searchScope === 'all' ? triggerGlobalSearch() : null"
+                :placeholder="`${formUniv} 학과 검색 (예: 기계, 컴, 경영...)`"
+                class="major-search-input with-icon"
               />
-              <button v-if="majorKeyword" @click="majorKeyword = ''; if (searchScope === 'all') globalSearchResults = [];" class="input-clear-btn">✕</button>
+              <button v-if="majorKeyword" @click="majorKeyword = ''" class="input-clear-btn">✕</button>
             </div>
 
             <div class="mini-dept-tabs">
-              <button :class="['mini-tab', { active: formDeptFilter === 'ALL' }]" @click="formDeptFilter = 'ALL'; if (searchScope === 'all') triggerGlobalSearch();">전체</button>
-              <button :class="['mini-tab', { active: formDeptFilter === '자연' }]" @click="formDeptFilter = '자연'; if (searchScope === 'all') triggerGlobalSearch();">자연</button>
-              <button :class="['mini-tab', { active: formDeptFilter === '인문' }]" @click="formDeptFilter = '인문'; if (searchScope === 'all') triggerGlobalSearch();">인문</button>
+              <button :class="['mini-tab', { active: formDeptFilter === 'ALL' }]" @click="formDeptFilter = 'ALL'">전체</button>
+              <button :class="['mini-tab', { active: formDeptFilter === '자연' }]" @click="formDeptFilter = '자연'">자연</button>
+              <button :class="['mini-tab', { active: formDeptFilter === '인문' }]" @click="formDeptFilter = '인문'">인문</button>
             </div>
           </div>
 
-          <!-- A. 전체 대학 통합 검색 모드인 경우 -->
-          <template v-if="searchScope === 'all'">
-            <div class="form-major-section-label">
-              <div class="label-left">
-                <span class="label-text">🔍 '{{ majorKeyword || '전체' }}' 전체 대학 검색 결과</span>
-                <span class="label-badge">{{ filteredGlobalMajors.length }}개</span>
-              </div>
-              <div class="label-right-cols">
-                <span class="col-head gen">일반정원</span>
-                <span class="col-head bac">학사정원</span>
-                <span class="col-head past">과거합격</span>
-                <span class="col-head btn">담기</span>
-              </div>
+          <div class="form-major-section-label">
+            <div class="label-left">
+              <span class="label-text">📋 2026 선발 학과 (클릭 시 원서 담기)</span>
+              <span class="label-badge">{{ filteredFormMajors.length }}개</span>
             </div>
-
-            <div v-if="isSearchingGlobal" class="searching-spinner-box">
-              전체 대학에서 '{{ majorKeyword }}' 학과를 검색 중입니다...
+            <div class="label-right-cols">
+              <span class="col-head gen">일반정원</span>
+              <span class="col-head bac">학사정원</span>
+              <span class="col-head past">과거합격</span>
+              <span class="col-head btn">담기</span>
             </div>
+          </div>
 
-            <div v-else class="quick-major-list">
-              <div
-                v-for="d in filteredGlobalMajors"
-                :key="`global-${d.univ}-${d.id}`"
-                :class="['major-pick-row', 'global-row', { selected: isMajorApplied(d.univ, d.major) }]"
-                @click="toggleApplication(d)"
-              >
-                <div class="major-left">
-                  <span class="univ-tag-badge">{{ d.univ }}</span>
-                  <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
-                  <span class="major-title" :title="`${d.univ} ${d.major}`">{{ d.major }}</span>
-                </div>
+          <div class="quick-major-list">
+            <div
+              v-for="d in filteredFormMajors"
+              :key="d.id"
+              :class="['major-pick-row', { selected: isMajorApplied(d.univ, d.major) }]"
+              @click="toggleApplication(d)"
+            >
+              <div class="major-left">
+                <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
+                <span class="major-title" :title="d.major">{{ d.major }}</span>
+              </div>
 
-                <div class="major-right">
-                  <div class="quota-tag-group">
-                    <span
-                      :class="['quota-pill', 'gen', { zero: !d.gen || d.gen == 0 }]"
-                      :title="`일반편입 정원: ${d.gen || 0}명`"
-                    >
-                      일반 <strong class="num">{{ d.gen || 0 }}</strong>명
-                    </span>
-                    <span
-                      :class="['quota-pill', 'bac', { zero: !d.bac || d.bac == 0 }]"
-                      :title="`학사편입 정원: ${d.bac || 0}명`"
-                    >
-                      학사 <strong class="num">{{ d.bac || 0 }}</strong>명
-                    </span>
-                  </div>
+              <div class="major-right">
+                <div class="quota-tag-group">
                   <span
-                    v-if="d.past_count && d.past_count > 0"
-                    class="past-mini"
-                    :title="`${d.univ} ${d.major} 과거 합격생 ${d.past_count}명`"
+                    :class="['quota-pill', 'gen', { zero: !d.gen || d.gen == 0 }]"
+                    :title="`일반편입 정원: ${d.gen || 0}명`"
                   >
-                    합격 {{ d.past_count }}
+                    일반 <strong class="num">{{ d.gen || 0 }}</strong>명
                   </span>
                   <span
-                    v-else
-                    class="past-empty-slot"
-                    aria-hidden="true"
-                  ></span>
-                  <span
-                    :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]"
-                    :title="isMajorApplied(d.univ, d.major) ? '담김 (클릭 시 취소)' : '원서 담기'"
+                    :class="['quota-pill', 'bac', { zero: !d.bac || d.bac == 0 }]"
+                    :title="`학사편입 정원: ${d.bac || 0}명`"
                   >
-                    {{ isMajorApplied(d.univ, d.major) ? '✓' : '+' }}
+                    학사 <strong class="num">{{ d.bac || 0 }}</strong>명
                   </span>
                 </div>
-              </div>
-
-              <div v-if="filteredGlobalMajors.length === 0" class="empty-list-box">
-                <template v-if="!majorKeyword.trim()">
-                  검색창에 찾으시는 학과명(예: 기계, 컴퓨터, 경영 등)을 입력해보세요.
-                </template>
-                <template v-else>
-                  '{{ majorKeyword }}' 단어가 포함된 대학/학과가 없습니다.
-                </template>
-              </div>
-            </div>
-          </template>
-
-          <!-- B. 단일 대학 탐색 모드인 경우 (기존) -->
-          <template v-else>
-            <div class="form-major-section-label">
-              <div class="label-left">
-                <span class="label-text">📋 2027 선발 학과 (클릭 시 원서 담기)</span>
-                <span class="label-badge">{{ filteredFormMajors.length }}개</span>
-              </div>
-              <div class="label-right-cols">
-                <span class="col-head gen">일반정원</span>
-                <span class="col-head bac">학사정원</span>
-                <span class="col-head past">과거합격</span>
-                <span class="col-head btn">담기</span>
+                <span
+                  v-if="d.past_admissions && d.past_admissions.length > 0"
+                  class="past-mini"
+                  :title="getPastTooltip(d.past_admissions)"
+                >
+                  합격 {{ d.past_admissions.length }}
+                </span>
+                <span
+                  v-else
+                  class="past-empty-slot"
+                  aria-hidden="true"
+                ></span>
+                <span
+                  :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]"
+                  :title="isMajorApplied(d.univ, d.major) ? '담김 (클릭 시 취소)' : '원서 담기'"
+                >
+                  {{ isMajorApplied(d.univ, d.major) ? '✓' : '+' }}
+                </span>
               </div>
             </div>
 
-            <div class="quick-major-list">
-              <div
-                v-for="d in filteredFormMajors"
-                :key="d.id"
-                :class="['major-pick-row', { selected: isMajorApplied(d.univ, d.major) }]"
-                @click="toggleApplication(d)"
-              >
-                <div class="major-left">
-                  <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
-                  <span class="major-title" :title="d.major">{{ d.major }}</span>
-                </div>
-
-                <div class="major-right">
-                  <div class="quota-tag-group">
-                    <span
-                      :class="['quota-pill', 'gen', { zero: !d.gen || d.gen == 0 }]"
-                      :title="`일반편입 정원: ${d.gen || 0}명`"
-                    >
-                      일반 <strong class="num">{{ d.gen || 0 }}</strong>명
-                    </span>
-                    <span
-                      :class="['quota-pill', 'bac', { zero: !d.bac || d.bac == 0 }]"
-                      :title="`학사편입 정원: ${d.bac || 0}명`"
-                    >
-                      학사 <strong class="num">{{ d.bac || 0 }}</strong>명
-                    </span>
-                  </div>
-                  <span
-                    v-if="d.past_admissions && d.past_admissions.length > 0"
-                    class="past-mini"
-                    :title="getPastTooltip(d.past_admissions)"
-                  >
-                    합격 {{ d.past_admissions.length }}
-                  </span>
-                  <span
-                    v-else
-                    class="past-empty-slot"
-                    aria-hidden="true"
-                  ></span>
-                  <span
-                    :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]"
-                    :title="isMajorApplied(d.univ, d.major) ? '담김 (클릭 시 취소)' : '원서 담기'"
-                  >
-                    {{ isMajorApplied(d.univ, d.major) ? '✓' : '+' }}
-                  </span>
-                </div>
-              </div>
-
-              <div v-if="filteredFormMajors.length === 0" class="empty-list-box">
-                조건에 맞는 학과가 없습니다.
-              </div>
+            <div v-if="filteredFormMajors.length === 0" class="empty-list-box">
+              조건에 맞는 학과가 없습니다.
             </div>
-          </template>
+          </div>
 
           <!-- 🏛️ [신규] 현행 미선발 / 개편 과거 학과 (과거 합격생 조회용 접이식 영역) -->
           <div v-if="closedFormMajors.length > 0" class="closed-form-accordion">
@@ -1725,7 +1732,8 @@ import {
   GripVertical,
   ArrowUp,
   ArrowDown,
-  X
+  X,
+  Search
 } from 'lucide-vue-next'
 
 const currentTab = ref('univ')
@@ -1770,8 +1778,9 @@ const formDeptFilter = ref('ALL')
 const majorSearchInput = ref(null)
 const isSavingApp = ref(false)
 
-// 3-0. [신규] 전체 대학 학과 통합 검색 상태
-const searchScope = ref('univ') // 'univ' (선택 대학 내) | 'all' (전체 대학 대상)
+// 3-0. [신규] 전체 대학 학과 통합 검색 상태 (월말평가 점수 아래 독립 배치)
+const globalKeyword = ref('')
+const globalDeptFilter = ref('ALL')
 const globalSearchResults = ref([])
 const isSearchingGlobal = ref(false)
 let globalSearchTimer = null
@@ -2117,36 +2126,27 @@ const filteredFormMajors = computed(() => {
 // Tab 2: 전체 대학 대상 검색 결과
 const filteredGlobalMajors = computed(() => {
   return globalSearchResults.value.filter(d => {
-    if (formDeptFilter.value === 'ALL') return true
-    return d.dept === formDeptFilter.value
+    if (globalDeptFilter.value === 'ALL') return true
+    return d.dept === globalDeptFilter.value
   })
 })
 
-function onMajorKeywordInput() {
-  if (searchScope.value === 'all') {
-    if (globalSearchTimer) clearTimeout(globalSearchTimer)
-    globalSearchTimer = setTimeout(() => {
-      triggerGlobalSearch()
-    }, 250)
-  }
-}
-
-function setSearchScope(scope) {
-  searchScope.value = scope
-  if (scope === 'all') {
+function onGlobalKeywordInput() {
+  if (globalSearchTimer) clearTimeout(globalSearchTimer)
+  globalSearchTimer = setTimeout(() => {
     triggerGlobalSearch()
-  }
+  }, 250)
 }
 
 async function triggerGlobalSearch() {
-  const kw = majorKeyword.value.trim()
+  const kw = globalKeyword.value.trim()
   if (!kw) {
     globalSearchResults.value = []
     return
   }
   isSearchingGlobal.value = true
   try {
-    const res = await fetch(`${API_BASE}/api/quota/search-majors?keyword=${encodeURIComponent(kw)}&dept=${formDeptFilter.value}`)
+    const res = await fetch(`${API_BASE}/api/quota/search-majors?keyword=${encodeURIComponent(kw)}&dept=${globalDeptFilter.value}`)
     if (res.ok) {
       globalSearchResults.value = await res.json()
     }
