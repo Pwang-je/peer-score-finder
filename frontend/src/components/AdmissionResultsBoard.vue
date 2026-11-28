@@ -138,8 +138,11 @@
         <table class="results-table matrix-table">
           <thead>
             <tr>
-              <th class="matrix-sticky-col matrix-col-header" style="width: 85px; min-width: 85px; max-width: 85px;">
+              <th class="matrix-sticky-col matrix-col-header" style="width: 85px; min-width: 85px; max-width: 85px; text-align: center;">
                 학생명
+              </th>
+              <th class="matrix-sticky-type matrix-col-header" style="width: 55px; min-width: 55px; max-width: 55px; text-align: center;">
+                구분
               </th>
               <th class="matrix-sticky-dept matrix-col-header" style="width: 55px; min-width: 55px; max-width: 55px; text-align: center;">
                 계열
@@ -155,7 +158,7 @@
           </thead>
           <tbody>
             <tr v-if="matrixStudentRows.length === 0">
-              <td :colspan="2 + matrixUnivHeaders.length" class="empty-state">
+              <td :colspan="3 + matrixUnivHeaders.length" class="empty-state">
                 <Inbox :size="32" :stroke-width="1.5" />
                 <p>일치하는 지원 학생 및 결과가 없습니다.</p>
               </td>
@@ -174,7 +177,16 @@
                 </div>
               </td>
 
-              <!-- 2) 고정 열: 계열 (딱 맞는 너비) -->
+              <!-- 2) 고정 열: 구분 (학사 / 일반) -->
+              <td class="matrix-sticky-type" style="text-align: center;">
+                <span
+                  :class="['type-badge', row.department && row.department.includes('학사') ? 'bac' : 'gen']"
+                >
+                  {{ row.department && row.department.includes('학사') ? '학사' : (row.department && row.department.includes('일반') ? '일반' : '-') }}
+                </span>
+              </td>
+
+              <!-- 3) 고정 열: 계열 (딱 맞는 너비) -->
               <td class="matrix-sticky-dept" style="text-align: center;">
                 <span
                   :class="['dept-badge', row.department && row.department.includes('자연') ? 'natural' : 'human']"
@@ -259,6 +271,11 @@
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span class="student-name-big">{{ group.student_name }}</span>
+                <span
+                  :class="['type-badge', group.department && group.department.includes('학사') ? 'bac' : 'gen']"
+                >
+                  {{ group.department && group.department.includes('학사') ? '학사' : (group.department && group.department.includes('일반') ? '일반' : '-') }}
+                </span>
                 <span
                   :class="['dept-badge', group.department && group.department.includes('자연') ? 'natural' : 'human']"
                 >
