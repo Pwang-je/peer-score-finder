@@ -1465,26 +1465,26 @@
             <!-- 상단 열 헤더: 상향 | 하향 -->
             <div class="matrix-column-headers">
               <div
-                :class="['matrix-header-col', 'upward', { 'is-drag-over': dragOverTarget === 'upward' }]"
+                :class="['matrix-header-col', { 'is-drag-over': dragOverTarget === 'upward' }]"
                 @dragover="onDragOver($event, 'upward')"
                 @dragleave="onDragLeave($event, 'upward')"
                 @drop="onDrop($event, 'upward')"
               >
                 <div class="header-col-title">
-                  <span class="column-mark up">▲</span>
+                  <ArrowUp :size="13" :stroke-width="2.2" class="header-col-icon" />
                   <span class="header-text">상향</span>
                   <span class="column-count-chip">{{ upwardApplications.length }}</span>
                 </div>
               </div>
 
               <div
-                :class="['matrix-header-col', 'downward', { 'is-drag-over': dragOverTarget === 'downward' }]"
+                :class="['matrix-header-col', { 'is-drag-over': dragOverTarget === 'downward' }]"
                 @dragover="onDragOver($event, 'downward')"
                 @dragleave="onDragLeave($event, 'downward')"
                 @drop="onDrop($event, 'downward')"
               >
                 <div class="header-col-title">
-                  <span class="column-mark down">▼</span>
+                  <ArrowDown :size="13" :stroke-width="2.2" class="header-col-icon" />
                   <span class="header-text">하향</span>
                   <span class="column-count-chip">{{ downwardApplications.length }}</span>
                 </div>

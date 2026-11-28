@@ -2314,21 +2314,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
 }
 
-.matrix-header-col.upward {
-  border-bottom: 2.5px solid #2563eb;
-}
-
-.matrix-header-col.downward {
-  border-bottom: 2.5px solid #059669;
+.matrix-header-col:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .matrix-header-col.is-drag-over {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.2);
 }
 
 .header-col-title {
@@ -2337,37 +2334,32 @@
   gap: 6px;
 }
 
+.header-col-icon {
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .header-text {
   font-size: 13px;
   font-weight: 700;
-  color: #1e293b;
-}
-
-.column-mark {
-  font-size: 12px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.column-mark.up {
-  color: #3b82f6;
-}
-
-.column-mark.down {
-  color: #10b981;
+  color: #334155;
+  letter-spacing: -0.01em;
 }
 
 .column-count-chip {
   font-size: 11px;
   font-weight: 600;
-  color: #475569;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  padding: 1px 7px;
+  color: #64748b;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 0 6px;
   border-radius: 10px;
-  line-height: 1.2;
+  line-height: 1.4;
+  min-width: 16px;
+  text-align: center;
 }
 
 .matrix-rows-list {
@@ -2475,14 +2467,9 @@
   box-sizing: border-box;
 }
 
-.split-slot.up-slot .app-card.split-card {
-  border: 1px solid #e2e8f0;
-  border-left: 2.5px solid #3b82f6;
-}
-
+.split-slot.up-slot .app-card.split-card,
 .split-slot.down-slot .app-card.split-card {
   border: 1px solid #e2e8f0;
-  border-left: 2.5px solid #10b981;
 }
 
 /* 반대쪽 빈 슬롯 (클릭 및 드롭존) */
