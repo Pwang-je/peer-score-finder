@@ -2352,19 +2352,19 @@
 }
 
 .column-mark.up {
-  color: #2563eb;
+  color: #3b82f6;
 }
 
 .column-mark.down {
-  color: #059669;
+  color: #10b981;
 }
 
 .column-count-chip {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   color: #475569;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   padding: 1px 7px;
   border-radius: 10px;
   line-height: 1.2;
@@ -2388,26 +2388,73 @@
 }
 
 .app-card.unified-card {
+  position: relative;
   width: 100%;
   box-sizing: border-box;
-  background: #f8fafc;
-  border: 1.5px solid #cbd5e1;
-  border-left: 4px solid #475569;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
 }
 
 .app-card.unified-card:hover {
-  background: #ffffff;
-  border-color: #94a3b8;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05);
 }
 
-.unified-univ-badge {
-  font-size: 10px;
+.app-card.unified-card .card-idx {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.app-card.unified-card .card-side-actions {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0;
+}
+
+.app-card.unified-card .card-main-content {
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  justify-content: center;
+  gap: 3px;
+}
+
+.app-card.unified-card .card-top-row {
+  justify-content: center;
+  width: 100%;
+}
+
+.app-card.unified-card .card-univ-title {
+  font-size: 13px;
   font-weight: 700;
-  color: #475569;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  padding: 1px 5px;
-  border-radius: 4px;
+  color: #1e293b;
+}
+
+.app-card.unified-card .card-major-row {
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+}
+
+.app-card.unified-card .card-major-name {
+  text-align: center;
+}
+
+.app-card.unified-card .card-meta-row {
+  text-align: center;
 }
 
 /* 2. 구분형 행: 1fr 1fr 그리드 */
@@ -2429,25 +2476,27 @@
 }
 
 .split-slot.up-slot .app-card.split-card {
-  border-left: 3.5px solid #2563eb;
+  border: 1px solid #e2e8f0;
+  border-left: 2.5px solid #3b82f6;
 }
 
 .split-slot.down-slot .app-card.split-card {
-  border-left: 3.5px solid #059669;
+  border: 1px solid #e2e8f0;
+  border-left: 2.5px solid #10b981;
 }
 
 /* 반대쪽 빈 슬롯 (클릭 및 드롭존) */
 .empty-tier-slot {
   width: 100%;
   min-height: 48px;
-  border: 1.5px dashed #e2e8f0;
-  background: #fafafa;
+  border: 1px dashed #e2e8f0;
+  background: #fafbfc;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, transform 150ms ease-out;
 }
 
 .empty-tier-slot:hover {
@@ -2455,14 +2504,8 @@
   border-color: #cbd5e1;
 }
 
-.empty-slot-hint {
-  font-size: 11px;
-  font-weight: 600;
-  color: #94a3b8;
-}
-
-.empty-tier-slot:hover .empty-slot-hint {
-  color: #475569;
+.empty-tier-slot:active {
+  transform: scale(0.99);
 }
 
 /* 카드 본체: 단정하고 차분한 종이 카드 느낌 */
@@ -2622,9 +2665,9 @@
   font-size: 13px;
   font-weight: 700;
   color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: pre-line;
+  line-height: 1.35;
+  word-break: keep-all;
 }
 
 .card-major-name.is-closed {
@@ -2643,12 +2686,16 @@
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: all 0.15s ease;
+  transition: background-color 150ms ease-out, color 150ms ease-out, transform 150ms ease-out;
 }
 
 .btn-change-major-pill:hover {
   background: #dc2626;
   color: #ffffff;
+}
+
+.btn-change-major-pill:active {
+  transform: scale(0.96);
 }
 
 .card-meta-row {
@@ -2692,13 +2739,17 @@
   border-radius: 4px;
   cursor: pointer;
   padding: 0;
-  transition: all 0.15s ease;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, transform 150ms ease-out;
 }
 
 .btn-card-shift:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
   color: #1e293b;
+}
+
+.btn-card-shift:active {
+  transform: scale(0.94);
 }
 
 .btn-card-delete {
@@ -2713,13 +2764,17 @@
   border-radius: 4px;
   cursor: pointer;
   padding: 0;
-  transition: all 0.15s ease;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, transform 150ms ease-out;
 }
 
 .btn-card-delete:hover {
   background: #fee2e2;
   border-color: #fecaca;
   color: #dc2626;
+}
+
+.btn-card-delete:active {
+  transform: scale(0.94);
 }
 
 /* =====================================================================

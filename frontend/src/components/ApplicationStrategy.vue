@@ -1525,7 +1525,7 @@
                       </div>
 
                       <div class="card-major-row">
-                        <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ app.major }}</span>
+                        <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ formatMajorDisplay(app.major) }}</span>
                         <button
                           v-if="app.is_closed"
                           @click.stop="startChangeMajor(app)"
@@ -1536,10 +1536,9 @@
                         </button>
                       </div>
 
-                      <div class="card-meta-row">
+                      <div v-if="app.is_closed || !app.is_quota_released" class="card-meta-row">
                         <span v-if="app.is_closed" class="meta-warn">2026 선발인원 없음 (0명)</span>
                         <span v-else-if="!app.is_quota_released" class="meta-pending">2026 요강 발표 대기중</span>
-                        <span v-else class="meta-quota">일반 {{ app.gen_quota }}명 · 학사 {{ app.bac_quota }}명</span>
                       </div>
                     </div>
 
@@ -1598,7 +1597,7 @@
                         </div>
 
                         <div class="card-major-row">
-                          <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ app.major }}</span>
+                          <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ formatMajorDisplay(app.major) }}</span>
                           <button
                             v-if="app.is_closed"
                             @click.stop="startChangeMajor(app)"
@@ -1609,10 +1608,9 @@
                           </button>
                         </div>
 
-                        <div class="card-meta-row">
+                        <div v-if="app.is_closed || !app.is_quota_released" class="card-meta-row">
                           <span v-if="app.is_closed" class="meta-warn">2026 선발인원 없음 (0명)</span>
                           <span v-else-if="!app.is_quota_released" class="meta-pending">2026 요강 발표 대기중</span>
-                          <span v-else class="meta-quota">일반 {{ app.gen_quota }}명 · 학사 {{ app.bac_quota }}명</span>
                         </div>
                       </div>
 
@@ -1642,9 +1640,7 @@
                       class="empty-tier-slot"
                       @click="moveAppToTier(app, 'upward')"
                       title="클릭 시 상향(좌측)으로 이동"
-                    >
-                      <span class="empty-slot-hint">+ 상향 이동</span>
-                    </div>
+                    ></div>
                   </div>
 
                   <!-- 우측: 하향 슬롯 -->
@@ -1686,7 +1682,7 @@
                         </div>
 
                         <div class="card-major-row">
-                          <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ app.major }}</span>
+                          <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ formatMajorDisplay(app.major) }}</span>
                           <button
                             v-if="app.is_closed"
                             @click.stop="startChangeMajor(app)"
@@ -1697,10 +1693,9 @@
                           </button>
                         </div>
 
-                        <div class="card-meta-row">
+                        <div v-if="app.is_closed || !app.is_quota_released" class="card-meta-row">
                           <span v-if="app.is_closed" class="meta-warn">2026 선발인원 없음 (0명)</span>
                           <span v-else-if="!app.is_quota_released" class="meta-pending">2026 요강 발표 대기중</span>
-                          <span v-else class="meta-quota">일반 {{ app.gen_quota }}명 · 학사 {{ app.bac_quota }}명</span>
                         </div>
                       </div>
 
@@ -1730,9 +1725,7 @@
                       class="empty-tier-slot"
                       @click="moveAppToTier(app, 'downward')"
                       title="클릭 시 하향(우측)으로 이동"
-                    >
-                      <span class="empty-slot-hint">+ 하향 이동</span>
-                    </div>
+                    ></div>
                   </div>
                 </template>
               </div>
@@ -2039,6 +2032,16 @@ const downwardApplications = computed(() => {
 const unifiedApplications = computed(() => {
   return sortedStudentApplications.value.filter(a => isUnifiedUniv(a.univ))
 })
+
+// 🌟 학과 이름 중 띄어쓰기가 있는 경우 첫 띄어쓰기 기준으로 줄바꿈
+function formatMajorDisplay(major) {
+  if (!major) return ''
+  const firstSpaceIdx = major.indexOf(' ')
+  if (firstSpaceIdx !== -1) {
+    return major.slice(0, firstSpaceIdx) + '\n' + major.slice(firstSpaceIdx + 1).trim()
+  }
+  return major
+}
 
 const draggedAppId = ref(null)
 const dragOverTarget = ref(null) // 'upward' | 'downward' | null
