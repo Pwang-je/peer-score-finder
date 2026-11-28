@@ -1507,7 +1507,42 @@
 
 .count-tag { font-size: 12.5px; font-weight: 700; color: #2563eb; }
 
-.major-filter-row { display: flex; gap: 8px; margin: 12px 0 10px; }
+/* 검색 범위 토글 탭 (단일 대학 vs 전체 대학) */
+.search-scope-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 4px;
+  margin: 12px 0 8px;
+}
+.scope-tab {
+  flex: 1;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+.scope-tab:hover {
+  color: #1e293b;
+}
+.scope-tab.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 700;
+}
+.scope-tab.all-scope.active {
+  color: #2563eb;
+}
+
+.major-filter-row { display: flex; gap: 8px; margin: 0 0 10px; }
 .major-search-wrap { position: relative; flex: 1; }
 .major-search-input {
   width: 100%;
@@ -1520,6 +1555,29 @@
   outline: none;
 }
 .major-search-input:focus { border-color: #2563eb; }
+
+.univ-tag-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.searching-spinner-box {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  margin: 8px 0;
+}
 
 .mini-dept-tabs { display: flex; background: #f1f5f9; padding: 3px; border-radius: 8px; gap: 2px; }
 .mini-tab {
@@ -2091,11 +2149,13 @@
 
 .empty-list-box { padding: 40px 20px; text-align: center; font-size: 13px; color: #94a3b8; line-height: 1.6; }
 
-/* 🌟 상향/하향 좌우 2분할 레이아웃 */
+/* =====================================================================
+   🌟 담긴 원서 목록 (상향/하향 2분할 보드 - 인간 중심의 정갈한 디자인)
+   ===================================================================== */
 .app-split-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -2106,269 +2166,354 @@
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 10px 10px 12px;
+  padding: 10px;
   min-width: 0;
-}
-
-.app-split-column.upward {
-  border-top: 3px solid #2563eb;
-  transition: all 0.2s ease;
-}
-
-.app-split-column.downward {
-  border-top: 3px solid #059669;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .app-split-column.is-drag-over {
-  background: #f0fdf4;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
-}
-
-.app-split-column.downward.is-drag-over {
-  background: #ecfdf5;
-  border-color: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  box-shadow: inset 0 0 0 1px #94a3b8;
 }
 
 .split-column-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 4px 8px;
+  padding: 2px 4px 8px;
   margin-bottom: 8px;
   border-bottom: 1px solid #e2e8f0;
 }
 
-.column-badge {
-  font-size: 12.5px;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 5px;
+.column-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.column-badge.upward {
-  color: #1d4ed8;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-}
-
-.column-badge.downward {
-  color: #047857;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-}
-
-.column-count {
-  font-size: 11.5px;
+.column-mark {
+  font-size: 12px;
   font-weight: 700;
-  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.column-mark.up {
+  color: #2563eb;
+}
+
+.column-mark.down {
+  color: #059669;
+}
+
+.column-count-chip {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  padding: 2px 7px;
+  padding: 1px 7px;
   border-radius: 10px;
+  line-height: 1.2;
+}
+
+.column-drag-tip {
+  font-size: 11px;
+  color: #94a3b8;
 }
 
 .split-empty-hint {
-  padding: 28px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 34px 12px;
   text-align: center;
-  font-size: 12px;
+  font-size: 11.5px;
   color: #94a3b8;
   background: #ffffff;
   border: 1px dashed #cbd5e1;
   border-radius: 8px;
 }
 
+.empty-icon-bubble {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+}
+
 .application-cards {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 520px;
+  gap: 7px;
+  max-height: 540px;
   overflow-y: auto;
   min-height: 80px;
 }
 
+/* 카드 본체: 단정하고 차분한 종이 카드 느낌 */
 .app-card {
   display: flex;
   align-items: center;
-  padding: 10px 10px;
-  border: 1px solid #cbd5e1;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
-  gap: 6px;
-  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
   user-select: none;
 }
+
 .app-card:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06);
 }
+
 .app-card.is-dragging {
-  opacity: 0.45;
-  transform: scale(0.98);
+  opacity: 0.35;
   border-style: dashed;
 }
+
 .app-card.is-closed-alert {
-  border: 1.5px solid #f87171;
-  background: #fff5f5;
+  border-color: #fca5a5;
+  background: #fef2f2;
 }
+
 .app-card.is-target-changing {
-  border: 2px solid #2563eb;
+  border-color: #3b82f6;
   background: #eff6ff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .card-drag-handle {
+  color: #cbd5e1;
   cursor: grab;
-  color: #94a3b8;
-  font-size: 13px;
-  letter-spacing: -2px;
-  padding: 0 2px;
-  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0;
   transition: color 0.15s ease;
+  flex-shrink: 0;
 }
+
 .card-drag-handle:hover {
-  color: #334155;
+  color: #64748b;
 }
+
 .app-card:active .card-drag-handle {
   cursor: grabbing;
 }
 
-.card-num { font-size: 12px; font-weight: 800; color: #64748b; width: 18px; text-align: center; flex-shrink: 0; }
-.card-content { flex: 1; min-width: 0; cursor: pointer; }
-
-.card-actions-right {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
+.card-idx {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  width: 14px;
+  text-align: center;
   flex-shrink: 0;
 }
 
-.btn-tier-toggle {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
+.card-main-content {
+  flex: 1;
+  min-width: 0;
   cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  line-height: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.btn-tier-toggle:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-}
-
-.btn-tier-toggle.to-downward {
-  color: #047857;
-  border-color: #6ee7b7;
-  background: #ecfdf5;
-}
-
-.btn-tier-toggle.to-downward:hover {
-  background: #d1fae5;
-  border-color: #34d399;
-}
-
-.btn-tier-toggle.to-upward {
-  color: #1d4ed8;
-  border-color: #93c5fd;
-  background: #eff6ff;
-}
-
-.btn-tier-toggle.to-upward:hover {
-  background: #dbeafe;
-  border-color: #60a5fa;
-}
-.card-univ-row {
+.card-top-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 2px;
+  flex-wrap: nowrap;
 }
-.card-univ { font-size: 12px; font-weight: 700; color: #2563eb; }
+
+.card-univ-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 정제된 전형 결과 태그 */
+.status-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  line-height: 1.3;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.status-tag.enrolled {
+  background: #be185d;
+  color: #ffffff;
+}
+
+.status-tag.pass-first {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.status-tag.pass-add {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+
+.status-tag.waitlist {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.status-tag.pass-stage1 {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.status-tag.fail {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.status-tag.closed {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.status-tag.pending {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
 .card-major-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin: 2px 0;
+  gap: 6px;
 }
-.card-major { font-size: 13.5px; font-weight: 700; color: #0f172a; }
-.card-major.closed-major-text {
-  color: #b91c1c;
+
+.card-major-name {
+  font-size: 13px;
   font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-major-name.is-closed {
+  color: #dc2626;
   text-decoration: line-through;
 }
-.badge-app-status {
+
+.btn-change-major-pill {
   font-size: 10px;
   font-weight: 700;
-  padding: 1.5px 5px;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-.badge-app-status.closed {
+  padding: 1px 6px;
   background: #fee2e2;
   color: #dc2626;
   border: 1px solid #fca5a5;
-}
-.badge-app-status.pending {
-  background: #fef3c7;
-  color: #b45309;
-  border: 1px solid #fde68a;
-}
-.badge-app-status.confirmed {
-  background: #dcfce7;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
-}
-.btn-change-major-action {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2.5px 8px;
-  background: #dc2626;
-  color: #ffffff;
-  border: none;
-  border-radius: 5px;
+  border-radius: 4px;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
-.btn-change-major-action:hover {
-  background: #b91c1c;
-  transform: translateY(-1px);
+
+.btn-change-major-pill:hover {
+  background: #dc2626;
+  color: #ffffff;
 }
-.card-meta { font-size: 11px; color: #64748b; }
-.quota-warning-text {
+
+.card-meta-row {
+  font-size: 10.5px;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+.meta-warn {
   color: #dc2626;
-  font-weight: 700;
+  font-weight: 600;
 }
-.quota-pending-text {
+
+.meta-pending {
   color: #b45309;
 }
-.major-name.closed-app-txt {
-  color: #dc2626 !important;
-  font-weight: 700;
+
+.meta-quota {
+  color: #64748b;
 }
-.btn-remove {
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 6px;
-  background: #fee2e2;
-  color: #dc2626;
-  font-size: 12px;
-  font-weight: 700;
+
+/* 우측 마이크로 액션 버튼: 깔끔하고 투명한 버튼들 */
+.card-side-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.btn-card-shift {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748b;
+  border-radius: 4px;
   cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.btn-card-shift:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.btn-card-delete {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.btn-card-delete:hover {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #dc2626;
 }
 
 /* =====================================================================

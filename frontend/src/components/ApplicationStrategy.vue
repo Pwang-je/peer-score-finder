@@ -974,89 +974,191 @@
           </div>
 
           <div class="major-filter-row">
+            <!-- 검색 모드 탭: [현재 대학 내] vs [전체 대학 통합] -->
+            <div class="search-scope-tabs">
+              <button
+                type="button"
+                :class="['scope-tab', { active: searchScope === 'univ' }]"
+                @click="setSearchScope('univ')"
+              >
+                {{ formUniv }} 학과
+              </button>
+              <button
+                type="button"
+                :class="['scope-tab', { active: searchScope === 'all' }]"
+                @click="setSearchScope('all')"
+              >
+                🔍 전체 대학 학과 검색
+              </button>
+            </div>
+
             <div class="major-search-wrap">
               <input
                 ref="majorSearchInput"
                 v-model="majorKeyword"
                 type="text"
-                :placeholder="`${formUniv} 학과 검색 (예: 컴, 전자, 경영...)`"
+                :placeholder="searchScope === 'all' ? '전체 대학 학과명 검색 (예: 기계, 컴퓨터, 경영, 전자...)' : `${formUniv} 학과 검색 (예: 기계, 컴, 경영...)`"
                 class="major-search-input"
+                @input="onMajorKeywordInput"
+                @keydown.enter="searchScope === 'all' ? triggerGlobalSearch() : null"
               />
-              <button v-if="majorKeyword" @click="majorKeyword = ''" class="input-clear-btn">✕</button>
+              <button v-if="majorKeyword" @click="majorKeyword = ''; if (searchScope === 'all') globalSearchResults = [];" class="input-clear-btn">✕</button>
             </div>
 
             <div class="mini-dept-tabs">
-              <button :class="['mini-tab', { active: formDeptFilter === 'ALL' }]" @click="formDeptFilter = 'ALL'">전체</button>
-              <button :class="['mini-tab', { active: formDeptFilter === '자연' }]" @click="formDeptFilter = '자연'">자연</button>
-              <button :class="['mini-tab', { active: formDeptFilter === '인문' }]" @click="formDeptFilter = '인문'">인문</button>
+              <button :class="['mini-tab', { active: formDeptFilter === 'ALL' }]" @click="formDeptFilter = 'ALL'; if (searchScope === 'all') triggerGlobalSearch();">전체</button>
+              <button :class="['mini-tab', { active: formDeptFilter === '자연' }]" @click="formDeptFilter = '자연'; if (searchScope === 'all') triggerGlobalSearch();">자연</button>
+              <button :class="['mini-tab', { active: formDeptFilter === '인문' }]" @click="formDeptFilter = '인문'; if (searchScope === 'all') triggerGlobalSearch();">인문</button>
             </div>
           </div>
 
-          <div class="form-major-section-label">
-            <div class="label-left">
-              <span class="label-text">📋 2027 선발 학과 (클릭 시 원서 담기)</span>
-              <span class="label-badge">{{ filteredFormMajors.length }}개</span>
-            </div>
-            <div class="label-right-cols">
-              <span class="col-head gen">일반정원</span>
-              <span class="col-head bac">학사정원</span>
-              <span class="col-head past">과거합격</span>
-              <span class="col-head btn">담기</span>
-            </div>
-          </div>
-
-          <div class="quick-major-list">
-            <div
-              v-for="d in filteredFormMajors"
-              :key="d.id"
-              :class="['major-pick-row', { selected: isMajorApplied(d.univ, d.major) }]"
-              @click="toggleApplication(d)"
-            >
-              <div class="major-left">
-                <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
-                <span class="major-title" :title="d.major">{{ d.major }}</span>
+          <!-- A. 전체 대학 통합 검색 모드인 경우 -->
+          <template v-if="searchScope === 'all'">
+            <div class="form-major-section-label">
+              <div class="label-left">
+                <span class="label-text">🔍 '{{ majorKeyword || '전체' }}' 전체 대학 검색 결과</span>
+                <span class="label-badge">{{ filteredGlobalMajors.length }}개</span>
               </div>
+              <div class="label-right-cols">
+                <span class="col-head gen">일반정원</span>
+                <span class="col-head bac">학사정원</span>
+                <span class="col-head past">과거합격</span>
+                <span class="col-head btn">담기</span>
+              </div>
+            </div>
 
-              <div class="major-right">
-                <div class="quota-tag-group">
+            <div v-if="isSearchingGlobal" class="searching-spinner-box">
+              전체 대학에서 '{{ majorKeyword }}' 학과를 검색 중입니다...
+            </div>
+
+            <div v-else class="quick-major-list">
+              <div
+                v-for="d in filteredGlobalMajors"
+                :key="`global-${d.univ}-${d.id}`"
+                :class="['major-pick-row', 'global-row', { selected: isMajorApplied(d.univ, d.major) }]"
+                @click="toggleApplication(d)"
+              >
+                <div class="major-left">
+                  <span class="univ-tag-badge">{{ d.univ }}</span>
+                  <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
+                  <span class="major-title" :title="`${d.univ} ${d.major}`">{{ d.major }}</span>
+                </div>
+
+                <div class="major-right">
+                  <div class="quota-tag-group">
+                    <span
+                      :class="['quota-pill', 'gen', { zero: !d.gen || d.gen == 0 }]"
+                      :title="`일반편입 정원: ${d.gen || 0}명`"
+                    >
+                      일반 <strong class="num">{{ d.gen || 0 }}</strong>명
+                    </span>
+                    <span
+                      :class="['quota-pill', 'bac', { zero: !d.bac || d.bac == 0 }]"
+                      :title="`학사편입 정원: ${d.bac || 0}명`"
+                    >
+                      학사 <strong class="num">{{ d.bac || 0 }}</strong>명
+                    </span>
+                  </div>
                   <span
-                    :class="['quota-pill', 'gen', { zero: !d.gen || d.gen == 0 }]"
-                    :title="`일반편입 정원: ${d.gen || 0}명`"
+                    v-if="d.past_count && d.past_count > 0"
+                    class="past-mini"
+                    :title="`${d.univ} ${d.major} 과거 합격생 ${d.past_count}명`"
                   >
-                    일반 <strong class="num">{{ d.gen || 0 }}</strong>명
+                    합격 {{ d.past_count }}
                   </span>
                   <span
-                    :class="['quota-pill', 'bac', { zero: !d.bac || d.bac == 0 }]"
-                    :title="`학사편입 정원: ${d.bac || 0}명`"
+                    v-else
+                    class="past-empty-slot"
+                    aria-hidden="true"
+                  ></span>
+                  <span
+                    :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]"
+                    :title="isMajorApplied(d.univ, d.major) ? '담김 (클릭 시 취소)' : '원서 담기'"
                   >
-                    학사 <strong class="num">{{ d.bac || 0 }}</strong>명
+                    {{ isMajorApplied(d.univ, d.major) ? '✓' : '+' }}
                   </span>
                 </div>
-                <span
-                  v-if="d.past_admissions && d.past_admissions.length > 0"
-                  class="past-mini"
-                  :title="getPastTooltip(d.past_admissions)"
-                >
-                  합격 {{ d.past_admissions.length }}
-                </span>
-                <span
-                  v-else
-                  class="past-empty-slot"
-                  aria-hidden="true"
-                ></span>
-                <span
-                  :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]"
-                  :title="isMajorApplied(d.univ, d.major) ? '담김 (클릭 시 취소)' : '원서 담기'"
-                >
-                  {{ isMajorApplied(d.univ, d.major) ? '✓' : '+' }}
-                </span>
+              </div>
+
+              <div v-if="filteredGlobalMajors.length === 0" class="empty-list-box">
+                <template v-if="!majorKeyword.trim()">
+                  검색창에 찾으시는 학과명(예: 기계, 컴퓨터, 경영 등)을 입력해보세요.
+                </template>
+                <template v-else>
+                  '{{ majorKeyword }}' 단어가 포함된 대학/학과가 없습니다.
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- B. 단일 대학 탐색 모드인 경우 (기존) -->
+          <template v-else>
+            <div class="form-major-section-label">
+              <div class="label-left">
+                <span class="label-text">📋 2027 선발 학과 (클릭 시 원서 담기)</span>
+                <span class="label-badge">{{ filteredFormMajors.length }}개</span>
+              </div>
+              <div class="label-right-cols">
+                <span class="col-head gen">일반정원</span>
+                <span class="col-head bac">학사정원</span>
+                <span class="col-head past">과거합격</span>
+                <span class="col-head btn">담기</span>
               </div>
             </div>
 
-            <div v-if="filteredFormMajors.length === 0" class="empty-list-box">
-              조건에 맞는 학과가 없습니다.
+            <div class="quick-major-list">
+              <div
+                v-for="d in filteredFormMajors"
+                :key="d.id"
+                :class="['major-pick-row', { selected: isMajorApplied(d.univ, d.major) }]"
+                @click="toggleApplication(d)"
+              >
+                <div class="major-left">
+                  <span :class="['dept-pill', d.dept === '자연' ? 'nat' : 'hum']">{{ d.dept }}</span>
+                  <span class="major-title" :title="d.major">{{ d.major }}</span>
+                </div>
+
+                <div class="major-right">
+                  <div class="quota-tag-group">
+                    <span
+                      :class="['quota-pill', 'gen', { zero: !d.gen || d.gen == 0 }]"
+                      :title="`일반편입 정원: ${d.gen || 0}명`"
+                    >
+                      일반 <strong class="num">{{ d.gen || 0 }}</strong>명
+                    </span>
+                    <span
+                      :class="['quota-pill', 'bac', { zero: !d.bac || d.bac == 0 }]"
+                      :title="`학사편입 정원: ${d.bac || 0}명`"
+                    >
+                      학사 <strong class="num">{{ d.bac || 0 }}</strong>명
+                    </span>
+                  </div>
+                  <span
+                    v-if="d.past_admissions && d.past_admissions.length > 0"
+                    class="past-mini"
+                    :title="getPastTooltip(d.past_admissions)"
+                  >
+                    합격 {{ d.past_admissions.length }}
+                  </span>
+                  <span
+                    v-else
+                    class="past-empty-slot"
+                    aria-hidden="true"
+                  ></span>
+                  <span
+                    :class="['pick-status-btn', { active: isMajorApplied(d.univ, d.major) }]"
+                    :title="isMajorApplied(d.univ, d.major) ? '담김 (클릭 시 취소)' : '원서 담기'"
+                  >
+                    {{ isMajorApplied(d.univ, d.major) ? '✓' : '+' }}
+                  </span>
+                </div>
+              </div>
+
+              <div v-if="filteredFormMajors.length === 0" class="empty-list-box">
+                조건에 맞는 학과가 없습니다.
+              </div>
             </div>
-          </div>
+          </template>
 
           <!-- 🏛️ [신규] 현행 미선발 / 개편 과거 학과 (과거 합격생 조회용 접이식 영역) -->
           <div v-if="closedFormMajors.length > 0" class="closed-form-accordion">
@@ -1346,12 +1448,20 @@
               @drop="onDrop($event, 'upward')"
             >
               <div class="split-column-header">
-                <span class="column-badge upward">▲</span>
-                <span class="column-count">{{ upwardApplications.length }}개</span>
+                <div class="column-title-group">
+                  <span class="column-mark up">▲</span>
+                  <span class="column-count-chip">{{ upwardApplications.length }}</span>
+                </div>
+                <span class="column-drag-tip">드래그하여 이동</span>
               </div>
+
               <div v-if="upwardApplications.length === 0" class="split-empty-hint">
-                원서를 여기로 끌어다 놓으세요.
+                <div class="empty-icon-bubble">
+                  <ArrowUp :size="14" :stroke-width="2.2" />
+                </div>
+                <span>원서를 이곳으로 드래그해 담아보세요</span>
               </div>
+
               <div v-else class="application-cards">
                 <div
                   v-for="(app, idx) in upwardApplications"
@@ -1365,57 +1475,61 @@
                   @dragstart="onDragStart($event, app)"
                   @dragend="onDragEnd"
                 >
-                  <div class="card-drag-handle" title="끌어서 하향(▼)으로 이동">⋮⋮</div>
-                  <div class="card-num">{{ idx + 1 }}</div>
-                  <div class="card-content" @click="jumpToFormUniv(app.univ)" title="클릭하면 좌측에서 해당 대학 열기">
-                    <div class="card-univ-row">
-                      <span class="card-univ">{{ app.univ }}</span>
-                      <!-- 🌟 전형 결과 뱃지 (합격/예비/최종등록) -->
-                      <span v-if="app.is_enrolled" class="badge-app-status enrolled" style="background: #db2777; color: white;">🏆 최종등록</span>
-                      <span v-else-if="app.final_result === '최초합'" class="badge-app-status pass-final" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">최초합 🎉</span>
-                      <span v-else-if="app.final_result === '추가합'" class="badge-app-status pass-final" style="background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe;">추가합 🎊</span>
-                      <span v-else-if="app.final_result === '예비'" class="badge-app-status waitlist" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a;">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
-                      <span v-else-if="app.stage1_result === '합격'" class="badge-app-status stage1-pass" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">1차합격 🟢</span>
-                      <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="badge-app-status fail" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;">불합격</span>
+                  <div class="card-drag-handle" title="드래그하여 하향(▼)으로 이동">
+                    <GripVertical :size="13" :stroke-width="2" />
+                  </div>
+                  <span class="card-idx">{{ idx + 1 }}</span>
 
-                      <span v-if="app.is_closed" class="badge-app-status closed">🚨 26년 미선발</span>
-                      <span v-else-if="!app.is_quota_released" class="badge-app-status pending">⏳ 요강 발표전</span>
-                      <span v-else-if="!app.is_enrolled && app.final_result === '대기' && app.stage1_result === '대기'" class="badge-app-status confirmed">✓ 모집확정</span>
+                  <div class="card-main-content" @click="jumpToFormUniv(app.univ)" title="클릭 시 좌측에서 해당 대학 열기">
+                    <div class="card-top-row">
+                      <span class="card-univ-title">{{ app.univ }}</span>
+
+                      <!-- 전형 결과 뱃지 (깔끔한 사스 뱃지 톤앤매너) -->
+                      <span v-if="app.is_enrolled" class="status-tag enrolled">최종등록</span>
+                      <span v-else-if="app.final_result === '최초합'" class="status-tag pass-first">최초합</span>
+                      <span v-else-if="app.final_result === '추가합'" class="status-tag pass-add">추가합</span>
+                      <span v-else-if="app.final_result === '예비'" class="status-tag waitlist">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
+                      <span v-else-if="app.stage1_result === '합격'" class="status-tag pass-stage1">1차합격</span>
+                      <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="status-tag fail">불합격</span>
+                      <span v-else-if="app.is_closed" class="status-tag closed">26년 미선발</span>
+                      <span v-else-if="!app.is_quota_released" class="status-tag pending">요강 대기</span>
                     </div>
+
                     <div class="card-major-row">
-                      <div class="card-major" :class="{ 'closed-major-text': app.is_closed }">{{ app.major }}</div>
+                      <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ app.major }}</span>
                       <button
                         v-if="app.is_closed"
                         @click.stop="startChangeMajor(app)"
-                        class="btn-change-major-action"
+                        class="btn-change-major-pill"
                         title="선발 중인 다른 학과로 즉시 변경"
                       >
                         학과 변경 ➔
                       </button>
                     </div>
-                    <div class="card-meta">
-                      <span v-if="app.is_closed" class="quota-warning-text">
-                        ⚠️ 2026 선발인원 없음 (일반 0명 / 학사 0명)
-                      </span>
-                      <span v-else-if="!app.is_quota_released" class="quota-pending-text">
-                        모집정원 미정 (2026 요강 발표 대기중)
-                      </span>
-                      <span v-else>
-                        선발정원: 일반 {{ app.gen_quota }}명 / 학사 {{ app.bac_quota }}명
-                      </span>
+
+                    <div class="card-meta-row">
+                      <span v-if="app.is_closed" class="meta-warn">2026 선발인원 없음 (0명)</span>
+                      <span v-else-if="!app.is_quota_released" class="meta-pending">2026 요강 발표 대기중</span>
+                      <span v-else class="meta-quota">일반 {{ app.gen_quota }}명 · 학사 {{ app.bac_quota }}명</span>
                     </div>
                   </div>
-                  <div class="card-actions-right">
+
+                  <div class="card-side-actions">
                     <button
                       type="button"
                       @click.stop="toggleAppTier(app)"
-                      class="btn-tier-toggle to-downward"
-                      title="아래(▼)로 이동"
+                      class="btn-card-shift"
+                      title="하향(▼)으로 이동"
                     >
-                      ▼
+                      <ArrowDown :size="13" :stroke-width="2.2" />
                     </button>
-                    <button @click.stop="handleRemoveApplication(app.id)" class="btn-remove" title="삭제">
-                      ✕
+                    <button
+                      type="button"
+                      @click.stop="handleRemoveApplication(app.id)"
+                      class="btn-card-delete"
+                      title="원서 삭제"
+                    >
+                      <X :size="13" :stroke-width="2.2" />
                     </button>
                   </div>
                 </div>
@@ -1430,12 +1544,20 @@
               @drop="onDrop($event, 'downward')"
             >
               <div class="split-column-header">
-                <span class="column-badge downward">▼</span>
-                <span class="column-count">{{ downwardApplications.length }}개</span>
+                <div class="column-title-group">
+                  <span class="column-mark down">▼</span>
+                  <span class="column-count-chip">{{ downwardApplications.length }}</span>
+                </div>
+                <span class="column-drag-tip">드래그하여 이동</span>
               </div>
+
               <div v-if="downwardApplications.length === 0" class="split-empty-hint">
-                원서를 여기로 끌어다 놓으세요.
+                <div class="empty-icon-bubble">
+                  <ArrowDown :size="14" :stroke-width="2.2" />
+                </div>
+                <span>원서를 이곳으로 드래그해 담아보세요</span>
               </div>
+
               <div v-else class="application-cards">
                 <div
                   v-for="(app, idx) in downwardApplications"
@@ -1449,57 +1571,61 @@
                   @dragstart="onDragStart($event, app)"
                   @dragend="onDragEnd"
                 >
-                  <div class="card-drag-handle" title="끌어서 상향(▲)으로 이동">⋮⋮</div>
-                  <div class="card-num">{{ idx + 1 }}</div>
-                  <div class="card-content" @click="jumpToFormUniv(app.univ)" title="클릭하면 좌측에서 해당 대학 열기">
-                    <div class="card-univ-row">
-                      <span class="card-univ">{{ app.univ }}</span>
-                      <!-- 🌟 전형 결과 뱃지 (합격/예비/최종등록) -->
-                      <span v-if="app.is_enrolled" class="badge-app-status enrolled" style="background: #db2777; color: white;">🏆 최종등록</span>
-                      <span v-else-if="app.final_result === '최초합'" class="badge-app-status pass-final" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">최초합 🎉</span>
-                      <span v-else-if="app.final_result === '추가합'" class="badge-app-status pass-final" style="background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe;">추가합 🎊</span>
-                      <span v-else-if="app.final_result === '예비'" class="badge-app-status waitlist" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a;">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
-                      <span v-else-if="app.stage1_result === '합격'" class="badge-app-status stage1-pass" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">1차합격 🟢</span>
-                      <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="badge-app-status fail" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;">불합격</span>
+                  <div class="card-drag-handle" title="드래그하여 상향(▲)으로 이동">
+                    <GripVertical :size="13" :stroke-width="2" />
+                  </div>
+                  <span class="card-idx">{{ idx + 1 }}</span>
 
-                      <span v-if="app.is_closed" class="badge-app-status closed">🚨 26년 미선발</span>
-                      <span v-else-if="!app.is_quota_released" class="badge-app-status pending">⏳ 요강 발표전</span>
-                      <span v-else-if="!app.is_enrolled && app.final_result === '대기' && app.stage1_result === '대기'" class="badge-app-status confirmed">✓ 모집확정</span>
+                  <div class="card-main-content" @click="jumpToFormUniv(app.univ)" title="클릭 시 좌측에서 해당 대학 열기">
+                    <div class="card-top-row">
+                      <span class="card-univ-title">{{ app.univ }}</span>
+
+                      <!-- 전형 결과 뱃지 (깔끔한 사스 뱃지 톤앤매너) -->
+                      <span v-if="app.is_enrolled" class="status-tag enrolled">최종등록</span>
+                      <span v-else-if="app.final_result === '최초합'" class="status-tag pass-first">최초합</span>
+                      <span v-else-if="app.final_result === '추가합'" class="status-tag pass-add">추가합</span>
+                      <span v-else-if="app.final_result === '예비'" class="status-tag waitlist">예비 {{ app.waitlist_no ? app.waitlist_no + '번' : '대기' }}</span>
+                      <span v-else-if="app.stage1_result === '합격'" class="status-tag pass-stage1">1차합격</span>
+                      <span v-else-if="app.stage1_result === '불합격' || app.final_result === '불합격'" class="status-tag fail">불합격</span>
+                      <span v-else-if="app.is_closed" class="status-tag closed">26년 미선발</span>
+                      <span v-else-if="!app.is_quota_released" class="status-tag pending">요강 대기</span>
                     </div>
+
                     <div class="card-major-row">
-                      <div class="card-major" :class="{ 'closed-major-text': app.is_closed }">{{ app.major }}</div>
+                      <span class="card-major-name" :class="{ 'is-closed': app.is_closed }">{{ app.major }}</span>
                       <button
                         v-if="app.is_closed"
                         @click.stop="startChangeMajor(app)"
-                        class="btn-change-major-action"
+                        class="btn-change-major-pill"
                         title="선발 중인 다른 학과로 즉시 변경"
                       >
                         학과 변경 ➔
                       </button>
                     </div>
-                    <div class="card-meta">
-                      <span v-if="app.is_closed" class="quota-warning-text">
-                        ⚠️ 2026 선발인원 없음 (일반 0명 / 학사 0명)
-                      </span>
-                      <span v-else-if="!app.is_quota_released" class="quota-pending-text">
-                        모집정원 미정 (2026 요강 발표 대기중)
-                      </span>
-                      <span v-else>
-                        선발정원: 일반 {{ app.gen_quota }}명 / 학사 {{ app.bac_quota }}명
-                      </span>
+
+                    <div class="card-meta-row">
+                      <span v-if="app.is_closed" class="meta-warn">2026 선발인원 없음 (0명)</span>
+                      <span v-else-if="!app.is_quota_released" class="meta-pending">2026 요강 발표 대기중</span>
+                      <span v-else class="meta-quota">일반 {{ app.gen_quota }}명 · 학사 {{ app.bac_quota }}명</span>
                     </div>
                   </div>
-                  <div class="card-actions-right">
+
+                  <div class="card-side-actions">
                     <button
                       type="button"
                       @click.stop="toggleAppTier(app)"
-                      class="btn-tier-toggle to-upward"
-                      title="위(▲)로 이동"
+                      class="btn-card-shift"
+                      title="상향(▲)으로 이동"
                     >
-                      ▲
+                      <ArrowUp :size="13" :stroke-width="2.2" />
                     </button>
-                    <button @click.stop="handleRemoveApplication(app.id)" class="btn-remove" title="삭제">
-                      ✕
+                    <button
+                      type="button"
+                      @click.stop="handleRemoveApplication(app.id)"
+                      class="btn-card-delete"
+                      title="원서 삭제"
+                    >
+                      <X :size="13" :stroke-width="2.2" />
                     </button>
                   </div>
                 </div>
@@ -1595,7 +1721,11 @@ import {
   ClipboardList,
   FileEdit,
   Pin,
-  Sparkles
+  Sparkles,
+  GripVertical,
+  ArrowUp,
+  ArrowDown,
+  X
 } from 'lucide-vue-next'
 
 const currentTab = ref('univ')
@@ -1639,6 +1769,12 @@ const majorKeyword = ref('')
 const formDeptFilter = ref('ALL')
 const majorSearchInput = ref(null)
 const isSavingApp = ref(false)
+
+// 3-0. [신규] 전체 대학 학과 통합 검색 상태
+const searchScope = ref('univ') // 'univ' (선택 대학 내) | 'all' (전체 대학 대상)
+const globalSearchResults = ref([])
+const isSearchingGlobal = ref(false)
+let globalSearchTimer = null
 
 // 3-1. 기출문제 성적 상태
 const studentPastExams = ref([])
@@ -1977,6 +2113,49 @@ const filteredFormMajors = computed(() => {
     return matchDept && matchKw
   })
 })
+
+// Tab 2: 전체 대학 대상 검색 결과
+const filteredGlobalMajors = computed(() => {
+  return globalSearchResults.value.filter(d => {
+    if (formDeptFilter.value === 'ALL') return true
+    return d.dept === formDeptFilter.value
+  })
+})
+
+function onMajorKeywordInput() {
+  if (searchScope.value === 'all') {
+    if (globalSearchTimer) clearTimeout(globalSearchTimer)
+    globalSearchTimer = setTimeout(() => {
+      triggerGlobalSearch()
+    }, 250)
+  }
+}
+
+function setSearchScope(scope) {
+  searchScope.value = scope
+  if (scope === 'all') {
+    triggerGlobalSearch()
+  }
+}
+
+async function triggerGlobalSearch() {
+  const kw = majorKeyword.value.trim()
+  if (!kw) {
+    globalSearchResults.value = []
+    return
+  }
+  isSearchingGlobal.value = true
+  try {
+    const res = await fetch(`${API_BASE}/api/quota/search-majors?keyword=${encodeURIComponent(kw)}&dept=${formDeptFilter.value}`)
+    if (res.ok) {
+      globalSearchResults.value = await res.json()
+    }
+  } catch (err) {
+    console.error('전체 대학 학과 검색 실패:', err)
+  } finally {
+    isSearchingGlobal.value = false
+  }
+}
 
 // Tab 2: 미모집/개편 과거 학과 (과거 합격생 조회용 하단 접이식 목록)
 const closedFormMajors = computed(() => {

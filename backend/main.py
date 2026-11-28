@@ -1525,7 +1525,69 @@ def get_quota_departments(univ: str = "가천대학교"):
     return result
 
 
-# 2-1. [신규] 디버깅용 과거 합격생 매칭 점검 진단 API
+# 2-0. [신규] 전체 대학 대상 학과 키워드 통합 검색 API (예: '기계' 검색 시 전체 대학의 기계공학 등 조회)
+@app.get("/api/quota/search-majors")
+def search_global_majors(keyword: str = "", dept: str = "ALL"):
+    """전체 대학의 2026 선발 학과 대상 학과명 부분 일치 검색"""
+    kw = (keyword or "").strip()
+    if not kw:
+        return []
+
+    conn = get_db_connection()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+    query = """
+        SELECT 
+            id, univ, department AS dept, major, 
+            general_quota AS gen, bachelor_quota AS bac
+        FROM recruit_quota
+        WHERE year = 2026 AND major LIKE %s
+    """
+    params = [f"%{kw}%"]
+
+    if dept and dept != "ALL":
+        query += " AND department = %s"
+        params.append(dept)
+
+    query += " ORDER BY univ ASC, major ASC LIMIT 200"
+
+    cursor.execute(query, tuple(params))
+    rows = cursor.fetchall()
+
+    # 과거 합격생 수 집계
+    cursor.execute("""
+        SELECT univ, major, COUNT(DISTINCT student_name, year) AS pass_cnt
+        FROM peer_data
+        WHERE year IN (2024, 2025) AND major LIKE %s
+        GROUP BY univ, major
+    """, (f"%{kw}%",))
+    past_rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    # 과거 합격생 매칭 맵
+    past_map = {}
+    for pr in past_rows:
+        key = (pr["univ"], pr["major"])
+        past_map[key] = pr["pass_cnt"]
+
+    result = []
+    for r in rows:
+        gen_val = r.get("gen") or 0
+        bac_val = r.get("bac") or 0
+        p_cnt = past_map.get((r["univ"], r["major"]), 0)
+        result.append({
+            "id": r["id"],
+            "univ": r["univ"],
+            "dept": r.get("dept") or "기타",
+            "major": r["major"],
+            "gen": gen_val,
+            "bac": bac_val,
+            "past_count": p_cnt,
+            "is_closed": bool(gen_val == 0 and bac_val == 0)
+        })
+
+    return result
 @app.get("/api/quota/unmatched-diagnosis")
 def get_unmatched_diagnosis(univ: str = "이화여자대학교"):
     """특정 대학의 recruit_quota 학과와 매칭되지 않는 peer_data 과거 합격생 목록 진단"""
